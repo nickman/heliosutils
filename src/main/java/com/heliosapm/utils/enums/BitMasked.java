@@ -68,7 +68,7 @@ public interface BitMasked {
 			return Integer.parseInt("1" + INTBITS.substring(0, member.ordinal()), 2);
 		}
 		
-		public static int getMaskFor()
+		
 	}
 	
 	
