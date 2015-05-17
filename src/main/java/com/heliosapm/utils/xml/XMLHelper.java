@@ -67,7 +67,8 @@ public class XMLHelper {
 		}		
 	}
 	
-
+	/** The standard auto-generated XML header */
+	public static final String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
 	  /**
 	   * Searches throgh the passed NamedNodeMap for an attribute and returns it if it is found.
@@ -321,20 +322,34 @@ public class XMLHelper {
 	/**
 	 * Renders an XML node to a string
 	 * @param node The xml node to render
+	 * @param stripHeader If true, strips the auto-generated XML header from the generated string
 	 * @return the rendered string or null if it failed conversion
 	 */
-	public static String renderNode(Node node) {
+	public static String renderNode(final Node node, final boolean stripHeader) {
 		if(node==null) return null;
 		try {
 			StringWriter writer = new StringWriter();
 			Transformer transformer = TransformerFactory.newInstance().newTransformer();
 			transformer.transform(new DOMSource(node), new StreamResult(writer));
-			return writer.toString();
+			final String s = writer.toString();
+			if(stripHeader) {
+				return s.replace(XML_HEADER, "");
+			}
+			return s;
 		} catch (Throwable e) {
 			return null;
-		}
-		
+		}		
 	}
+	
+	/**
+	 * Renders an XML node to a string
+	 * @param node The xml node to render
+	 * @return the rendered string or null if it failed conversion
+	 */
+	public static String renderNode(final Node node) {
+		return renderNode(node, false);
+	}
+
 	
 	/**
 	 * Writes an element out to a file.
