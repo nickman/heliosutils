@@ -21,11 +21,13 @@ package com.heliosapm.utils.jmx;
 import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -46,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -71,6 +74,8 @@ import javax.management.ObjectName;
 import javax.management.QueryExp;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeType;
+import javax.management.openmbean.OpenDataException;
+import javax.management.openmbean.OpenType;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularType;
 import javax.management.remote.JMXConnector;
@@ -79,11 +84,19 @@ import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
+
+
+
+
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.lang.StringHelper;
+import com.sun.jmx.mbeanserver.DefaultMXBeanMappingFactory;
+import com.sun.jmx.mbeanserver.MXBeanMappingFactory;
 
 /**
  * <p>Title: JMXHelper</p>
@@ -136,6 +149,65 @@ public class JMXHelper {
 		}
 		return false;
 	}
+	
+	private static final String MXMAPPER_FACTORY_CLASSNAME = "com.sun.jmx.mbeanserver.MXBeanMappingFactory";
+	private static final Object mxMappingFactory;
+	private static final Method mxMappingMethod;
+
+	
+	static {
+		Method mxFx = null;
+		Object mxTmpFactory = null;
+		
+		try {
+			Class<?> clazz = Class.forName(MXMAPPER_FACTORY_CLASSNAME);
+			mxTmpFactory = clazz.getField("DEFAULT").get(null);
+			mxFx = mxTmpFactory.getClass().getDeclaredMethod("mappingForType", Type.class, clazz);
+		} catch (Exception ex) {
+			mxTmpFactory = null;
+			mxFx = null;
+		}
+		mxMappingFactory = mxTmpFactory;
+		mxMappingMethod = mxFx;
+	}
+	
+	// DefaultMXBeanMappingFactory.DEFAULT.mappingForType(UIDMeta.class, DefaultMXBeanMappingFactory.DEFAULT);
+	
+	/**
+	 * Returns the OpenType for the passed class
+	 * @param clazz The class to get an OpenType for
+	 * @return the OpenType
+	 */
+	public static final OpenType<?> getOpenType(final Class<?> clazz) {
+		if(clazz==null) throw new IllegalArgumentException("The passed class was null");
+		if(mxMappingFactory==null) throw new UnsupportedOperationException("Auto MXMapping is not enabled");
+		return null;
+	}
+
+  /**
+   * <p>Convert an instance of the Open Type into the Java type.
+   * @param openValue the value to be converted.
+   * @return the converted value.
+   * @throws InvalidObjectException if the value cannot be converted.
+   */
+  public static Object fromOpenValue(final Object openValue) throws InvalidObjectException {
+  	if(openValue==null) throw new IllegalArgumentException("The passed open value was null");
+  	if(mxMappingFactory==null) throw new UnsupportedOperationException("Auto MXMapping is not enabled");
+  	return null;
+  }
+
+  /**
+   * <p>Convert an instance of the Java type into the Open Type.
+   * @param javaValue the value to be converted.
+   * @return the converted value.
+   * @throws OpenDataException if the value cannot be converted.
+   */
+  public static Object toOpenValue(final Object javaValue) throws OpenDataException {
+  	if(javaValue==null) throw new IllegalArgumentException("The passed object was null");
+  	if(mxMappingFactory==null) throw new UnsupportedOperationException("Auto MXMapping is not enabled");
+  	return null;
+  }
+  
 
 	/**
 	 * Creates a new JMXServiceURL
