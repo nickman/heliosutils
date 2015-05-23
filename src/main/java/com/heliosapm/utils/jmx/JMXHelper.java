@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -71,7 +70,9 @@ import javax.management.Notification;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
+import javax.management.Query;
 import javax.management.QueryExp;
+import javax.management.StringValueExp;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeType;
 import javax.management.openmbean.OpenDataException;
@@ -84,19 +85,11 @@ import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
-
-
-
-
-
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.lang.StringHelper;
-import com.sun.jmx.mbeanserver.DefaultMXBeanMappingFactory;
-import com.sun.jmx.mbeanserver.MXBeanMappingFactory;
 
 /**
  * <p>Title: JMXHelper</p>
@@ -324,6 +317,30 @@ public class JMXHelper {
 	public static ObjectName[] query(CharSequence pattern, QueryExp query) {
 		return query(getHeliosMBeanServer(), objectName(pattern), query);
 	}
+	
+	/**
+	 * Returns an array of ObjectNames of MBeans registered in the Helios MBeanServer
+	 * that implement the interface with the passed name
+	 * @param ifaceName The name of the interface to matrch against
+	 * @return A [possibly zero size] array of ObjectNames
+	 */
+	public static ObjectName[] queryByIface(final String ifaceName) {
+		return queryByIface(getHeliosMBeanServer(), ifaceName);
+	}
+
+	
+	/**
+	 * Returns an array of ObjectNames of MBeans registered in the passed MBeanServer
+	 * that implement the interface with the passed name
+	 * @param mbeanServer The MBeanServer to query
+	 * @param ifaceName The name of the interface to matrch against
+	 * @return A [possibly zero size] array of ObjectNames
+	 */
+	public static ObjectName[] queryByIface(final MBeanServerConnection mbeanServer, final String ifaceName) {
+		return query(getHeliosMBeanServer(), (ObjectName)null, Query.isInstanceOf(new StringValueExp(ifaceName)));
+	}
+	
+	
 	
 	
 	/**
