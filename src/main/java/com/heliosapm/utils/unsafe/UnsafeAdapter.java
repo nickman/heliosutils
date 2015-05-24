@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.lang.StringHelper;
+import com.heliosapm.utils.relfect.PrivateAccessor;
 
 import sun.misc.Unsafe;
 
@@ -69,6 +70,11 @@ public static final Unsafe UNSAFE;
   public static final boolean FIVE_COPY;
   /** Indicates if the 4 param set memory is supported */
   public static final boolean FOUR_SET;
+  /** Indicates if the define class method requires classloader and protection domain arguments */
+  public static final boolean DEFINE_CLASS_8;
+  /** The Unsafe defineClass method */
+  private static final Method defineClassMethod;
+  
   /** The size of a <b><code>byte</code></b>  */
   public final static int BYTE_SIZE = 1;
   /** The size of a <b><code>char</code></b>  */
@@ -522,7 +528,7 @@ public static void log(String fmt, Object...args) {
   	t.setPriority(Thread.MAX_PRIORITY);
   	t.setDaemon(true);
   	t.start();
-
+  	Method defClazz = null;
       try {        	
           Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
           theUnsafe.setAccessible(true);
@@ -542,21 +548,25 @@ public static void log(String fmt, Object...args) {
           
           int copyMemCount = 0;
           int setMemCount = 0;
+          int defineClassCount = 0;
 //          log("\n\t=======================================================\n\tUnsafe Method Analysis\n\t=======================================================");
           for(Method method: Unsafe.class.getDeclaredMethods()) {
           	if("copyMemory".equals(method.getName())) {
           		copyMemCount++;
-//          		log(method.toGenericString());
-          		
           	}
           	if("setMemory".equals(method.getName())) {
           		setMemCount++;
-//          		log(method.toGenericString());
           	}
+          	if("defineClass".equals(method.getName())) {
+          		defineClassCount = method.getParameterTypes().length;
+          		defClazz = method;
+          	}
+          	
           }
 //          log("\n\t=======================================================\n");
           FIVE_COPY = copyMemCount>1;
           FOUR_SET = setMemCount>1;
+          DEFINE_CLASS_8 = defineClassCount==4 ? false : true;
       	trackMem = System.getProperties().containsKey("unsafe.memory.track");   
       	alignMem = System.getProperties().containsKey("unsafe.memory.align");
       	if(trackMem) {
@@ -578,6 +588,7 @@ public static void log(String fmt, Object...args) {
       } catch (Exception e) {
           throw new AssertionError(e);
       }
+      defineClassMethod = defClazz;
   }
   
   
@@ -923,31 +934,40 @@ public static Class<?> defineAnonymousClass(Class<?> arg0, byte[] arg1, Object[]
 	return UNSAFE.defineAnonymousClass(arg0, arg1, arg2);
 }
 
+
 /**
- * @param arg0
- * @param arg1
- * @param arg2
- * @param arg3
- * @param arg4
- * @param arg5
- * @return
+ * Tell the VM to define a class, without security checks.  By default, 
+ * the class loader and protection domain come from the caller's class.
+ * @param className The name of the class, or null to define an un-named class 
+ * @param byteCode The bytcode of the class
+ * @param offset The offset to start reading in the byte code array
+ * @param length The number of bytes to read from the byte code array
+ * @return The defined class
+ * @see sun.misc.Unsafe#defineClass(java.lang.String, byte[], int, int)
  * @see sun.misc.Unsafe#defineClass(java.lang.String, byte[], int, int, java.lang.ClassLoader, java.security.ProtectionDomain)
  */
-public static Class<?> defineClass(String arg0, byte[] arg1, int arg2, int arg3,
-		ClassLoader arg4, ProtectionDomain arg5) {
-	return UNSAFE.defineClass(arg0, arg1, arg2, arg3, arg4, arg5);
+public static Class<?> defineClass(final String className, final byte[] byteCode, final int offset, final int length) {
+	if(DEFINE_CLASS_8) throw new IllegalArgumentException("This JVM does not support this signature. Signature is: " + StringHelper.getMethodDescriptor(defineClassMethod));
+	return (Class<?>) PrivateAccessor.invokeStatic(Unsafe.class, "defineClass", className, byteCode, offset, length);
 }
 
 /**
- * @param arg0
- * @param arg1
- * @param arg2
- * @param arg3
- * @return
- * @see sun.misc.Unsafe#defineClass(java.lang.String, byte[], int, int)
+ * 
+ * Tell the VM to define a class, without security checks.  By default, 
+ * the class loader and protection domain come from the caller's class.
+ * @param className The name of the class, or null to define an un-named class 
+ * @param byteCode The bytcode of the class
+ * @param offset The offset to start reading in the byte code array
+ * @param length The number of bytes to read from the byte code array
+ * @param classLoader The classloader to load the class with
+ * @param protectionDomain The protection domain of the new class
+ * @return the defined class
  */
-public static Class<?> defineClass(String arg0, byte[] arg1, int arg2, int arg3) {
-	return UNSAFE.defineClass(arg0, arg1, arg2, arg3);
+public static Class<?> defineClass(final String className, final byte[] byteCode, final int offset, final int length, final ClassLoader classLoader, final ProtectionDomain protectionDomain) {
+	if(DEFINE_CLASS_8) {
+		return (Class<?>) PrivateAccessor.invokeStatic(Unsafe.class, "defineClass", className, byteCode, offset, length, classLoader, protectionDomain);
+	}
+	return (Class<?>) PrivateAccessor.invokeStatic(Unsafe.class, "defineClass", className, byteCode, offset, length);
 }
 
 /**
