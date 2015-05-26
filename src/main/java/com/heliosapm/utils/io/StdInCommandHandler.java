@@ -64,13 +64,26 @@ public class StdInCommandHandler implements Runnable {
 		commands.put("exit", new Runnable(){
 			@Override
 			public void run() {
+				System.out.println("Shutdown triggered by StdInCommandHandler. Exit code: 0");
 				System.exit(0);
 			}
 		});
 		commands.put("exit-1", new Runnable(){
 			@Override
 			public void run() {
+				System.err.println("Shutdown triggered by StdInCommandHandler. Exit code: -1");
 				System.exit(-1);
+			}
+		});
+		commands.put("/", new Runnable(){
+			@Override
+			public void run() {
+				final StringBuilder b = new StringBuilder("\nStdIn Commands:\n==============\n");
+				for(String name: commands.keySet()) {
+					b.append(name).append("\n");
+				}
+				b.append("==============");
+				System.out.println(b.toString());
 			}
 		});
 		
