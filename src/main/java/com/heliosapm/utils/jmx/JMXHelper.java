@@ -85,9 +85,6 @@ import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.lang.StringHelper;
 
@@ -127,8 +124,6 @@ public class JMXHelper {
 	/** The legacy debug agent library */
 	public static final String LEGACY_AGENT_LIB = "-Xrunjdwp:";
 	
-	/** Static class logger */
-	private static final Logger LOG = LoggerFactory.getLogger(JMXHelper.class);
 
 	
 	/**
@@ -2032,9 +2027,9 @@ while(m.find()) {
 	
 	public static void main(String[] args) {
 		fireUpRMIRegistry("0.0.0.0",  20384);
-		LOG.info(String.format("Registry started on [%s:%s]", "0.0.0.0",  20384));
+		System.out.println(String.format("Registry started on [%s:%s]", "0.0.0.0",  20384));
 		stopRMIRegistry("localhost", 20384);
-		LOG.info("Registry stopped");
+		System.out.println("Registry stopped");
 	}	
 	
 	/**
