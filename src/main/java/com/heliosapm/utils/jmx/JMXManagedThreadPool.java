@@ -36,9 +36,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.management.ObjectName;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.heliosapm.utils.config.ConfigurationHelper;
 
 /**
@@ -56,8 +53,6 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	protected final String poolName;
 	/** The task work queue */
 	protected final ArrayBlockingQueue<Runnable> workQueue;
-	/** The instance logger */
-	protected final Logger log;
 	/** The count of uncaught exceptions */
 	protected final AtomicLong uncaughtExceptionCount = new AtomicLong(0L);
 	/** The count of rejected executions where the task queue was full and a new task could not be accepted */
@@ -151,8 +146,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 		super(corePoolSize, maximumPoolSize, keepAliveTimeMs, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(queueSize, false));
 		this.threadGroup = new ThreadGroup(poolName + "ThreadGroup");
 		setThreadFactory(this);
-		setRejectedExecutionHandler(this);
-		log = LoggerFactory.getLogger(getClass().getName() + "." + poolName);
+		setRejectedExecutionHandler(this);		
 		this.objectName = objectName;
 		this.poolName = poolName;
 		workQueue = (ArrayBlockingQueue<Runnable>)getQueue();
@@ -160,9 +154,9 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 			try {			
 				JMXHelper.getHeliosMBeanServer().registerMBean(this, objectName);
 			} catch (Exception ex) {
-				log.warn("Failed to register JMX management interface. Will continue without.", ex);
+				System.err.println("Failed to register JMX management interface. Will continue without:" + ex);
 			}		
-			log.info("Created JMX Managed Thread Pool [" + poolName + "]");
+			System.out.println("Created JMX Managed Thread Pool [" + poolName + "]");
 		}
 	}
 	
@@ -204,7 +198,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	@Override
 	public void uncaughtException(Thread t, Throwable e) {
 		uncaughtExceptionCount.incrementAndGet();
-		log.warn("Thread pool handled uncaught exception on thread [" + t + "]", e);
+		System.err.println("Thread pool handled uncaught exception on thread [" + t + "]:" + e);
 		if(exceptionHandler!=null) {
 			exceptionHandler.uncaughtException(t, e);
 		}
@@ -218,7 +212,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	@Override
 	public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
 		rejectedExecutionCount.incrementAndGet();
-		log.error("Submitted execution task [" + r + "] was rejected due to a full task queue", new Throwable());		
+		System.err.println("Submitted execution task [" + r + "] was rejected due to a full task queue");		
 	}
 
 
@@ -431,18 +425,18 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 						f.get(200, TimeUnit.MILLISECONDS);
 						fiter.remove();
 					} catch (CancellationException e) {
-						log.warn("Task Was Cancelled", e);
+						System.err.println("Task Was Cancelled:" + e);
 						fiter.remove();						
 					} catch (InterruptedException e) {
-						log.warn("Thread interrupted while waiting for task check to complete", e);
+						System.err.println("Thread interrupted while waiting for task check to complete:" + e);
 						bust[0] = true;
 					} catch (ExecutionException e) {
-						log.warn("Task Failed", e);
+						System.err.println("Task Failed:" + e);
 						fiter.remove();
 					} catch (TimeoutException e) {
 						/* No Op */
 					} catch (Exception e) {
-						log.warn("Task Failure. Cancelling check.", e);
+						System.err.println("Task Failure. Cancelling check:" + e);
 						fiter.remove();
 					}
 				}
@@ -450,7 +444,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 			if(futures.isEmpty()) return true;
 		}
 		for(Future<?> f: futures) { f.cancel(true); }
-		log.warn("Task completion timed out with [" + futures.size() + "] tasks incomplete");
+		System.err.println("Task completion timed out with [" + futures.size() + "] tasks incomplete");
 		futures.clear();
 		return false;
 	}

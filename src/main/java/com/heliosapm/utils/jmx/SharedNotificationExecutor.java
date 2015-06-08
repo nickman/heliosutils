@@ -73,8 +73,13 @@ public class SharedNotificationExecutor implements ExecutorService {
 	}
 	
 	
-	private SharedNotificationExecutor() {
+	private SharedNotificationExecutor() {		
 		threadPool = new JMXManagedThreadPool(NOTIF_THREAD_POOL_OBJECT_NAME, "WatcherNotificationThreadPool", CORES, CORES, 1024, 60000, 100, 90);
+		final Runnable r = new Runnable() {
+			@Override
+			public void run() {}
+		};
+		threadPool.execute(r);threadPool.execute(r);threadPool.execute(r);		
 	}
 	
 	

@@ -241,7 +241,7 @@ public class LongSlidingWindow  implements ILongSlidingWindow {
 	 */
 	@Override
 	public long min() {
-		if(array.size==0) throw new RuntimeException("Cannot get min for empty array");
+		if(array.size==0) return 0;
 		long[] arr = asLongArray();
 		Arrays.sort(arr);
 		return arr[0];
@@ -253,7 +253,7 @@ public class LongSlidingWindow  implements ILongSlidingWindow {
 	 */
 	@Override
 	public long max() {
-		if(array.size==0) throw new RuntimeException("Cannot get max for empty array");
+		if(array.size==0) return 0;
 		long[] arr = asLongArray();
 		Arrays.sort(arr);
 		return arr[arr.length-1];		
