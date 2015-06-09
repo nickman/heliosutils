@@ -248,7 +248,7 @@ public class XMLHelper {
 	   */
 
 	  public static Node getChildNodeByName(final Node xnode, final String name) {
-	  	return getChildNodeByName(xnode, name);
+	  	return getChildNodeByName(xnode, name, false);
 	  }
 
 

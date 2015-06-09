@@ -16,12 +16,22 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
+package com.heliosapm.utils.classload;
+
+import java.net.URL;
+
 /**
- * <p>Title: package-info</p>
- * <p>Description: Package of scripting utilities</p> 
+ * <p>Title: IsolatedClassLoaderMBean</p>
+ * <p>Description: JMX MBean interface for {@link IsolatedClassLoader} instances</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.scripting.package-info</code></p>
+ * <p><code>com.heliosapm.utils.classload.IsolatedClassLoaderMBean</code></p>
  */
 
-package com.heliosapm.utils.scripting;
+public interface IsolatedClassLoaderMBean {
+	/**
+	 * Returns the URLs that comprise the classloaders isolated classpath
+	 * @return the URLs that comprise the classloaders isolated classpath
+	 */
+	public URL[] getURLs();
+}
