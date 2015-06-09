@@ -119,7 +119,27 @@ public class XMLHelper {
 		}
 	}
 	  
-	  
+	/**
+	 * Determines if the passed node has a node with the passed name
+	 * @param node The node to search in
+	 * @param name The name of the node to search for
+	 * @param caseSensitive true if the name matching should be case sensitive, false otherwise
+	 * @return true if the child node was found, false otherwise
+	 */
+	public static boolean hasChildNodeByName(final Node node, final String name, final boolean caseSensitive) {		
+		return XMLHelper.getChildNodeByName(node, name, caseSensitive) != null;
+	}
+
+	/**
+	 * Determines if the passed node has a node with the passed name with no case sensitivity
+	 * @param node The node to search in
+	 * @param name The name of the node to search for
+	 * @return true if the child node was found, false otherwise
+	 */
+	public static boolean hasChildNodeByName(final Node node, final String name) {		
+		return hasChildNodeByName(node, name, false);
+	}
+	
 	/**
 	 * Returns the attribute value for the passed name in the passed node.
 	 * @param node the node to get the attribute from
@@ -201,15 +221,14 @@ public class XMLHelper {
 
 	  /**
 	   * Helper Method. Searches through the child nodes of a node and returns the first node with a matching name.
-	   * Do we need this ?
-	   * @param element Element
-	   * @param name String
-	   * @param caseSensitive boolean
-	   * @return Node
+	   * @param xnode the node to get the child node from
+	   * @param name the name of the child node to search for
+	   * @param caseSensitive boolean true for case sensitive name matching, false otherwise
+	   * @return the located node or null if one was not found
 	   */
 
-	  public static Node getChildNodeByName(Node element, String name, boolean caseSensitive) {
-	    NodeList list = element.getChildNodes();
+	  public static Node getChildNodeByName(final Node xnode, final String name, final boolean caseSensitive) {
+	    NodeList list = xnode.getChildNodes();
 	    for(int i = 0; i < list.getLength(); i++) {
 	      Node node = list.item(i);
 	      if(caseSensitive) {
@@ -221,6 +240,16 @@ public class XMLHelper {
 	    return null;
 	  }
 
+	  /**
+	   * Helper Method. Searches through the child nodes of a node and returns the first node with a matching name, case insensitive.
+	   * @param xnode the node to get the child node from
+	   * @param name the name of the child node to search for
+	   * @return the located node or null if one was not found
+	   */
+
+	  public static Node getChildNodeByName(final Node xnode, final String name) {
+	  	return getChildNodeByName(xnode, name);
+	  }
 
 
 
@@ -402,11 +431,64 @@ public class XMLHelper {
 	/**
 	 * Returns the text inside the passed XML node.
 	 * @param node The node to extract from
+	 * @param defaultValue The default value if no text is found
 	 * @return the extracted text
 	 */
-	public static String getNodeTextValue(Node node) {
-		return node.getFirstChild().getNodeValue();
+	public static String getNodeTextValue(final Node node, final String defaultValue) {
+		try {
+			String s = node.getFirstChild().getNodeValue();
+			return s==null ? defaultValue : s;
+		} catch (Exception ex) {
+			return defaultValue;
+		}
 	}	
+	
+	/**
+	 * Determines if the passed node has an attribute with the passed name
+	 * @param node The node to inspect
+	 * @param name The name to match
+	 * @return true if the named attribute was found, false otherwise
+	 */
+	public static boolean hasAttribute(final Node node, final String name) {
+		return getAttributeByName(node, name, null)!=null;
+	}
+
+	/**
+	 * Returns the text inside the passed XML node.
+	 * @param node The node to extract from
+	 * @return the extracted text or null if no text was found
+	 */
+	public static String getNodeTextValue(final Node node) {
+		return getNodeTextValue(node, null);
+	}
+	
+	/**
+	 * Returns the long hash code for the content in the passed node
+	 * @param node the node to compute the long hash code for 
+	 * @return the long hash code
+	 */
+	public static long longHashCode(final Node node) {
+		final String s = getNodeTextValue(node);
+		return longHashCode(s);
+	}
+	
+	/**
+	 * Pretty crap long hashcode algo. FIXME
+	 * @param s The string to get the long hash code for
+	 * @return the long has code
+	 */
+	public static long longHashCode(String s) {
+		long h = 0;
+        int len = s.length();
+    	int off = 0;
+    	int hashPrime = s.hashCode();
+    	char val[] = s.toCharArray();
+        for (int i = 0; i < len; i++) {
+            h = (31*h + val[off++] + (hashPrime*h));
+        }
+        return h;
+	}
+
 	
 	/**
 	 * Locates the element defined by the XPath expression in the XML file and replaces the child text with the passed value.

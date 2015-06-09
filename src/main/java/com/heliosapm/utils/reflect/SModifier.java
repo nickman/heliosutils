@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.relfect;
+package com.heliosapm.utils.reflect;
 
 import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
@@ -26,7 +26,7 @@ import java.lang.reflect.Modifier;
  * <p>Description: Enum version of java's reflection Modifier class</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.relfect.SModifier</code></p>
+ * <p><code>com.heliosapm.utils.reflect.SModifier</code></p>
  */
 
 public enum SModifier {

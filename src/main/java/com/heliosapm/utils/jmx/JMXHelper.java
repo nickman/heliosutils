@@ -124,7 +124,15 @@ public class JMXHelper {
 	/** The legacy debug agent library */
 	public static final String LEGACY_AGENT_LIB = "-Xrunjdwp:";
 	
+	/** The ObjectName of the hotspot internals MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_ON = objectName("sun.management:type=HotspotMemory");
 
+	/** The class name of the hotspot internals MBean */
+	public static final String HOTSPOT_INTERNAL_CLASS_NAME = "sun.management.HotspotInternal";
+
+	/** The system property where one might find the MBeanServerBuilder class name */
+	public static final String BUILDER_CLASS_NAME_PROP = "javax.management.builder.initial";
+	
 	
 	/**
 	 * Determines if this JVM is running with the debug agent enabled
@@ -523,6 +531,43 @@ public class JMXHelper {
 		}
 		throw new RuntimeException("No MBeanServer located for domain [" + domain + "]");
 	}
+	
+	/**
+	 * Registers the Hotspot internal MBean in the passed MBeanServer
+	 * @param mbeanServer The MBeanServer to register in
+	 * @return true if the MBean is registered, false otherwise
+	 */
+	public static boolean registerHotspotInternal(final MBeanServerConnection mbeanServer) {
+		if(mbeanServer==null) throw new IllegalArgumentException("The passed MBeanServerConnection was null");
+		try {
+			if(mbeanServer.isRegistered(HOTSPOT_INTERNAL_ON)) return true;
+			mbeanServer.createMBean(HOTSPOT_INTERNAL_CLASS_NAME, HOTSPOT_INTERNAL_ON);
+			return true;
+		} catch (Exception ex) {
+			return false;
+		}
+	}
+	
+	/**
+	 * Registers the Hotspot internal MBean in the Helios MBeanServer
+	 * @return true if the MBean is registered, false otherwise
+	 */
+	public static boolean registerHotspotInternal() {
+		return registerHotspotInternal(getHeliosMBeanServer());
+	}
+	
+	
+	/**
+	 * Returns a String->Object Map of the named attributes from the Mbean in the helios mbeanserver
+	 * @param on The object name of the MBean.
+	 * @param attributes An array of attribute names to retrieve. If this is null or empty, retrieves all the names
+	 * @return A name value map of the requested attributes.
+	 */
+	public static Map<String, Object> getAttributes(ObjectName on, Collection<String> attributes) {
+		if(attributes==null || attributes.isEmpty()) return Collections.emptyMap();
+		return getAttributes(on, getHeliosMBeanServer(), new HashSet<String>(attributes).toArray(new String[0]));
+	}
+
 	
 	/**
 	 * Acquires a connected JMX connection
@@ -1466,7 +1511,18 @@ while(m.find()) {
 //	}
 	
 	
-	
+	/**
+	 * Scans all known MBeanServers and returns the first one that has the passed ObjectName registered.
+	 * @param on The ObjectName to search for
+	 * @return the MBeanServer or null if the ObjectName was not found
+	 */
+	public static MBeanServer getMBeanServerFor(final ObjectName on) {
+		if(on==null) throw new IllegalArgumentException("The passed ObjectName was null");
+		for(MBeanServer server: MBeanServerFactory.findMBeanServer(null)) {
+			if(server.isRegistered(on)) return server;
+		}
+		return null;
+	}
 	
 	/**
 	 * Retrieves maps of attribute values keyed by attribute name, in turn keyed by the ObjectName of the MBean.

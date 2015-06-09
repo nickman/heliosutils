@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.relfect;
+package com.heliosapm.utils.reflect;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Member;
@@ -31,7 +31,7 @@ import com.heliosapm.utils.lang.StringHelper;
  * <p>Description: Helper to perform common relfective lookups against classes</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.relfect.MetaHelper</code></p>
+ * <p><code>com.heliosapm.utils.reflect.MetaHelper</code></p>
  */
 
 public class MetaHelper {

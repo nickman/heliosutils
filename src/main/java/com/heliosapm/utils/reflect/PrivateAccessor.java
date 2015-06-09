@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.relfect;
+package com.heliosapm.utils.reflect;
 
 import java.io.PrintStream;
 import java.lang.ref.SoftReference;
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The cache is implemented as a SoftReference map so cache entries will be garbage collected if memory is required.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.relfect.PrivateAccessor</code></p>
+ * <p><code>com.heliosapm.utils.reflect.PrivateAccessor</code></p>
  */
 
 public class PrivateAccessor {

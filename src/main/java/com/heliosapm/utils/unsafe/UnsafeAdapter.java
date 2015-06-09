@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.lang.StringHelper;
-import com.heliosapm.utils.relfect.PrivateAccessor;
+import com.heliosapm.utils.reflect.PrivateAccessor;
 
 import sun.misc.Unsafe;
 

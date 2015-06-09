@@ -21,7 +21,7 @@ under the License.
  * <p>Description: Reflection utilities</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.relfect.package-info</code></p>
+ * <p><code>com.heliosapm.utils.reflect.package-info</code></p>
  */
 
-package com.heliosapm.utils.relfect;
+package com.heliosapm.utils.reflect;
