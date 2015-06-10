@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1477,6 +1478,46 @@ public class JMXHelper {
 		
 		
 		return names;
+	}
+	
+	
+	/**
+	 * Attempts to depatternize an ObjectName
+	 * @param objectName the ObjectName to depatternize
+	 * @return the depatternized ObjectName
+	 * @throws RuntimeException for a variety of depatternization failures
+	 */
+	public static ObjectName dePatternize(final ObjectName objectName) {
+		if(objectName==null) throw new IllegalArgumentException("The passed ObjectName was null");
+		if(!objectName.isPattern()) return objectName;
+		//if(objectName.isDomainPattern()) throw new RuntimeException("Cannot dePatternize [" + objectName + "]. Domains cannot be depatternized and still be legit");
+		ObjectName won = objectName;
+		if(won.isPropertyPattern()) {
+			if(won.isPropertyListPattern()) {
+				final String str = won.toString();
+				if(str.endsWith(",*")) {
+					won = objectName(str.substring(0, str.length()-2));
+				}			
+			}
+			if(won.isPropertyValuePattern()) {
+				if(won.getKeyPropertyList().size()==1) {
+					throw new RuntimeException("Cannot dePatternize [" + objectName + "]. No non-wildcarded properties.");
+				}
+				final Hashtable<String, String> props = won.getKeyPropertyList();
+				for(Iterator<String> keyIter = props.keySet().iterator(); keyIter.hasNext();) {
+					final String key = keyIter.next();
+					if(won.isPropertyValuePattern(key)) keyIter.remove();
+				}
+				won = objectName(won.getDomain(), props);
+			}
+		}
+		if(won.isDomainPattern()) {
+			final String dom = won.getDomain().replace("*", "");
+			if(dom.isEmpty()) throw new RuntimeException("Cannot dePatternize [" + objectName + "]. Depatternized domain is empty");	
+			won = objectName(dom, won.getKeyPropertyList());
+		}
+		if(won.isPattern()) throw new RuntimeException("Depatternizing protocols failed for [" + objectName + "]. Final result was [" + won + "]");
+		return won;
 	}
 	
 	/*

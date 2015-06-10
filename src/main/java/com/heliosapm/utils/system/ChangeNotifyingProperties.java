@@ -25,7 +25,19 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.management.AttributeChangeNotification;
+import javax.management.ListenerNotFoundException;
+import javax.management.MBeanNotificationInfo;
+import javax.management.Notification;
+import javax.management.NotificationBroadcaster;
+import javax.management.NotificationBroadcasterSupport;
+import javax.management.NotificationFilter;
+import javax.management.NotificationListener;
+import javax.management.ObjectName;
+
+import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
@@ -36,7 +48,7 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
  * <p><code>com.heliosapm.utils.system.ChangeNotifyingProperties</code></p>
  */
 
-public class ChangeNotifyingProperties extends Properties {
+public class ChangeNotifyingProperties extends Properties implements NotificationBroadcaster {
 	/**  */
 	private static final long serialVersionUID = -381405317030346569L;
 	/** Flag indicating if notifications are enabled */
@@ -45,6 +57,27 @@ public class ChangeNotifyingProperties extends Properties {
 	protected final Set<PropertyChangeListener> listeners = new CopyOnWriteArraySet<PropertyChangeListener>();
 	/** The notification thread pool to async notify */
 	protected final ExecutorService threadpool = SharedNotificationExecutor.getInstance();
+	
+	/** Embedded jmx notification broadcaster */
+	protected final NotificationBroadcasterSupport notifier = new NotificationBroadcasterSupport(threadpool, mbeanNotifs);
+	/** A counter to keep track of the number of listeners so we can suppress notifications if there are no listeners */
+	protected final AtomicInteger listenerCounter = new AtomicInteger(0);
+	
+	/** The JMX ObjectName of the installed system properties ChangeNotifyingProperties */
+	public static final ObjectName SYSPROPS_OBJECT_NAME = JMXHelper.objectName("com.heliosapm.system:service=SystemProperties");
+	
+	/** The property inserted notification type */
+	public static final String NOTIF_INSERT_EVENT = "com.heliosapm.system.property.inserted";
+	/** The property removed notification type */
+	public static final String NOTIF_REMOVE_EVENT = "com.heliosapm.system.property.removed";
+	/** The property changed notification type */
+	public static final String NOTIF_CHANGE_EVENT = "com.heliosapm.system.property.changed";
+	
+	private static final MBeanNotificationInfo[] mbeanNotifs = new MBeanNotificationInfo[] {
+		new MBeanNotificationInfo(new String[]{NOTIF_INSERT_EVENT}, Notification.class.getName(), "Event broadcast when a new property is set"),
+		new MBeanNotificationInfo(new String[]{NOTIF_REMOVE_EVENT}, Notification.class.getName(), "Event broadcast when a property is removed"),
+		new MBeanNotificationInfo(new String[]{NOTIF_CHANGE_EVENT}, AttributeChangeNotification.class.getName(), "Event broadcast when a property is changed")
+	};
 	
 	/**
 	 * Creates a new ChangeNotifyingProperties
@@ -85,8 +118,14 @@ public class ChangeNotifyingProperties extends Properties {
 	/**
 	 * Installs a change notifying properties into System properties
 	 */
-	public static void systemInstall() {
-		System.setProperties(new ChangeNotifyingProperties(System.getProperties()));
+	public static void systemInstall() {		
+		final ChangeNotifyingProperties cnp = new ChangeNotifyingProperties(System.getProperties());
+		System.setProperties(cnp);
+		if(JMXHelper.isRegistered(SYSPROPS_OBJECT_NAME)) {
+			JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
+		}
+		JMXHelper.registerMBean(cnp, SYSPROPS_OBJECT_NAME);
+		//SYSPROPS_OBJECT_NAME
 	}
 	
 	/**
@@ -105,6 +144,9 @@ public class ChangeNotifyingProperties extends Properties {
 			ChangeNotifyingProperties cnp = (ChangeNotifyingProperties)System.getProperties();
 			cnp.listeners.clear();
 			System.setProperties(new Properties(cnp));
+			if(JMXHelper.isRegistered(SYSPROPS_OBJECT_NAME)) {
+				JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
+			}
 		}
 	}
 	
@@ -181,44 +223,6 @@ public class ChangeNotifyingProperties extends Properties {
 		}
 	}
 	
-//	/**
-//	 * {@inheritDoc}
-//	 * @see java.util.Properties#load(java.io.InputStream)
-//	 */
-//	@Override
-//	public synchronized void load(final InputStream inStream) throws IOException {
-//		super.load(inStream);
-//	}
-//	
-//	/**
-//	 * {@inheritDoc}
-//	 * @see java.util.Properties#load(java.io.Reader)
-//	 */
-//	@Override
-//	public synchronized void load(final Reader reader) throws IOException {
-//		super.load(reader);
-//	}
-//	
-//	/**
-//	 * {@inheritDoc}
-//	 * @see java.util.Properties#loadFromXML(java.io.InputStream)
-//	 */
-//	@Override
-//	public synchronized void loadFromXML(final InputStream in) throws IOException, InvalidPropertiesFormatException {
-//		super.loadFromXML(in);
-//	}
-//	
-//	/**
-//	 * {@inheritDoc}
-//	 * @see java.util.Hashtable#putAll(java.util.Map)
-//	 */
-//	@Override
-//	public synchronized void putAll(final Map<? extends Object, ? extends Object> t) {
-//		if(t!=null && !t.isEmpty()) {
-//			super.putAll(t);
-//		}
-//	}
-	
 	
 	/**
 	 * Fires a change event, notifying all registered listeners of the watched property change
@@ -280,6 +284,35 @@ public class ChangeNotifyingProperties extends Properties {
 	
 	private static String toStr(final Object o) {
 		return o==null ? null : o.toString();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.NotificationBroadcaster#addNotificationListener(javax.management.NotificationListener, javax.management.NotificationFilter, java.lang.Object)
+	 */
+	@Override
+	public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {
+		notifier.addNotificationListener(listener, filter, handback);
+		listenerCounter.incrementAndGet();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.NotificationBroadcaster#removeNotificationListener(javax.management.NotificationListener)
+	 */
+	@Override
+	public void removeNotificationListener(final NotificationListener listener) throws ListenerNotFoundException {
+		notifier.removeNotificationListener(listener);
+		listenerCounter.decrementAndGet();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.NotificationBroadcaster#getNotificationInfo()
+	 */
+	@Override
+	public MBeanNotificationInfo[] getNotificationInfo() {
+		return mbeanNotifs;
 	}
 	
 	
