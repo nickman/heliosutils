@@ -18,6 +18,7 @@ under the License.
  */
 package com.heliosapm.utils.system;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -26,10 +27,13 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.management.AttributeChangeNotification;
 import javax.management.ListenerNotFoundException;
 import javax.management.MBeanNotificationInfo;
+import javax.management.MBeanRegistration;
+import javax.management.MBeanServer;
 import javax.management.Notification;
 import javax.management.NotificationBroadcaster;
 import javax.management.NotificationBroadcasterSupport;
@@ -48,7 +52,7 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
  * <p><code>com.heliosapm.utils.system.ChangeNotifyingProperties</code></p>
  */
 
-public class ChangeNotifyingProperties extends Properties implements NotificationBroadcaster {
+public class ChangeNotifyingProperties extends Properties implements NotificationBroadcaster, ChangeNotifyingPropertiesMBean, MBeanRegistration {
 	/**  */
 	private static final long serialVersionUID = -381405317030346569L;
 	/** Flag indicating if notifications are enabled */
@@ -62,22 +66,21 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	protected final NotificationBroadcasterSupport notifier = new NotificationBroadcasterSupport(threadpool, mbeanNotifs);
 	/** A counter to keep track of the number of listeners so we can suppress notifications if there are no listeners */
 	protected final AtomicInteger listenerCounter = new AtomicInteger(0);
+	/** Notification seq counter */
+	protected final AtomicLong notifSeq = new AtomicLong(0L);
 	
-	/** The JMX ObjectName of the installed system properties ChangeNotifyingProperties */
-	public static final ObjectName SYSPROPS_OBJECT_NAME = JMXHelper.objectName("com.heliosapm.system:service=SystemProperties");
-	
-	/** The property inserted notification type */
-	public static final String NOTIF_INSERT_EVENT = "com.heliosapm.system.property.inserted";
-	/** The property removed notification type */
-	public static final String NOTIF_REMOVE_EVENT = "com.heliosapm.system.property.removed";
-	/** The property changed notification type */
-	public static final String NOTIF_CHANGE_EVENT = "com.heliosapm.system.property.changed";
+	/** The designated ObjectName assigned at registration */
+	protected ObjectName objectName = null;
 	
 	private static final MBeanNotificationInfo[] mbeanNotifs = new MBeanNotificationInfo[] {
 		new MBeanNotificationInfo(new String[]{NOTIF_INSERT_EVENT}, Notification.class.getName(), "Event broadcast when a new property is set"),
 		new MBeanNotificationInfo(new String[]{NOTIF_REMOVE_EVENT}, Notification.class.getName(), "Event broadcast when a property is removed"),
 		new MBeanNotificationInfo(new String[]{NOTIF_CHANGE_EVENT}, AttributeChangeNotification.class.getName(), "Event broadcast when a property is changed")
 	};
+	
+	private static final String CHANGE_MSG = "{\"change\":\"%s\",\"old\":\"%s\",\"new\":\"%s\"}";
+	private static final String INSERT_MSG = "{\"insert\":\"%s\",\"new\":\"%s\"}";
+	private static final String REMOVE_MSG = "{\"remove\":\"%s\",\"new\":\"%s\"}";
 	
 	/**
 	 * Creates a new ChangeNotifyingProperties
@@ -125,7 +128,6 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 			JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
 		}
 		JMXHelper.registerMBean(cnp, SYSPROPS_OBJECT_NAME);
-		//SYSPROPS_OBJECT_NAME
 	}
 	
 	/**
@@ -242,6 +244,11 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 				}
 			});
 		}
+		if(listenerCounter.get()>0) {
+			AttributeChangeNotification acn = new AttributeChangeNotification((objectName==null ? this : objectName), notifSeq.incrementAndGet(), System.currentTimeMillis(), String.format(CHANGE_MSG, key, oldValue, newValue), key, String.class.getName(), oldValue, newValue); 
+			acn.setUserData(Collections.singletonMap(key, new String[]{oldValue, newValue}));
+			notifier.sendNotification(acn);
+		}		
 	}
 	
 	/**
@@ -261,6 +268,11 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 				}
 			});
 		}
+		if(listenerCounter.get()>0) {
+			Notification notif = new Notification(NOTIF_INSERT_EVENT, (objectName==null ? this : objectName), notifSeq.incrementAndGet(), System.currentTimeMillis(), String.format(INSERT_MSG, key, newValue));
+			notif.setUserData(Collections.singletonMap(key, newValue));
+			notifier.sendNotification(notif);
+		}
 	}
 
 	/**
@@ -279,6 +291,11 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 					}
 				}
 			});
+		}
+		if(listenerCounter.get()>0) {
+			Notification notif = new Notification(NOTIF_REMOVE_EVENT, (objectName==null ? this : objectName), notifSeq.incrementAndGet(), System.currentTimeMillis(), String.format(REMOVE_MSG, key, oldValue));
+			notif.setUserData(Collections.singletonMap(key, oldValue));
+			notifier.sendNotification(notif);
 		}
 	}
 	
@@ -313,6 +330,44 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	@Override
 	public MBeanNotificationInfo[] getNotificationInfo() {
 		return mbeanNotifs;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.MBeanRegistration#preRegister(javax.management.MBeanServer, javax.management.ObjectName)
+	 */
+	@Override
+	public ObjectName preRegister(final MBeanServer server, final ObjectName name) throws Exception {
+		objectName = name;
+		return name;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.MBeanRegistration#postRegister(java.lang.Boolean)
+	 */
+	@Override
+	public void postRegister(final Boolean registrationDone) {
+		/* No Op */
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.MBeanRegistration#preDeregister()
+	 */
+	@Override
+	public void preDeregister() throws Exception {
+		/* No Op */		
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.MBeanRegistration#postDeregister()
+	 */
+	@Override
+	public void postDeregister() {
+		objectName = null;
+		listenerCounter.set(0);
 	}
 	
 	

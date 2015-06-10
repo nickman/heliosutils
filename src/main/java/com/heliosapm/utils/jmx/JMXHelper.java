@@ -912,6 +912,26 @@ public class JMXHelper {
 	}
 	
 	/**
+	 * Registers the passed MBean on all located MBeanServers
+	 * @param bean The bean to register
+	 * @param objectName The ObjectName to register the bean with
+	 * @return the number of MBeanServers registered with
+	 */
+	public static int registerMBeanEverywhere(final Object bean, final ObjectName objectName) {
+		int cnt = 0;
+		for(MBeanServer mbs: MBeanServerFactory.findMBeanServer(null)) {
+			if(!mbs.isRegistered(objectName)) {
+				try {
+					mbs.registerMBean(bean, objectName);
+					cnt++;
+				} catch (Exception ex) {/* No Op */}
+			}
+		}
+		return cnt;
+	}
+	
+	
+	/**
 	 * Unregisters the named MBean from the passed MBeanServer
 	 * @param server The MBeanServer to unregister from
 	 * @param objectName The ObjectName of the MBean to unregister

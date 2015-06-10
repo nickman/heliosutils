@@ -27,11 +27,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.management.MBeanNotificationInfo;
 import javax.management.MBeanServer;
@@ -40,6 +40,7 @@ import javax.management.NotificationBroadcasterSupport;
 import javax.management.ObjectName;
 
 import com.heliosapm.utils.jmx.JMXHelper;
+import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
  * <p>Title: ExtendedThreadManager</p>
@@ -111,11 +112,29 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 		}
 		return mxb;
 	}
+	
+	/**
+	 * Removes the extended thread manager and restores the native version.
+	 * Could possibly fail, leaving the JVM with no Threading MBean. Use carefully.... 
+	 */
 	public static void remove() {
-		if(installed.get()) {
-			
+		if(installed.compareAndSet(true, false)) {
+			// this may not always work ....
+			try {
+				server.unregisterMBean(THREAD_MX_NAME);
+			} catch (Exception ex) {
+				// ok, no harm done. bail out here.
+				installed.set(true);
+				return;
+			}
+			try {
+				server.registerMBean(original, THREAD_MX_NAME);
+			} catch (Exception ex) {
+				// yikes, now we have no mbean...
+			}
 		}
 	}
+	
 	public static boolean isInstalled() {
 		return installed.get();
 	}
@@ -124,71 +143,120 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 	 * Creates a new ExtendedThreadManager
 	 * @param delegate the ThreadMXBean delegate
 	 */
-	private ExtendedThreadManager(ThreadMXBean delegate) {
-		super(Executors.newFixedThreadPool(1, new ThreadFactory(){
-			@Override
-			public Thread newThread(Runnable r) {
-				Thread t = new Thread(r, "ThreadMXBeanNotifier");
-				t.setDaemon(true);
-				return t;
-			}
-		}), notificationInfo);
+	private ExtendedThreadManager(final ThreadMXBean delegate) {
+		super(SharedNotificationExecutor.getInstance(), notificationInfo);
 		this.delegate = delegate;
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.PlatformManagedObject#getObjectName()
+	 */
 	@Override
 	public ObjectName getObjectName() {
 		return delegate.getObjectName();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadCount()
+	 */
 	@Override
 	public int getThreadCount() {
 		return delegate.getThreadCount();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getPeakThreadCount()
+	 */
 	@Override
 	public int getPeakThreadCount() {
 		return delegate.getPeakThreadCount();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getTotalStartedThreadCount()
+	 */
 	@Override
 	public long getTotalStartedThreadCount() {
 		return delegate.getTotalStartedThreadCount();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getDaemonThreadCount()
+	 */
 	@Override
 	public int getDaemonThreadCount() {
 		return delegate.getDaemonThreadCount();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getNonDaemonThreadCount()
+	 */
 	@Override
 	public int getNonDaemonThreadCount() {
 		return delegate.getThreadCount() - delegate.getDaemonThreadCount();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getAllThreadIds()
+	 */
 	@Override
 	public long[] getAllThreadIds() {
 		return delegate.getAllThreadIds();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadInfo(long)
+	 */
 	@Override
 	public ThreadInfo getThreadInfo(long id) {
 		return delegate.getThreadInfo(id);
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadInfo(long[])
+	 */
 	@Override
 	public ThreadInfo[] getThreadInfo(long[] ids) {
 		return delegate.getThreadInfo(ids);
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadInfo(long, int)
+	 */
 	@Override
 	public ThreadInfo getThreadInfo(long id, int maxDepth) {
 		return delegate.getThreadInfo(id, maxDepth);
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadInfo(long[], int)
+	 */
 	@Override
 	public ThreadInfo[] getThreadInfo(long[] ids, int maxDepth) {
 		return delegate.getThreadInfo(ids, maxDepth);
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isThreadContentionMonitoringSupported()
+	 */
 	@Override
 	public boolean isThreadContentionMonitoringSupported() {
 		return delegate.isThreadContentionMonitoringSupported();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isThreadContentionMonitoringEnabled()
+	 */
 	@Override
 	public boolean isThreadContentionMonitoringEnabled() {
 		return delegate.isThreadContentionMonitoringEnabled();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#setThreadContentionMonitoringEnabled(boolean)
+	 */
 	@Override
 	public void setThreadContentionMonitoringEnabled(boolean enable) {
 		delegate.setThreadContentionMonitoringEnabled(enable);
@@ -198,34 +266,70 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 			sendNotification(new Notification(NOTIF_TCM_DISABLED, THREAD_MX_NAME, serial.incrementAndGet(), System.currentTimeMillis(), "Thread Contention Monitoring Disabled"));
 		}
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getCurrentThreadCpuTime()
+	 */
 	@Override
 	public long getCurrentThreadCpuTime() {
 		return delegate.getCurrentThreadCpuTime();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getCurrentThreadUserTime()
+	 */
 	@Override
 	public long getCurrentThreadUserTime() {
 		return delegate.getCurrentThreadUserTime();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadCpuTime(long)
+	 */
 	@Override
 	public long getThreadCpuTime(long id) {
 		return delegate.getThreadCpuTime(id);
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadUserTime(long)
+	 */
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadUserTime(long)
+	 */
 	@Override
 	public long getThreadUserTime(long id) {
 		return delegate.getThreadUserTime(id);
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isThreadCpuTimeSupported()
+	 */
 	@Override
 	public boolean isThreadCpuTimeSupported() {
 		return delegate.isThreadCpuTimeSupported();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isCurrentThreadCpuTimeSupported()
+	 */
 	@Override
 	public boolean isCurrentThreadCpuTimeSupported() {
 		return delegate.isCurrentThreadCpuTimeSupported();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isThreadCpuTimeEnabled()
+	 */
 	@Override
 	public boolean isThreadCpuTimeEnabled() {
 		return delegate.isThreadCpuTimeEnabled();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#setThreadCpuTimeEnabled(boolean)
+	 */
 	@Override
 	public void setThreadCpuTimeEnabled(boolean enable) {
 		delegate.setThreadCpuTimeEnabled(enable);
@@ -235,26 +339,50 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 			sendNotification(new Notification(NOTIF_TCT_DISABLED, THREAD_MX_NAME, serial.incrementAndGet(), System.currentTimeMillis(), "Thread CPU Time Monitoring Disabled"));
 		}		
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#findMonitorDeadlockedThreads()
+	 */
 	@Override
 	public long[] findMonitorDeadlockedThreads() {
 		return delegate.findMonitorDeadlockedThreads();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#resetPeakThreadCount()
+	 */
 	@Override
 	public void resetPeakThreadCount() {
 		delegate.resetPeakThreadCount();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#findDeadlockedThreads()
+	 */
 	@Override
 	public long[] findDeadlockedThreads() {
 		return delegate.findDeadlockedThreads();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isObjectMonitorUsageSupported()
+	 */
 	@Override
 	public boolean isObjectMonitorUsageSupported() {
 		return delegate.isObjectMonitorUsageSupported();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#isSynchronizerUsageSupported()
+	 */
 	@Override
 	public boolean isSynchronizerUsageSupported() {
 		return delegate.isSynchronizerUsageSupported();
 	}
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.management.ThreadMXBean#getThreadInfo(long[], boolean, boolean)
+	 */
 	@Override
 	public ThreadInfo[] getThreadInfo(long[] ids, boolean lockedMonitors,
 			boolean lockedSynchronizers) {
@@ -272,7 +400,7 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 	
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.shorthand.util.jmx.threadinfo.ExtendedThreadManagerMXBean#getNonDaemonThreadNames()
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getNonDaemonThreadNames()
 	 */
 	@Override
 	public String[] getNonDaemonThreadNames() {
@@ -326,7 +454,7 @@ Thread[Thread-10,6,main]
 	
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.shorthand.util.jmx.threadinfo.ExtendedThreadManagerMXBean#getBusyThreads(long)
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getBusyThreads(long)
 	 */
 	@Override
 	public String[] getBusyThreads(long sampleTime) {
@@ -354,9 +482,90 @@ Thread[Thread-10,6,main]
 			cnt++;
 		}
 		return out;
-		
-		
 	}
+	
+	private static final long[] NO_MATCH_STATS = {0, -1, -1, -1, -1, -1, -1};
+	
+	
+	/**
+	 * Returns summed up thread stats for all threads with names matching the passed regex.
+	 * @param pattern The regex pattern to match against the threads
+	 * @return a long array with the following stats: <ol>
+	 *  <li>The total number of threads that matched</li>
+	 * 	<li>Sys Cpu Time</li>		1
+	 *  <li>User Cpu Time</li> 		2
+	 *  <li>Wait Count</li>			3
+	 *  <li>Wait Time</li>			4
+	 *  <li>Block Count</li>		5
+	 *  <li>Block Time</li>			6
+	 * </ol>
+	 * Any stat which is not enabled will be returned as a -1.
+	 */
+	public long[] getSummedThreadStats(final String pattern) {
+		if(pattern==null || pattern.trim().isEmpty()) return NO_MATCH_STATS;
+		final boolean cpu = isThreadCpuTimeEnabled();
+		final boolean contention = isThreadContentionMonitoringEnabled();
+		final Pattern p = Pattern.compile(pattern.trim());
+		final long[] stats = new long[NO_MATCH_STATS.length];
+		if(!cpu) {
+			stats[1] = -1;
+			stats[2] = -1;
+		}
+		if(!contention) {
+			stats[4] = -1;
+			stats[6] = -1;			
+		}
+		final ThreadInfo[] infos = delegate.getThreadInfo(delegate.getAllThreadIds(), 0);
+		for(ThreadInfo t: infos) {
+			if(p.matcher(t.getThreadName()).matches()) {
+				final long tid = t.getThreadId();
+				stats[0]++;
+				stats[3] = t.getWaitedCount();
+				stats[5] = t.getBlockedCount();				
+				if(cpu) {
+					stats[1] += original.getThreadCpuTime(tid);
+					stats[2] += original.getThreadUserTime(tid);
+				}
+				if(contention) {
+					stats[4] += t.getWaitedTime();
+					stats[6] += t.getBlockedTime();
+				}				
+			}
+		}		
+		return stats;
+	}
+	
+	/**
+	 * Returns the arithmetic average of all thread stats for all threads with names matching the passed regex.
+	 * @param pattern The regex pattern to match against the threads
+	 * @return a long array with the following stats: <ol>
+	 *  <li>The total number of threads that matched</li>
+	 * 	<li>Sys Cpu Time</li>		1
+	 *  <li>User Cpu Time</li> 		2
+	 *  <li>Wait Count</li>			3
+	 *  <li>Wait Time</li>			4
+	 *  <li>Block Count</li>		5
+	 *  <li>Block Time</li>			6
+	 * </ol>
+	 * Any stat which is not enabled will be returned as a -1.
+	 */
+	public long[] getAverageThreadStats(final String pattern) {
+		final long[] stats =getSummedThreadStats(pattern);
+		if(stats[0]>0) {
+			for(int i = 1; i < stats.length; i++) {
+				if(stats[i]==-1) continue;
+				stats[i] = avg(stats[i], stats[0]);
+			}
+		}
+		return stats;
+	}
+	
+	private static long avg(final double total, final double count) {
+		if(total < 1 || count==0) return 0L;
+		final double d = total/count;
+		return (long)d;
+	}
+	
 	
 
 	/**
@@ -379,7 +588,7 @@ Thread[Thread-10,6,main]
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.shorthand.util.jmx.threadinfo.ExtendedThreadManagerMXBean#getThreadInfo()
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getThreadInfo()
 	 */
 	@Override
 	public ExtendedThreadInfo[] getThreadInfo() {

@@ -54,6 +54,38 @@ public interface ExtendedThreadManagerMXBean extends ThreadMXBean {
 	public int getNonDaemonThreadCount();
 	
 	/**
+	 * Returns summed up thread stats for all threads with names matching the passed regex.
+	 * @param pattern The regex pattern to match against the threads
+	 * @return a long array with the following stats: <ol>
+	 *  <li>The total number of threads that matched</li>
+	 * 	<li>Sys Cpu Time</li>		1
+	 *  <li>User Cpu Time</li> 		2
+	 *  <li>Wait Count</li>			3
+	 *  <li>Wait Time</li>			4
+	 *  <li>Block Count</li>		5
+	 *  <li>Block Time</li>			6
+	 * </ol>
+	 * Any stat which is not enabled will be returned as a -1.
+	 */
+	public long[] getSummedThreadStats(final String pattern);
+	
+	/**
+	 * Returns the arithmetic average of all thread stats for all threads with names matching the passed regex.
+	 * @param pattern The regex pattern to match against the threads
+	 * @return a long array with the following stats: <ol>
+	 *  <li>The total number of threads that matched</li>
+	 * 	<li>Sys Cpu Time</li>		1
+	 *  <li>User Cpu Time</li> 		2
+	 *  <li>Wait Count</li>			3
+	 *  <li>Wait Time</li>			4
+	 *  <li>Block Count</li>		5
+	 *  <li>Block Time</li>			6
+	 * </ol>
+	 * Any stat which is not enabled will be returned as a -1.
+	 */
+	public long[] getAverageThreadStats(final String pattern);
+	
+	/**
 	 * Returns the names of the non-daemon threads
 	 * @return the names of the non-daemon threads
 	 */
