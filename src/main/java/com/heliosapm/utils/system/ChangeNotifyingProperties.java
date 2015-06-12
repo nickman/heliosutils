@@ -46,13 +46,13 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
  * <p>Title: ChangeNotifyingProperties</p>
- * <p>Description: </p> 
+ * <p>Description: Extension of {@link Properties} that notifies registered listeners about new, removed and changed properties</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.system.ChangeNotifyingProperties</code></p>
  */
 
-public class ChangeNotifyingProperties extends Properties implements NotificationBroadcaster, ChangeNotifyingPropertiesMBean, MBeanRegistration {
+public class ChangeNotifyingProperties extends Properties implements NotificationBroadcaster, ChangeNotifyingPropertiesMBean, MBeanRegistration {  // DynamicMBean
 	/**  */
 	private static final long serialVersionUID = -381405317030346569L;
 	/** Flag indicating if notifications are enabled */
@@ -71,6 +71,17 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	
 	/** The designated ObjectName assigned at registration */
 	protected ObjectName objectName = null;
+	
+	/** The JMX ObjectName of the installed system properties ChangeNotifyingProperties */
+	public static final ObjectName SYSPROPS_OBJECT_NAME = JMXHelper.objectName("com.heliosapm.system:service=SystemProperties");
+	
+	/** The property inserted notification type */
+	public static final String NOTIF_INSERT_EVENT = "com.heliosapm.system.property.inserted";
+	/** The property removed notification type */
+	public static final String NOTIF_REMOVE_EVENT = "com.heliosapm.system.property.removed";
+	/** The property changed notification type */
+	public static final String NOTIF_CHANGE_EVENT = "com.heliosapm.system.property.changed";
+	
 	
 	private static final MBeanNotificationInfo[] mbeanNotifs = new MBeanNotificationInfo[] {
 		new MBeanNotificationInfo(new String[]{NOTIF_INSERT_EVENT}, Notification.class.getName(), "Event broadcast when a new property is set"),
@@ -323,14 +334,10 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 		listenerCounter.decrementAndGet();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 * @see javax.management.NotificationBroadcaster#getNotificationInfo()
-	 */
-	@Override
-	public MBeanNotificationInfo[] getNotificationInfo() {
-		return mbeanNotifs;
-	}
+	
+	// ================================================================================================================================
+	//			MBeanRegistration Impl.
+	// ================================================================================================================================
 
 	/**
 	 * {@inheritDoc}
@@ -370,5 +377,72 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 		listenerCounter.set(0);
 	}
 	
+	// ================================================================================================================================
+	//			DynamicMBean Impl.
+	// ================================================================================================================================
+	
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.NotificationBroadcaster#getNotificationInfo()
+	 */
+	@Override
+	public MBeanNotificationInfo[] getNotificationInfo() {
+		return mbeanNotifs;
+	}
+
+//	/**
+//	 * {@inheritDoc}
+//	 * @see javax.management.DynamicMBean#getAttribute(java.lang.String)
+//	 */
+//	@Override
+//	public Object getAttribute(final String attribute) throws AttributeNotFoundException, MBeanException, ReflectionException {
+//		return null;
+//	}
+//
+//	/**
+//	 * {@inheritDoc}
+//	 * @see javax.management.DynamicMBean#setAttribute(javax.management.Attribute)
+//	 */
+//	@Override
+//	public void setAttribute(final Attribute attribute) throws AttributeNotFoundException, InvalidAttributeValueException, MBeanException, ReflectionException {
+//		
+//	}
+//
+//	/**
+//	 * {@inheritDoc}
+//	 * @see javax.management.DynamicMBean#getAttributes(java.lang.String[])
+//	 */
+//	@Override
+//	public AttributeList getAttributes(final String[] attributes) {
+//		return null;
+//	}
+//
+//	/**
+//	 * {@inheritDoc}
+//	 * @see javax.management.DynamicMBean#setAttributes(javax.management.AttributeList)
+//	 */
+//	@Override
+//	public AttributeList setAttributes(final AttributeList attributes) {
+//		return null;
+//	}
+//
+//	/**
+//	 * {@inheritDoc}
+//	 * @see javax.management.DynamicMBean#invoke(java.lang.String, java.lang.Object[], java.lang.String[])
+//	 */
+//	@Override
+//	public Object invoke(String actionName, Object[] params, String[] signature) throws MBeanException, ReflectionException {
+//		return null;
+//	}
+//
+//	/**
+//	 * {@inheritDoc}
+//	 * @see javax.management.DynamicMBean#getMBeanInfo()
+//	 */
+//	@Override
+//	public MBeanInfo getMBeanInfo() {
+//		return null;
+//	}
+//	
 	
 }

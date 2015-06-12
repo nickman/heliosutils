@@ -31,15 +31,6 @@ import com.heliosapm.utils.jmx.JMXHelper;
  */
 
 public interface ChangeNotifyingPropertiesMBean {
-	/** The JMX ObjectName of the installed system properties ChangeNotifyingProperties */
-	public static final ObjectName SYSPROPS_OBJECT_NAME = JMXHelper.objectName("com.heliosapm.system:service=SystemProperties");
-	
-	/** The property inserted notification type */
-	public static final String NOTIF_INSERT_EVENT = "com.heliosapm.system.property.inserted";
-	/** The property removed notification type */
-	public static final String NOTIF_REMOVE_EVENT = "com.heliosapm.system.property.removed";
-	/** The property changed notification type */
-	public static final String NOTIF_CHANGE_EVENT = "com.heliosapm.system.property.changed";
 	
 
 }
