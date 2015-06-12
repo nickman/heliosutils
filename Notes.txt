@@ -5,4 +5,7 @@ Implement customized NotificationBroadcasterSupport
   track listeners
   counter
   
-OpenType factory  
+OpenType factory 
+Proxy JMX Notification Subscription Service
+
+Local and Federated JMXRemoting connector 
