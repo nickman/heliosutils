@@ -11,3 +11,4 @@ Proxy JMX Notification Subscription Service
 Local and Federated JMXRemoting connector 
 MemBuffer URL Support
 Unsafe PhantomRef Deallocators
+Instrumentation ClassTransformer Management
