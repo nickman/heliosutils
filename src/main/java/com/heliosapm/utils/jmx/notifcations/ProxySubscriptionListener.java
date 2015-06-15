@@ -18,6 +18,7 @@ under the License.
  */
 package com.heliosapm.utils.jmx.notifcations;
 
+import javax.management.MBeanInfo;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
 
@@ -40,8 +41,9 @@ public interface ProxySubscriptionListener extends NotificationListener {
 	/**
 	 * Callback when a new MBean is registered matching the criteria of the subscription
 	 * @param objectName The ObjectName of the new MBean
+	 * @param info The MBeanInfo of the registered MBean
 	 */
-	public void onNewMBean(final ObjectName objectName);
+	public void onNewMBean(final ObjectName objectName, final MBeanInfo info);
 	
 	/**
 	 * Callback when an MBean that was in the subscription set is unregistered

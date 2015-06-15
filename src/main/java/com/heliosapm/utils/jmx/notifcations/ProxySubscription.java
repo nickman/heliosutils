@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.MBeanInfo;
+import javax.management.Notification;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
@@ -74,6 +75,60 @@ public class ProxySubscription {
 		this.filter = filter;
 		this.handback = handback;
 	}
+	
+	private boolean objectNameMatches(final ObjectName objectName) {
+		if(objectName!=null) {
+			if(this.objectName.apply(objectName)) {
+				try {					
+					if(query==null || query.apply(objectName)) return true;
+				} catch (Exception x) {
+					/* No Op */
+				}
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Callback on receipt of a notification
+	 * @param notification The emitted notification
+	 * @param handback The notification handback
+	 * @param objectName The ObjectName of the notification emitter
+	 */
+	public void onNotification(final Notification notification, final Object handback, final ObjectName objectName) {
+		if(notification==null) return;
+		if(objectName==null || objectNameMatches(objectName)) {
+			if(filter!=null && filter.isNotificationEnabled(notification)) {
+				listener.handleNotification(notification, handback);
+			}
+		}
+	}
+	
+	/**
+	 * Callback when a new MBean is registered
+	 * @param objectName The objectName of the MBean
+	 * @param mbeanInfo The MBeanInfo of the registered mbean
+	 */
+	public void onMBeanRegistration(final ObjectName objectName, final MBeanInfo mbeanInfo) {
+		final boolean matches = objectNameMatches(objectName);
+		if(matches) {
+			final boolean newMBean = currentlySubscribed.put(objectName, mbeanInfo) == null;
+			if(psl!=null && newMBean) {
+				psl.onNewMBean(objectName, mbeanInfo);
+			}
+		}
+	}
+	
+	/**
+	 * Callback when an registered MBean is unregistered 
+	 * @param objectName The ObjectName of the unregistered MBean
+	 */
+	public void onMBeanUnRegistration(final ObjectName objectName) {
+		if(psl!=null && currentlySubscribed.remove(objectName)!=null) {
+			psl.onUnregisteredMBean(objectName);
+		}
+	}
+	
 	
 
 }
