@@ -53,6 +53,33 @@ public class ProxySubscription {
 	protected final Object handback;
 	/** A map of currently active ObjectNames currently in the subscription's criteria window */
 	protected final Map<ObjectName, MBeanInfo> currentlySubscribed = new ConcurrentHashMap<ObjectName, MBeanInfo>();
+
+	/** The subscription listener's underlying ObjectName if an ObjectName listener*/
+	protected final ObjectName objectNameListener;
+
+	/**
+	 * Creates a new ProxySubscription
+	 * @param objectName The ObjectName to subscribe to events for (should be a pattern, but will not fail if it is not). Can be null. If query is null as well,
+	 * will subscribe to all MBeans.
+	 * @param query The query expression to be applied for selecting MBeans. If null no query expression will be applied for selecting MBeans.
+	 * @param listener The listener to be notified on a matching notification 
+	 * @param filter An optional notification filter
+	 * @param handback The optional handback
+	 * @param objectNameListener the optional objectName listener
+	 */
+	public ProxySubscription(final ObjectName objectName, final QueryExp query, final NotificationListener listener, final NotificationFilter filter, final Object handback, final ObjectName objectNameListener) {
+		this.objectName = objectName;
+		this.query = query;
+		this.listener = listener;
+		this.objectNameListener = objectNameListener;
+		if(listener instanceof ProxySubscriptionListener) {
+			psl = (ProxySubscriptionListener)listener;
+		} else {
+			psl = null;
+		}
+		this.filter = filter;
+		this.handback = handback;
+	}
 	
 	/**
 	 * Creates a new ProxySubscription
@@ -64,17 +91,9 @@ public class ProxySubscription {
 	 * @param handback The optional handback
 	 */
 	public ProxySubscription(final ObjectName objectName, final QueryExp query, final NotificationListener listener, final NotificationFilter filter, final Object handback) {
-		this.objectName = objectName;
-		this.query = query;
-		this.listener = listener;
-		if(listener instanceof ProxySubscriptionListener) {
-			psl = (ProxySubscriptionListener)listener;
-		} else {
-			psl = null;
-		}
-		this.filter = filter;
-		this.handback = handback;
+		this(objectName, query, listener, filter, handback, null);
 	}
+	
 	
 	private boolean objectNameMatches(final ObjectName objectName) {
 		if(objectName!=null) {

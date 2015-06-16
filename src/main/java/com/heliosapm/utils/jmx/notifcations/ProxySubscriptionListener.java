@@ -18,6 +18,8 @@ under the License.
  */
 package com.heliosapm.utils.jmx.notifcations;
 
+import java.util.Map;
+
 import javax.management.MBeanInfo;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
@@ -34,9 +36,9 @@ public interface ProxySubscriptionListener extends NotificationListener {
 	/**
 	 * The ObjectNames of mbeans that matched the subscription criteria 
 	 * on the subscription initialization
-	 * @param objectNames a [possibly zero sized] array of ObjectNames
+	 * @param initialMBeans a [possibly empty] map of the matching MBeanInfos on subscription init keyed by the ObjectName of the MBean
 	 */
-	public void onSubscriptionInit(final ObjectName[] objectNames);
+	public void onSubscriptionInit(final Map<ObjectName, MBeanInfo> initialMBeans);
 	
 	/**
 	 * Callback when a new MBean is registered matching the criteria of the subscription

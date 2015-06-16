@@ -18,10 +18,11 @@ under the License.
  */
 package com.heliosapm.utils.jmx.notifcations;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 import javax.management.MBeanInfo;
 import javax.management.MBeanNotificationInfo;
@@ -64,11 +65,11 @@ public class ProxySubscriptionService extends NotificationBroadcasterSupport imp
 	protected final ObjectName objectName;
 	
 	/** A set of subscribed full proxy listeners */
-	protected final Set<ProxySubscriptionListener> fullProxyListeners = new CopyOnWriteArraySet<ProxySubscriptionListener>();
-	/** A set of subscribed notification listeners */
-	protected final Set<NotificationListener> allListeners = new CopyOnWriteArraySet<NotificationListener>();
+	protected final Map<NotificationListener, ProxySubscription> proxyListeners = new ConcurrentHashMap<NotificationListener, ProxySubscription>();
 	/** A map to associate an ObjetcName based listener with the listener dynamic invoker */
 	protected final Map<ObjectName, NotificationListener> objectNameListeners = new ConcurrentHashMap<ObjectName, NotificationListener>();
+	
+	
 	
 	/**
 	 * Creates a new ProxySubscriptionService
@@ -104,16 +105,15 @@ public class ProxySubscriptionService extends NotificationBroadcasterSupport imp
 	 */
 	public void subscribe(final ObjectName objectName, final QueryExp query,  final NotificationListener listener, final NotificationFilter filter, final Object handback) {
 		if(listener==null) throw new IllegalArgumentException("The passed listener was null");
-		if(allListeners.contains(listener)) throw new RuntimeException("Listener already subscribed. ProxySubscriptionService only allows listeners to subscribe once");
+		if(proxyListeners.containsKey(listener)) throw new RuntimeException("Listener already subscribed. ProxySubscriptionService only allows listeners to subscribe once");
 		final boolean isPSL = listener instanceof ProxySubscriptionListener;
 		if(query!=null) {
 			query.setMBeanServer(server);
 		}
-		allListeners.add(listener);
+		final ProxySubscription ps = new ProxySubscription(objectName, query, listener, filter, handback);		
+		proxyListeners.put(listener, ps);		
 		if(isPSL) {
-			final ProxySubscriptionListener psl = (ProxySubscriptionListener)listener;
-			this.fullProxyListeners.add(psl);
-			psl.onSubscriptionInit(server.queryNames(objectName, query).toArray(new ObjectName[0]));
+			((ProxySubscriptionListener)listener).onSubscriptionInit(getMBeanInfoMap(objectName, query));
 		}
 	}
 	
@@ -128,17 +128,41 @@ public class ProxySubscriptionService extends NotificationBroadcasterSupport imp
 	 */
 	public void subscribe(final ObjectName objectName, final QueryExp query,  final ObjectName listener, final NotificationFilter filter, final Object handback) {
 		if(listener==null) throw new IllegalArgumentException("The passed listener ObjectName was null");
-		if(allListeners.contains(listener)) throw new RuntimeException("Listener already subscribed. ProxySubscriptionService only allows listeners to subscribe once");
+		if(objectNameListeners.containsKey(objectName)) throw new RuntimeException("Listener already subscribed. ProxySubscriptionService only allows listeners to subscribe once");
 		
 		final boolean isPSL = JMXHelper.isInstanceOf(objectName, ProxySubscriptionListener.class.getName());
+		if(query!=null) {
+			query.setMBeanServer(server);
+		}
+
 		final NotificationListener objectNameListener;
 		if(isPSL) {
-			objectNameListener = MBeanServerInvocationHandler.newProxyInstance(server, listener, ProxySubscriptionListener.class, JMXHelper.isInstanceOf(server, listener, NotificationBroadcaster.class.getName()));
+			objectNameListener = MBeanServerInvocationHandler.newProxyInstance(server, listener, ProxySubscriptionListener.class, JMXHelper.isInstanceOf(server, listener, NotificationBroadcaster.class.getName()));			
 		} else {
 			objectNameListener = MBeanServerInvocationHandler.newProxyInstance(server, listener, NotificationListener.class, JMXHelper.isInstanceOf(server, listener, NotificationBroadcaster.class.getName()));	
 		}
+		final ProxySubscription ps = new ProxySubscription(objectName, query, objectNameListener, filter, handback, listener);
 		objectNameListeners.put(listener, objectNameListener);
-		subscribe(objectName, query, objectNameListener, filter, handback);		
+		proxyListeners.put(objectNameListener, ps);
+		if(isPSL) {
+			((ProxySubscriptionListener)objectNameListener).onSubscriptionInit(getMBeanInfoMap(objectName, query));
+		}
+	}
+	
+	/**
+	 * Returns a map of MBeanInfos keyed by the ObjectName for MBeans matching the passed ObjectName and Query
+	 * @param objectName The object name to query
+	 * @param query The query to match against
+	 * @return the [possibly empty] map of MBeanInfos.
+	 */
+	protected Map<ObjectName, MBeanInfo> getMBeanInfoMap(final ObjectName objectName, final QueryExp query) {
+		final Set<ObjectName> matchingObjectNames = server.queryNames(objectName, query);
+		if(matchingObjectNames.isEmpty()) return Collections.emptyMap();
+		Map<ObjectName, MBeanInfo> map = new HashMap<ObjectName, MBeanInfo>(matchingObjectNames.size());
+		for(ObjectName on: matchingObjectNames) {
+			map.put(on, JMXHelper.getMBeanInfo(server, on));
+		}
+		return map;
 	}
 	
 	/**
@@ -146,8 +170,12 @@ public class ProxySubscriptionService extends NotificationBroadcasterSupport imp
 	 * @param listener the listener to cancel the subscription for
 	 */
 	public void unsubscribe(final NotificationListener listener) {
-		allListeners.remove(listener);
-		fullProxyListeners.remove(listener);
+		if(listener!=null) {
+			final ProxySubscription ps = proxyListeners.remove(listener);
+			if(ps!=null && ps.objectNameListener!=null) {
+				objectNameListeners.remove(ps.objectNameListener);
+			}
+		}
 	}
 	
 
@@ -158,11 +186,15 @@ public class ProxySubscriptionService extends NotificationBroadcasterSupport imp
 	 */
 	@Override
 	public void handleNotification(final Notification notification, final Object handback) {
+		if(proxyListeners.isEmpty()) return;
 		if(notification!=null) {
 			if(notification instanceof MBeanServerNotification) {
-				if(!fullProxyListeners.isEmpty()) {
-					handleMBeanServerNotification((MBeanServerNotification)notification);
-				}
+				handleMBeanServerNotification((MBeanServerNotification)notification);
+			}
+			final Object source = notification.getSource();
+			final ObjectName objectName = (source!=null && (source instanceof ObjectName)) ? ((ObjectName)source) : null;
+			for(ProxySubscription ps: proxyListeners.values()) {
+				ps.onNotification(notification, handback, objectName);
 			}
 		}		
 	}
@@ -172,19 +204,26 @@ public class ProxySubscriptionService extends NotificationBroadcasterSupport imp
 	 * @param mbsn The mbean server notification
 	 */
 	protected void handleMBeanServerNotification(final MBeanServerNotification mbsn) {
+		if(proxyListeners.isEmpty()) return;
 		final boolean reg = MBeanServerNotification.REGISTRATION_NOTIFICATION.equals(mbsn.getType());
 		final ObjectName objectName = mbsn.getMBeanName();
 		final MBeanInfo info = reg ? JMXHelper.getMBeanInfo(server, objectName) : null;
 		if(reg) {
-			for(ProxySubscriptionListener psl: fullProxyListeners) {
-				psl.onNewMBean(objectName, info);
+			for(ProxySubscription ps: proxyListeners.values()) {
+				ps.onMBeanRegistration(objectName, info);
 			}
 		} else {
-			for(ProxySubscriptionListener psl: fullProxyListeners) {
-				psl.onUnregisteredMBean(objectName);
-			}			
+			NotificationListener onlis = objectNameListeners.remove(objectName);
+			if(onlis!=null) {
+				proxyListeners.remove(onlis);
+			}
+			for(ProxySubscription ps: proxyListeners.values()) {
+				ps.onMBeanUnRegistration(objectName);
+			}
 		}
 	}
+	
+	
 
 
 }
