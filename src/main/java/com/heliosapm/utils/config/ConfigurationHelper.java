@@ -21,10 +21,13 @@ package com.heliosapm.utils.config;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
+
+import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: ConfigurationHelper</p>
@@ -285,6 +288,23 @@ public class ConfigurationHelper {
 		if(tmp.equalsIgnoreCase("FALSE") || tmp.equalsIgnoreCase("N") || tmp.equalsIgnoreCase("NO")) return false;
 		return defaultValue;
 	}
+	
+	/**
+	 * Returns the value defined as a URL looked up from the Environment, then System properties.
+	 * @param name The name of the key to lookup.
+	 * @param defaultValue The default value to return as a URL if the name is not defined or the value is not a valid URL.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
+	 * @return The located URL or the passed default value.
+	 */
+	public static URL getURLSystemThenEnvProperty(String name, String defaultValue, Properties...properties) {
+		String tmp = getSystemThenEnvProperty(name, null, properties);
+		try {
+			return URLHelper.toURL(tmp);
+		} catch (Exception e) {
+			return URLHelper.toURL(defaultValue);
+		}
+	}
+	
 	
 	/**
 	 * Attempts to create an instance of the passed class using one of:<ol>
