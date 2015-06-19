@@ -297,7 +297,7 @@ public class ConfigurationHelper {
 	 * @return The located URL or the passed default value.
 	 */
 	public static URL getURLSystemThenEnvProperty(String name, String defaultValue, Properties...properties) {
-		String tmp = getSystemThenEnvProperty(name, null, properties);
+		final String tmp = getSystemThenEnvProperty(name, null, properties);
 		try {
 			return URLHelper.toURL(tmp);
 		} catch (Exception e) {
@@ -305,6 +305,25 @@ public class ConfigurationHelper {
 		}
 	}
 	
+	/**
+	 * Returns the value defined as a string array looked up from the Environment, then System properties.
+	 * The values should be comma separated. Strips out any null or blank entries.
+	 * @param name The name of the key to lookup.
+	 * @param defaultValue The default value to return as a String array if the name is not defined.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
+	 * @return The string array or the passed default value.
+	 */
+	public static String[] getArraySystemThenEnvProperty(final String name, final String[] defaultValue, final Properties...properties) {
+		final String tmp = getSystemThenEnvProperty(name, "", properties).trim();
+		if(tmp==null || tmp.isEmpty()) return defaultValue;
+		final String[] arr = tmp.split(",");
+		final List<String> list = new ArrayList<String>(arr.length);
+		for(int i = 0; i < arr.length; i++) {
+			if(arr[i]==null || arr[i].trim().isEmpty()) continue;
+			list.add(arr[i].trim());
+		}
+		return list.toArray(new String[list.size()]);
+	}
 	
 	/**
 	 * Attempts to create an instance of the passed class using one of:<ol>
