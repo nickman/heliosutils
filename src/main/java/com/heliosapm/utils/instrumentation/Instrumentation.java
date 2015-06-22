@@ -78,7 +78,11 @@ public class Instrumentation implements InstrumentationMBean {
 	 * @param delegate The delegate instrumentation
 	 */
 	private Instrumentation(final java.lang.instrument.Instrumentation delegate) {
+		if(delegate==null) throw new IllegalArgumentException("The passed java.lang.instrument.Instrumentation instance was null");
 		this.delegate = delegate;
+		if(JMXHelper.isRegistered(OBJECT_NAME)) {
+			JMXHelper.unregisterMBean(OBJECT_NAME);
+		}
 		JMXHelper.registerMBean(OBJECT_NAME, this);
 	}
 	

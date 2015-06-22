@@ -51,7 +51,7 @@ public class AgentInstrumentation extends NotificationBroadcasterSupport impleme
 	
 	static {
 		try {
-			AGENT_INSTR_ON = new ObjectName("org.helios.vm.agent:service=AgentInstrumentation");
+			AGENT_INSTR_ON = new ObjectName("com.heliosapm.agent:service=AgentInstrumentation");
 		} catch (Exception ex) {
 			throw new RuntimeException(ex);
 		}
