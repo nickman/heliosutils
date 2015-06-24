@@ -21,10 +21,13 @@ package com.heliosapm.utils.lang;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -97,6 +100,39 @@ public class StringHelper {
 		}
 		return max;
 	}
+	
+	/**
+	 * Returns the longest string value in the keyset of the passed map
+	 * @param map A T keyed map
+	 * @return the max length, or zero if map is empty
+	 */
+	@SafeVarargs
+	public static <T> int longest(final Map<T, ?> map) {
+		if(map==null || map.isEmpty()) return 0;
+		final T t = map.keySet().iterator().next();
+		@SuppressWarnings("unchecked")
+		final T[] arr = (T[]) Array.newInstance(t.getClass(), map.size());
+		return longest(map.keySet().toArray(arr));
+	}
+	
+	/**
+	 * Returns a formated print of the passed map content
+	 * @param map The map to print
+	 * @return a formated print of the map content
+	 */
+	public static String printBeanNames(final Map<? extends Object, ? extends Object> map) {
+		final StringBuilder b = new StringBuilder();
+		final int width = StringHelper.longest(map) + 3;
+		for(Entry<? extends Object, ? extends Object> entry: map.entrySet()) {
+			try {
+				b.append("\n\t").append(pad(entry.getKey().toString(), width)).append(" : ").append(entry.getValue().toString());
+			} catch (Exception ex) {
+				ex.printStackTrace(System.err);
+			}
+		}
+		return b.toString();
+	}
+	
 	
 	/**
 	 * Indicates if the passed stringy is an instance of AbstractStringBuilder
