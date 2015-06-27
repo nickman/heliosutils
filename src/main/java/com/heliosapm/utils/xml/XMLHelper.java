@@ -31,7 +31,10 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -98,8 +101,26 @@ public class XMLHelper {
 		try {
 			String val = getAttributeValueByName(node, name);
 			if(val!=null && !val.trim().isEmpty()) return val.trim();
-		} catch (Exception e) {}
+		} catch (Exception e) {/* No Op */}
 		return defaultValue;		
+	}
+	
+	/**
+	 * Returns a map of the passed node's attributes
+	 * @param node The nopde to get an attribute map for
+	 * @return a [possibly empty] map of the node's attributes
+	 */
+	public static Map<String, String> getAttributeMap(final Node node) {
+		if(node==null) throw new IllegalArgumentException("The passed node was null");
+		final NamedNodeMap nnm = node.getAttributes();
+		final int size = nnm.getLength(); 
+		if(size==0) return Collections.emptyMap();
+		final Map<String, String> map = new LinkedHashMap<String, String>(size);
+		for(int i = 0; i < size; i++) {
+			final Attr attr = (Attr)nnm.item(i);
+			map.put(attr.getName(), attr.getValue());
+		}
+		return map;
 	}
 	
 	/**
