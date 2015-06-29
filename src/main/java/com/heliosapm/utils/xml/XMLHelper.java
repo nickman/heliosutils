@@ -31,6 +31,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -81,6 +82,7 @@ public class XMLHelper {
 	   * @return String
 	   */
 	  public static String getAttributeValueByName(NamedNodeMap nnm, String name) {
+	  	if(nnm==null) return null;
 	    for(int i = 0; i < nnm.getLength(); i++) {
 	      Attr attr = (Attr)nnm.item(i);
 	      if(attr.getName().equalsIgnoreCase(name)) {
@@ -89,6 +91,34 @@ public class XMLHelper {
 	    }
 	    return null;
 	  }
+	  
+	  /**
+	   * Returns the child nodes of the passed node where the type of the child node is in the passed array of type codes
+	   * @param node The node to return the child nodes of
+	   * @param types The short codes for the node types
+	   * @return a [possibly empty] list of nodes
+	   */
+	  public static List<Node> getChildNodes(final Node node, short...types) {
+	  	if(node==null) return Collections.emptyList();
+	  	if(types==null || types.length==0) return Collections.emptyList();
+	  	final List<Node> nodes = new ArrayList<Node>();
+	  	for(Node n: nodeListToList(node.getChildNodes())) {
+	  		if(Arrays.binarySearch(types, n.getNodeType()) >= 0) {
+	  			nodes.add(n);
+	  		}
+	  	}
+	  	return nodes;
+	  }
+	  
+	  /**
+	   * Returns the child element nodes of the passed node
+	   * @param node The node to return the element child nodes of
+	   * @return a [possibly empty] list of nodes
+	   */
+	  public static List<Node> getElementChildNodes(final Node node) {
+	  	return getChildNodes(node, Node.ELEMENT_NODE);
+	  }
+	  
 	  
 	/**
 	 * Returns the attribute value for the passed name in the passed node.
@@ -271,7 +301,23 @@ public class XMLHelper {
 	  public static Node getChildNodeByName(final Node xnode, final String name) {
 	  	return getChildNodeByName(xnode, name, false);
 	  }
-
+	  
+	  
+	  /**
+	   * Returns the node in the passed node list as a list of nodes
+	   * @param nodeList The node list to render
+	   * @return a [possibly empty] list of nodes
+	   */
+	  public static List<Node> nodeListToList(final NodeList nodeList) {
+	  	if(nodeList==null) return Collections.emptyList();
+	  	final int size = nodeList.getLength();
+	  	if(size==0) return Collections.emptyList();
+	  	final List<Node> nodes = new ArrayList<Node>(size);
+	  	for(int i = 0; i < size; i++) {
+	  		nodes.add(nodeList.item(i));
+	  	}
+	  	return nodes;
+	  }
 
 
 	  /**
