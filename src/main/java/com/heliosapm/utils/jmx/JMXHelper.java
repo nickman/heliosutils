@@ -87,6 +87,7 @@ import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
+import com.heliosapm.utils.io.CloseableService;
 import com.heliosapm.utils.lang.StringHelper;
 
 /**
@@ -936,7 +937,7 @@ public class JMXHelper {
 	 * @param server The MBeanServer to unregister from
 	 * @param objectName The ObjectName of the MBean to unregister
 	 */
-	public static void unregisterMBean(MBeanServer server, ObjectName objectName) {
+	public static void unregisterMBean(final MBeanServerConnection server, final ObjectName objectName) {
 		try {
 			server.unregisterMBean(objectName);
 		} catch(Exception e) {
@@ -951,9 +952,9 @@ public class JMXHelper {
 	 * @param mbean The object to register
 	 * @param objectName The ObjectName of the MBean to register
 	 */
-	public static void registerMBean(MBeanServer server, Object mbean, ObjectName objectName) {
-		try {
-			server.registerMBean(mbean, objectName);
+	public static void registerMBean(final MBeanServerConnection server, final Object mbean, final ObjectName objectName) {
+		try {			
+			((MBeanServer)server).registerMBean(mbean, objectName);
 		} catch(Exception e) {
 			if(isDebugAgentLoaded()) e.printStackTrace(System.err);
 			throw new RuntimeException("Failed to register MBean [" + objectName + "]", e);
@@ -969,7 +970,55 @@ public class JMXHelper {
 		registerMBean(getHeliosMBeanServer(), mbean, objectName);
 	}
 	
+	/**
+	 * Registers the named MBean in the passed MBeanServer and creates an AutoClose registration with the {@link CloseableService}
+	 * @param server The MBeanServer to register with
+	 * @param mbean The object to register
+	 * @param objectName The ObjectName of the MBean to register
+	 * @param closeOps The names of operations to invoke before unregistering
+	 */
+	public static void registerAutoCloseMBean(final MBeanServerConnection server, final Object mbean, final ObjectName objectName, final String...closeOps) {
+		registerMBean(server, mbean, objectName);
+		Registration.registerCloseable(objectName, server, closeOps);
+	}
 	
+	/**
+	 * Registers the named MBean with the Helios MBeanServer and creates an AutoClose registration with the {@link CloseableService}
+	 * @param mbean The object to register
+	 * @param objectName The ObjectName of the MBean to register
+	 * @param closeOps The names of operations to invoke before unregistering
+	 */
+	public static void registerAutoCloseMBean(final Object mbean, final ObjectName objectName, final String...closeOps) {
+		registerAutoCloseMBean(getHeliosMBeanServer(), mbean, objectName, closeOps);
+	}
+	
+	
+	
+	/**
+	 * Registers the passed MBean on all located MBeanServers and creates an AutoClose registration with the {@link CloseableService}
+	 * @param mbean The bean to register
+	 * @param objectName The ObjectName to register the bean with
+	 * @return the number of MBeanServers registered with
+	 * @param closeOps The names of operations to invoke on the first registration before unregistering
+	 */
+	public static int registerAutoCloseMBeanEverywhere(final Object mbean, final ObjectName objectName, final String...closeOps) {
+		int cnt = 0;
+		for(MBeanServer mbs: MBeanServerFactory.findMBeanServer(null)) {
+			if(!mbs.isRegistered(objectName)) {
+				try {
+					mbs.registerMBean(mbean, objectName);
+					if(cnt==0) {
+						registerAutoCloseMBean(mbs, mbean, objectName, closeOps);
+					} else {
+						registerAutoCloseMBean(mbs, mbean, objectName);
+					}
+					cnt++;					
+				} catch (Exception ex) {/* No Op */}
+			}
+		}
+		return cnt;
+		
+	}
 	
 	/**
 	 * Unregisters the named MBean from the Helios MBeanServer
