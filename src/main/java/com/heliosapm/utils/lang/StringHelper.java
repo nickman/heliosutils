@@ -26,9 +26,12 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * <p>Title: StringHelper</p>
@@ -105,6 +108,7 @@ public class StringHelper {
 	 * Returns the longest string value in the keyset of the passed map
 	 * @param map A T keyed map
 	 * @return the max length, or zero if map is empty
+	 * @param <T> The assumed type of the return
 	 */
 	@SafeVarargs
 	public static <T> int longest(final Map<T, ?> map) {
@@ -131,6 +135,42 @@ public class StringHelper {
 			}
 		}
 		return b.toString();
+	}
+	
+	/**
+	 * Converts the passed stringy, splits out the key value pairs and returns a map of the key/values
+	 * @param cs The stringy to split
+	 * @param pairDelim The delimeter between the pairs
+	 * @param eqDelim The delimeter between the keys and values
+	 * @return A map of key value pairs
+	 */
+	public static Map<String, String> splitKeyValues(final CharSequence cs, final String pairDelim, final String eqDelim) {
+		if(cs==null) throw new IllegalArgumentException("The passed CharSequence was null");
+		if(pairDelim==null) throw new IllegalArgumentException("The passed pair delimiter was null");
+		if(eqDelim==null) throw new IllegalArgumentException("The passed equals delimiter was null");
+		final String s = cs.toString().trim();
+		if(s.isEmpty()) return Collections.emptyMap();		
+		final String[] pairs = s.split(pairDelim);
+		final Pattern psplit = Pattern.compile(eqDelim);
+		final Map<String, String> map = new LinkedHashMap<String, String>(pairs.length);
+		for(String pair: pairs) {
+			try {
+				String[] kv = psplit.split(pair.trim());
+				if(kv.length==2) {
+					map.put(kv[0].trim(), kv[1].trim());
+				}
+			} catch (Exception x) {/* No Op */}
+		}
+		return map;
+	}
+	
+	/**
+	 * Converts the comma separated key value pairs into a key value map
+	 * @param cs The stringy to split
+	 * @return the map
+	 */
+	public static Map<String, String> splitKeyValues(final CharSequence cs) {
+		return splitKeyValues(cs, ",", "=");
 	}
 	
 	
