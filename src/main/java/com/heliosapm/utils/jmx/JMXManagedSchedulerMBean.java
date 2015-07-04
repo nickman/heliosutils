@@ -48,6 +48,11 @@ public interface JMXManagedSchedulerMBean {
 	 * @return the JMX ObjectName
 	 */
 	public ObjectName getObjectName();
+	
+	/**
+	 * Executes an immediate shutdown on the scheduler 
+	 */
+	public void stop();
 
 	/**
 	 * Returns the scheduler's pool name

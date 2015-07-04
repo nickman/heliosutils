@@ -2477,9 +2477,8 @@ while(m.find()) {
 				} catch (Exception ex) {
 					return false;
 				}				
-			} else {
-				return true;
 			}
+			return true;
 		}
 	}
 

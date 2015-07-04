@@ -203,5 +203,12 @@ public class JMXManagedScheduler extends ScheduledThreadPoolExecutor implements 
 		return getTaskCount()-getCompletedTaskCount();
 	}
 	
-
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.jmx.JMXManagedSchedulerMBean#stop()
+	 */
+	@Override
+	public void stop() {
+		shutdownNow();
+	}
 }
