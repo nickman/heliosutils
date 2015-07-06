@@ -256,6 +256,11 @@ public interface JMXManagedThreadPoolMBean {
 	 * @return true if all the futures completed within the timeout specified, false otherwise
 	 */
 	public boolean waitForCompletion(Collection<Future<?>> futures, long timeout);	
+	
+	/**
+	 * Immediately stop this threadpool
+	 */
+	public void stop();
 
 
 }

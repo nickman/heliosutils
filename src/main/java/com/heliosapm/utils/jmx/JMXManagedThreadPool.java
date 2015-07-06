@@ -361,6 +361,16 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	
 	/**
 	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.jmx.JMXManagedThreadPoolMBean#stop()
+	 */
+	@Override
+	public void stop() {
+		shutdownNow();
+	}
+	
+	
+	/**
+	 * {@inheritDoc}
 	 * @see java.util.concurrent.AbstractExecutorService#submit(java.lang.Runnable, java.lang.Object)
 	 */
 	@Override
