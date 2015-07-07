@@ -30,7 +30,10 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -42,15 +45,33 @@ import java.util.regex.Pattern;
  */
 
 public class StringHelper {
+	/** Regex pattern that defines a range of numbers */
+	protected static final Pattern intRange = Pattern.compile("([\\d+]+)-([\\d+]+)");
+	/** Regex pattern that defines a range of numbers with a wildcard terminator */
+	protected static final Pattern endRange = Pattern.compile("([\\d+]+)-\\*");
 	
 	/** The superclass of StringBuilder and StringBuffer */
 	public static final Class<?> ABSTRACT_SB_CLAZZ = StringBuilder.class.getSuperclass();
+	/** Cleans a string value before conversion to an integral */
+	public static final Pattern CLEAN_INTEGRAL = Pattern.compile("\\..*|[\\D&&[^\\-]]");
+	
 	
 	/** The ThreadMXBean */
 	protected static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
 	
 	/** The logging banner line */
 	public static final String BANNER = "==========================================================";
+
+	/**
+	 * Cleans a string value of all non numerics and anything after (and including) the decimal point
+	 * @param number A number text
+	 * @return A clean integral string
+	 */
+	public static String cleanNumber(CharSequence number) {
+		return CLEAN_INTEGRAL.matcher(number).replaceAll("");
+	}
+	
+	
 	
 	/**
 	 * Generates a logging string as an indented banner
@@ -68,6 +89,95 @@ public class StringHelper {
 			.append("\n")
 			.toString();
 	}
+	
+  /**
+   * Converts an int range expression to an array of integers.
+   * The values are comma separated. Each value can be an int or a range in the format <code>x-y</code>.
+   * For example, the expresion <b>"1,2,4,7-10"</b> would return an in array <code>{1,2,4,7,8,9,10}</code>.
+   * @param valuesStr The range expression.
+   * @return An array of ints.
+   */
+  public static int[] compileRange(final String valuesStr) {
+  	final Set<Integer> values = new TreeSet<Integer>();
+  	final String[] fragments = valuesStr.split(",");
+  	for(String frag: fragments) {
+  		frag = frag.trim();
+  		if(frag.contains("-")) {
+  			Matcher rangeMatcher = intRange.matcher(frag);
+  			if(rangeMatcher.matches() && rangeMatcher.groupCount()==2) {
+  				rangeMatcher.group();
+  				int f1 = Integer.parseInt(rangeMatcher.group(1));
+  				int f2 = Integer.parseInt(rangeMatcher.group(2));
+  				if(f1==f2) {
+  					values.add(f1);
+  				} else {
+  					int start = f1 > f2 ? f2 : f1;
+  					int end = f1 > f2 ? f1 : f2;
+  					while(start <= end) {
+  						values.add(start);
+  						start++;
+  					}
+  				}
+  			}
+
+  		} else {
+  			try {
+  				if(!frag.endsWith("-*")) {
+  					values.add(Integer.parseInt(frag.trim()));
+  				}
+  			} catch (Exception e) {
+  				
+  			}
+  		}
+
+  	}
+  	int[] valuesArr = new int[values.size()];
+  	int index = 0;
+  	for(Integer i: values) {
+  		valuesArr[index] = i;
+  		index++;
+  	}    	
+  	return valuesArr;
+  }
+  
+  public static String buildFromRange(String valuesStr, String delimeter, String...dataCells) {
+  	final StringBuilder values = new StringBuilder();
+  	final String[] fragments = valuesStr.split(",");
+  	for(String frag: fragments) {
+  		frag = frag.trim();
+  		Matcher rangeMatcher = intRange.matcher(frag);
+  		Matcher endMatcher = endRange.matcher(frag);
+  		if(rangeMatcher.matches() && rangeMatcher.groupCount()==2) {
+  			rangeMatcher.group();
+  			int f1 = Integer.parseInt(rangeMatcher.group(1));
+  			int f2 = Integer.parseInt(rangeMatcher.group(2));
+  			if(f1==f2) {
+  				values.append(dataCells[f1]).append(delimeter);
+  			} else {
+  				int start = f1 > f2 ? f2 : f1;
+  				int end = f1 > f2 ? f1 : f2;
+  				while(start <= end) {
+  					values.append(dataCells[start]).append(delimeter);
+  					start++;
+  				}
+  			}
+  		} else if(endMatcher.matches() && endMatcher.groupCount()==1) {
+  			endMatcher.group();
+  			int f1 = Integer.parseInt(endMatcher.group(1));
+  			for(; f1 < dataCells.length; f1++) {
+  				values.append(dataCells[f1]).append(delimeter);
+  			}
+  		} else {
+  			try {
+  				values.append(dataCells[Integer.parseInt(frag.trim())]).append(delimeter);
+  			} catch (Exception e) {}
+  		}
+  	}
+  	values.deleteCharAt(values.length()-1);
+  	return values.toString();
+  }
+  
+	
 	
 	/**
 	 * Calculates a low collision hash code for the passed string
@@ -229,7 +339,7 @@ public class StringHelper {
 		if(m instanceof Method) {
 			return getMethodDescriptor((Method)m);
 		} else if(m instanceof Constructor) {
-			return getConstructorDescriptor((Constructor)m);
+			return getConstructorDescriptor((Constructor<?>)m);
 		} else {
 			return m.toString();
 		}
