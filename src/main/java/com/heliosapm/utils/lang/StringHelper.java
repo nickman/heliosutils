@@ -46,9 +46,9 @@ import java.util.regex.Pattern;
 
 public class StringHelper {
 	/** Regex pattern that defines a range of numbers */
-	protected static final Pattern intRange = Pattern.compile("([\\d+]+)-([\\d+]+)");
+	public static final Pattern intRange = Pattern.compile("([\\d+]+)-([\\d+]+)");
 	/** Regex pattern that defines a range of numbers with a wildcard terminator */
-	protected static final Pattern endRange = Pattern.compile("([\\d+]+)-\\*");
+	public static final Pattern endRange = Pattern.compile("([\\d+]+)-\\*");
 	
 	/** The superclass of StringBuilder and StringBuffer */
 	public static final Class<?> ABSTRACT_SB_CLAZZ = StringBuilder.class.getSuperclass();
