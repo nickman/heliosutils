@@ -266,6 +266,21 @@ public class FluentMap<K, V> implements Map<K, V> {
 		return this;
 	}
 	
+	/**
+	 * Passes this map to the passed {@link MapAcceptor}
+	 * @param acceptor The acceptor call site
+	 * @return this map
+	 */
+	public FluentMap<K, V> accept(final MapAcceptor<K, V> acceptor) {
+		if(acceptor==null) throw new IllegalArgumentException("The passed acceptor was null");
+		acceptor.accept(this);
+		return this;
+	}
+	
+	// ======================================================================================
+	//		Standard Map Ops
+	//======================================================================================
+	
   /**
    * Returns the number of key-value mappings in this map.  If the
    * map contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
