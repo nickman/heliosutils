@@ -18,6 +18,7 @@ under the License.
  */
 package com.heliosapm.utils.system;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -82,6 +83,8 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	/** The property changed notification type */
 	public static final String NOTIF_CHANGE_EVENT = "com.heliosapm.system.property.changed";
 	
+	private static final Object installLock = new Object();
+	
 	
 	private static final MBeanNotificationInfo[] mbeanNotifs = new MBeanNotificationInfo[] {
 		new MBeanNotificationInfo(new String[]{NOTIF_INSERT_EVENT}, Notification.class.getName(), "Event broadcast when a new property is set"),
@@ -93,6 +96,27 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	private static final String INSERT_MSG = "{\"insert\":\"%s\",\"new\":\"%s\"}";
 	private static final String REMOVE_MSG = "{\"remove\":\"%s\",\"new\":\"%s\"}";
 	
+	private static final Field propertyDefaultsField;
+	
+	static {
+		try {
+			Field f = Properties.class.getDeclaredField("defaults");
+			f.setAccessible(true);
+			propertyDefaultsField = f;
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+	
+	private static Properties getDefaults(final Properties p) {
+		if(p==null) return null;
+		try {
+			return (Properties)propertyDefaultsField.get(p);
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+	
 	/**
 	 * Creates a new ChangeNotifyingProperties
 	 */
@@ -102,10 +126,11 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	
 	/**
 	 * Creates a new ChangeNotifyingProperties
-	 * @param defaults The initial defaults
+	 * @param initial The initial values
 	 */
-	public ChangeNotifyingProperties(final Properties defaults) {
-		super(defaults);
+	public ChangeNotifyingProperties(final Properties initial) {
+		super(getDefaults(System.getProperties()));		
+		super.putAll(initial);
 		notificationsEnabled.set(true);
 	}
 	
@@ -132,13 +157,19 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	/**
 	 * Installs a change notifying properties into System properties
 	 */
-	public static void systemInstall() {		
-		final ChangeNotifyingProperties cnp = new ChangeNotifyingProperties(System.getProperties());
-		System.setProperties(cnp);
-		if(JMXHelper.isRegistered(SYSPROPS_OBJECT_NAME)) {
-			JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
+	public static void systemInstall() {	
+		if(!isSystemInstalled()) {
+			synchronized(installLock) {
+				if(!isSystemInstalled()) {
+					final ChangeNotifyingProperties cnp = new ChangeNotifyingProperties(System.getProperties());
+					System.setProperties(cnp);
+					if(JMXHelper.isRegistered(SYSPROPS_OBJECT_NAME)) {
+						JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
+					}
+					JMXHelper.registerMBean(cnp, SYSPROPS_OBJECT_NAME);					
+				}
+			}
 		}
-		JMXHelper.registerMBean(cnp, SYSPROPS_OBJECT_NAME);
 	}
 	
 	/**
@@ -154,11 +185,15 @@ public class ChangeNotifyingProperties extends Properties implements Notificatio
 	 */
 	public static void systemUninstall() {		
 		if(isSystemInstalled()) {
-			ChangeNotifyingProperties cnp = (ChangeNotifyingProperties)System.getProperties();
-			cnp.listeners.clear();
-			System.setProperties(new Properties(cnp));
-			if(JMXHelper.isRegistered(SYSPROPS_OBJECT_NAME)) {
-				JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
+			synchronized(installLock) {
+				if(isSystemInstalled()) {
+					ChangeNotifyingProperties cnp = (ChangeNotifyingProperties)System.getProperties();
+					cnp.listeners.clear();
+					System.setProperties(new Properties(cnp));
+					if(JMXHelper.isRegistered(SYSPROPS_OBJECT_NAME)) {
+						JMXHelper.unregisterMBean(SYSPROPS_OBJECT_NAME);
+					}					
+				}
 			}
 		}
 	}
