@@ -20,6 +20,8 @@ package com.heliosapm.utils.concurrency;
 
 import java.lang.management.ThreadMXBean;
 
+import javax.management.MXBean;
+
 /**
  * <p>Title: ExtendedThreadManagerMXBean</p>
  * <p>Description: </p> 
@@ -27,8 +29,8 @@ import java.lang.management.ThreadMXBean;
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean</code></p>
  */
-
-public interface ExtendedThreadManagerMXBean extends ThreadMXBean { 
+@MXBean(true)
+public interface ExtendedThreadManagerMBean extends ThreadMXBean { 
 	/**
 	 * Returns the max depth used for getting thread infos
 	 * @return the max depth used for getting thread infos

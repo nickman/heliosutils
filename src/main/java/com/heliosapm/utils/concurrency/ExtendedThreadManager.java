@@ -50,7 +50,7 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
  * <p><code>com.heliosapm.utils.concurrency.ExtendedThreadManager</code></p>
  */
 
-public class ExtendedThreadManager extends NotificationBroadcasterSupport implements ExtendedThreadManagerMXBean {
+public class ExtendedThreadManager extends NotificationBroadcasterSupport implements ExtendedThreadManagerMBean {
 	private static final MBeanNotificationInfo[] notificationInfo = createMBeanInfo();
 	/** The delegate ThreadMXBean */
 	protected final ThreadMXBean delegate;
@@ -190,7 +190,7 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 	}
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getNonDaemonThreadCount()
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getNonDaemonThreadCount()
 	 */
 	@Override
 	public int getNonDaemonThreadCount() {
@@ -400,7 +400,7 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 	
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getNonDaemonThreadNames()
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getNonDaemonThreadNames()
 	 */
 	@Override
 	public String[] getNonDaemonThreadNames() {
@@ -454,7 +454,7 @@ Thread[Thread-10,6,main]
 	
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getBusyThreads(long)
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getBusyThreads(long)
 	 */
 	@Override
 	public String[] getBusyThreads(long sampleTime) {
@@ -588,7 +588,7 @@ Thread[Thread-10,6,main]
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMXBean#getThreadInfo()
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getThreadInfo()
 	 */
 	@Override
 	public ExtendedThreadInfo[] getThreadInfo() {
