@@ -21,6 +21,7 @@ package com.heliosapm.utils.collections;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -101,6 +102,16 @@ public class FluentMap<K, V> implements Map<K, V> {
 				return HashMap.class.isInstance(map);
 			}
 		},
+		HASHT(){@Override
+			public Map createMap() {
+				return new Hashtable();
+			}	
+		  @Override
+			public boolean isInstanceOf(final Class map) {
+		  	if(map==null) return false;
+				return Hashtable.class.isInstance(map);
+			}
+		},		
 		/** Creates {@link TreeMap}s */
 		TREE(){@Override
 			public Map createMap() {
@@ -162,19 +173,22 @@ public class FluentMap<K, V> implements Map<K, V> {
 	/**
 	 * creates a new fluent map of the passed type
 	 * @param mapType The map type. A hashmap will be returned if null
+	 * @param keyType The key type
+	 * @param valueType the map The value type
 	 * @return the map
 	 */
-	public static <K, V> FluentMap<K, V> newMap(final MapType mapType) {
+	public static <K, V> FluentMap<K, V> newMap(final MapType mapType, final Class<K> keyType, final Class<V> valueType) {
 		return new FluentMap(mapType);
 	}
 
 	/**
 	 * creates a new fluent hash map.
 	 * @param keyType The key type
-	 * @return the map The value type
+	 * @param valueType the map The value type
+	 * @return the map
 	 */
-	public static <K, V> FluentMap<K, V> newMap(Class<K> keyType, Class<V> valueType) {
-		return newMap(null);
+	public static <K, V> FluentMap<K, V> newMap(final Class<K> keyType, final Class<V> valueType) {
+		return newMap(null, keyType, valueType);
 	}
 
 	private FluentMap(final MapType type) {
