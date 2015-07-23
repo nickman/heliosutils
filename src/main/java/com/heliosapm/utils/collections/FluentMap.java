@@ -170,9 +170,10 @@ public class FluentMap<K, V> implements Map<K, V> {
 
 	/**
 	 * creates a new fluent hash map.
-	 * @return the map
+	 * @param keyType The key type
+	 * @return the map The value type
 	 */
-	public static <K, V> FluentMap<K, V> newMap() {
+	public static <K, V> FluentMap<K, V> newMap(Class<K> keyType, Class<V> valueType) {
 		return newMap(null);
 	}
 
