@@ -318,6 +318,7 @@ public class LongSlidingWindow  implements ILongSlidingWindow {
 	 */
 	@Override
 	public long avg() {
+		if(this.array.size==0) return -1;
 		return avg(array.size);
 	}
 	

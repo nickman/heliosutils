@@ -78,7 +78,7 @@ public class FluentMap<K, V> implements Map<K, V> {
 	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
 	 * <p><code>com.heliosapm.utils.collections.FluentMap.MapType</code></p>
 	 */
-	static enum MapType implements MapCreator {
+	public static enum MapType implements MapCreator {
 		/** Creates {@link LinkedHashMap}s */
 		LINK(){@Override
 			public Map createMap() {

@@ -459,7 +459,7 @@ public class ConcurrentLongSlidingWindow extends LongSlidingWindow implements IL
 	@Override
 	public long avg() {
 		readLock.lock();
-		try {
+		try {			
 			return super.avg();
 		} finally {
 			readLock.unlock();
