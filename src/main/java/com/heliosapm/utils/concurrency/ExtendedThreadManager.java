@@ -102,7 +102,7 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 		if(!installed.get()) {
 			mxb = new ExtendedThreadManager(ManagementFactory.getThreadMXBean());
 			try {
-				server.unregisterMBean(THREAD_MX_NAME);
+				server.unregisterMBean(THREAD_MX_NAME);				
 				server.registerMBean(mxb, THREAD_MX_NAME);
 				installed.set(true);
 			} catch (Exception ex) {
