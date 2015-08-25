@@ -186,7 +186,7 @@ public class URLHelper {
 				System.out.println("URL from File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
 				return toURL(new File(urlStr.toString()).getAbsoluteFile());
 			}
-			System.err.println("NOT A File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
+//			System.err.println("NOT A File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
 			return new URL(nvl(urlStr, "Passed string was null").toString());
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to create URL from string [" + urlStr + "]", e);
