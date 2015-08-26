@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.io.Closeable;
 import java.io.InputStream;
@@ -32,7 +32,7 @@ import java.io.InputStream;
  * <p>Description: Defines a session interface for accepting commands and streaming or returning the results.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.CommandTerminal</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.CommandTerminal</code></p>
  */
 
 public interface CommandTerminal extends Closeable {

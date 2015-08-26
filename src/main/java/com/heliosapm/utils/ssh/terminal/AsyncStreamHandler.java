@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.io.InputStream;
 
@@ -32,7 +32,7 @@ import java.io.InputStream;
  * This is intended to allow some pre-amble commands and then a long running streamed response.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.AsyncStreamHandler</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.AsyncStreamHandler</code></p>
  */
 
 public interface AsyncStreamHandler extends AsyncCommandResponseHandler {

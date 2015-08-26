@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -35,7 +35,7 @@ import ch.ethz.ssh2.ConnectionMonitor;
  * <p>Description: Asynchronous command terminal where commands are executed asynchronously and can be handled in a callback</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.AsyncCommandTerminal</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.AsyncCommandTerminal</code></p>
  */
 
 public interface AsyncCommandTerminal extends Closeable {

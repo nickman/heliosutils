@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 
 /**
@@ -30,7 +30,7 @@ package com.heliosapm.ssh.terminal;
  * <p>Description: A basic {@link AsyncCommandResponseHandler} implementation</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.DefaultAsyncCommandResponseHandler</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.DefaultAsyncCommandResponseHandler</code></p>
  */
 
 public class DefaultAsyncCommandResponseHandler implements AsyncCommandResponseHandler {
@@ -44,7 +44,7 @@ public class DefaultAsyncCommandResponseHandler implements AsyncCommandResponseH
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncCommandResponseHandler#onCommandResponse(java.lang.String, java.lang.Integer, java.lang.String, java.lang.CharSequence)
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncCommandResponseHandler#onCommandResponse(java.lang.String, java.lang.Integer, java.lang.String, java.lang.CharSequence)
 	 */
 	@Override
 	public boolean onCommandResponse(final String command, final Integer exitCode, String exitSignal, final CharSequence output) {
@@ -54,7 +54,7 @@ public class DefaultAsyncCommandResponseHandler implements AsyncCommandResponseH
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncCommandResponseHandler#onException(java.lang.String, java.lang.Throwable)
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncCommandResponseHandler#onException(java.lang.String, java.lang.Throwable)
 	 */
 	@Override
 	public boolean onException(final String command, final Throwable error) {

@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.beans.PropertyEditorManager;
 import java.beans.PropertyEditorSupport;
@@ -104,7 +104,7 @@ public enum AuthMethod implements Authenticator {
 	/**
 	 * <p>Title: AuthMethodPropertyEditor</p>
 	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
-	 * <p><code>com.heliosapm.ssh.terminal.AuthMethod.AuthMethodPropertyEditor</code></p>
+	 * <p><code>com.heliosapm.utils.ssh.terminal.AuthMethod.AuthMethodPropertyEditor</code></p>
 	 */
 	public static class AuthMethodPropertyEditor extends PropertyEditorSupport {
 		/**
@@ -121,7 +121,7 @@ public enum AuthMethod implements Authenticator {
 	/**
 	 * <p>Title: AuthMethodArrPropertyEditor</p>
 	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
-	 * <p><code>com.heliosapm.ssh.terminal.AuthMethod.AuthMethodArrPropertyEditor</code></p>
+	 * <p><code>com.heliosapm.utils.ssh.terminal.AuthMethod.AuthMethodArrPropertyEditor</code></p>
 	 */
 	public static class AuthMethodArrPropertyEditor extends PropertyEditorSupport {
 		/**

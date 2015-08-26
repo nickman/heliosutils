@@ -22,8 +22,9 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Set;
@@ -35,6 +36,7 @@ import ch.ethz.ssh2.ConnectionInfo;
 import ch.ethz.ssh2.ConnectionMonitor;
 import ch.ethz.ssh2.Session;
 
+import com.heliosapm.utils.io.CloseListener;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
@@ -42,10 +44,10 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
  * <p>Description: Wraps a connection, connection info and other bits and pieces of interest to a connection</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.WrappedConnection</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.WrappedConnection</code></p>
  */
 
-public class WrappedConnection implements ConnectionMonitor {
+public class WrappedConnection implements ConnectionMonitor, Closeable, CloseListener<Closeable> {
 	/** The wrapped connection */
 	private final Connection connection;
 	/** The connection info */
@@ -192,6 +194,20 @@ public class WrappedConnection implements ConnectionMonitor {
 	
 	public boolean isConnected() {
 		return connected.get();
+	}
+
+
+	@Override
+	public void onClosed(final Closeable closeable) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void close() throws IOException {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

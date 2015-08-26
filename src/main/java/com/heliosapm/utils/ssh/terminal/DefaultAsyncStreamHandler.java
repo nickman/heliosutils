@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -33,7 +33,7 @@ import java.io.InputStreamReader;
  * <p>Description: A basic {@link AsyncStreamHandler} implementation</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.DefaultAsyncStreamHandler</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.DefaultAsyncStreamHandler</code></p>
  */
 
 public class DefaultAsyncStreamHandler extends DefaultAsyncCommandResponseHandler implements AsyncStreamHandler {
@@ -47,7 +47,7 @@ public class DefaultAsyncStreamHandler extends DefaultAsyncCommandResponseHandle
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncStreamHandler#onCommandOutputStream(java.lang.String, java.io.InputStream)
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncStreamHandler#onCommandOutputStream(java.lang.String, java.io.InputStream)
 	 */
 	@Override
 	public void onCommandOutputStream(final String command, final InputStream is) {

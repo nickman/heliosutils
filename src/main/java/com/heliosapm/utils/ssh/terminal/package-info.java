@@ -21,7 +21,7 @@ under the License.
  * <p>Description: SSH terminal support</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.package-info</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.package-info</code></p>
  */
 
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;

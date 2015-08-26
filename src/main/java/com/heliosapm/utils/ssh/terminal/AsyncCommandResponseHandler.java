@@ -22,14 +22,14 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 /**
  * <p>Title: AsyncCommandResponseHandler</p>
  * <p>Description: AsyncHandler that is called back with the original command, the exit code and the output of the command.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.AsyncCommandResponseHandler</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.AsyncCommandResponseHandler</code></p>
  */
 
 public interface AsyncCommandResponseHandler {

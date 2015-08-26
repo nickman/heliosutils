@@ -1,4 +1,4 @@
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +13,7 @@ import ch.ethz.ssh2.StreamGobbler;
 	 * <p>Description: A wrapper of a session to provide a simplified command terminal</p> 
 	 * <p>Company: Helios Development Group LLC</p>
 	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
-	 * <p><code>com.heliosapm.ssh.terminal.WrappedSession.CommandTerminalImpl</code></p>
+	 * <p><code>com.heliosapm.utils.ssh.terminal.WrappedSession.CommandTerminalImpl</code></p>
 	 */
 	public class CommandTerminalImpl implements CommandTerminal {
 		/** The underlying session */
@@ -65,7 +65,7 @@ import ch.ethz.ssh2.StreamGobbler;
 		
 		/**
 		 * {@inheritDoc}
-		 * @see com.heliosapm.ssh.terminal.CommandTerminal#getResponseStream()
+		 * @see com.heliosapm.utils.ssh.terminal.CommandTerminal#getResponseStream()
 		 */
 		public InputStream getResponseStream() {
 			return pbis; 

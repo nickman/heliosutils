@@ -16,28 +16,30 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.io;
 
-import java.io.IOException;
-
-import ch.ethz.ssh2.Connection;
+import java.io.Closeable;
 
 /**
- * <p>Title: Authenticator</p>
- * <p>Description: </p> 
+ * <p>Title: BroadcastingCloseable</p>
+ * <p>Description: An extension of {@link Closeable} on which {@link CloseListener}s can be registered</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.Authenticator</code></p>
+ * <p><code>com.heliosapm.utils.io.BroadcastingCloseable</code></p>
+ * @param <T> The closeable type
  */
 
-public interface Authenticator {
+public interface BroadcastingCloseable<T extends Closeable> extends Closeable {
 	/**
-	 * Attempts an authentication agains the passed connection using the resources in the passed authed info.
-	 * If the connection is already fully authenticated, immediately returns true
-	 * @param conn The connection to authenticate against
-	 * @param authInfo The authentication resources
-	 * @return true the connection is now authenticated, false otherwise
-	 * @throws IOException Thrown on any IO error
+	 * Adds a listener to the close event on this closeable
+	 * @param listener The close listener to add
 	 */
-	public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException;
+	public void addListener(final CloseListener<T> listener);
+	
+	/**
+	 * Removes a listener from this closeable
+	 * @param listener The close listener to remove
+	 */
+	public void removeListener(final CloseListener<T> listener);
+
 }

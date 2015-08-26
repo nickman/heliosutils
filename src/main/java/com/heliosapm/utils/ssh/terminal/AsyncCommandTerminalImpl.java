@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,7 +45,7 @@ import ch.ethz.ssh2.Session;
  * <p>Description: Default implementation for AsyncCommandTerminal</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.AsyncCommandTerminalImpl</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.AsyncCommandTerminalImpl</code></p>
  */
 
 public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, ConnectionMonitor {
@@ -165,7 +165,7 @@ public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, Connectio
 	
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncCommandTerminal#exec(com.heliosapm.ssh.terminal.AsyncCommandResponseHandler, java.lang.String[])
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncCommandTerminal#exec(com.heliosapm.utils.ssh.terminal.AsyncCommandResponseHandler, java.lang.String[])
 	 */
 	@Override
 	public Future<?> exec(final AsyncCommandResponseHandler handler, final String... commands) {
@@ -251,7 +251,7 @@ public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, Connectio
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncCommandTerminal#close()
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncCommandTerminal#close()
 	 */
 	@Override
 	public void close() {
@@ -268,7 +268,7 @@ public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, Connectio
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncCommandTerminal#getTty()
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncCommandTerminal#getTty()
 	 */
 	@Override
 	public String getTty() {
@@ -277,7 +277,7 @@ public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, Connectio
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.ssh.terminal.AsyncCommandTerminal#isConnected()
+	 * @see com.heliosapm.utils.ssh.terminal.AsyncCommandTerminal#isConnected()
 	 */
 	@Override
 	public boolean isConnected() {

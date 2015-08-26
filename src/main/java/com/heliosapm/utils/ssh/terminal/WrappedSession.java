@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org. 
  *
  */
-package com.heliosapm.ssh.terminal;
+package com.heliosapm.utils.ssh.terminal;
 
 import static ch.ethz.ssh2.ChannelCondition.CLOSED;
 import static ch.ethz.ssh2.ChannelCondition.EOF;
@@ -48,7 +48,7 @@ import ch.ethz.ssh2.Session;
  * <p>Description: A wrapped SSH session</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.ssh.terminal.WrappedSession</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.WrappedSession</code></p>
  */
 
 public class WrappedSession implements Closeable, ConnectionMonitor {
