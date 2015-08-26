@@ -618,6 +618,10 @@ public class Connection {
         authenticated = false;
     }
 
+    public boolean isClosed() {
+    	return (am==null && cm==null);
+    }
+    
     /**
      * Same as {@link #connect(ServerHostKeyVerifier, int, int) connect(null, 0, 0)}.
      *

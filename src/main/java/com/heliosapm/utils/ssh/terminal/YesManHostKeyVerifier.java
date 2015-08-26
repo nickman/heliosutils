@@ -16,32 +16,35 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.io;
+package com.heliosapm.utils.ssh.terminal;
 
-import java.io.Closeable;
+import ch.ethz.ssh2.ServerHostKeyVerifier;
 
 /**
- * <p>Title: CloseListener</p>
- * <p>Description: Defines a class whose instances can be notified of a closed closeable</p> 
+ * <p>Title: YesManHostKeyVerifier</p>
+ * <p>Description: A {@link ServerHostKeyVerifier} implementation that always returns true</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.io.CloseListener</code></p>
- * @param <T> The assumed type of the closeable
+ * <p><code>com.heliosapm.utils.ssh.terminal.YesManHostKeyVerifier</code></p>
  */
 
-public interface CloseListener<T extends Closeable> {
-	/**
-	 * Callback when the observed closeable is closed
-	 * @param closeable the closeable that was closed
-	 * @param cause The cause of the connection close, or null if close was deliberate
-	 */
-	public void onClosed(final T closeable, final Throwable cause);
+public class YesManHostKeyVerifier implements ServerHostKeyVerifier {
+	/** A shareable instance */
+	public static final YesManHostKeyVerifier INSTANCE = new YesManHostKeyVerifier();
 	
 	/**
-	 * Callback when a closed observed closeable is reset (presumably opened)
-	 * @param resetCloseable the closeable that was reset
+	 * Creates a new YesManHostKeyVerifier
 	 */
-	public void onReset(final T resetCloseable);
-	
-	
+	private YesManHostKeyVerifier() {
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see ch.ethz.ssh2.ServerHostKeyVerifier#verifyServerHostKey(java.lang.String, int, java.lang.String, byte[])
+	 */
+	@Override
+	public boolean verifyServerHostKey(final String hostname, final int port,  final String serverHostKeyAlgorithm, final byte[] serverHostKey) throws Exception {
+		return true;
+	}
+
 }

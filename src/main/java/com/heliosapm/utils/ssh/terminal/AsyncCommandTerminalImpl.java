@@ -87,7 +87,7 @@ public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, Connectio
 		});
 		this.wrappedSession = wrappedSession;
 		this.session = wrappedSession.session;
-		this.wrappedSession.parentConnection.addConnectionMonitor(this);
+		this.wrappedSession.parentConnection.addListener(this);
 		final ExecutorService errExec = this.executor;
 		try {
 			this.executor.submit(new Runnable() {
@@ -378,9 +378,7 @@ public class AsyncCommandTerminalImpl implements AsyncCommandTerminal, Connectio
 		this.connectionMonitor = connectionMonitor;
 		if(wrappedSession != null) {
 			if(wrappedSession.parentConnection!=null) {
-				if(wrappedSession.parentConnection.isConnected()) {
-					wrappedSession.parentConnection.addConnectionMonitor(connectionMonitor);
-				}
+				wrappedSession.parentConnection.addListener(connectionMonitor);
 			}
 		}
 	}

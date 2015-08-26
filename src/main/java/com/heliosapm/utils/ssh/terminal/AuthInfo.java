@@ -25,13 +25,18 @@
 package com.heliosapm.utils.ssh.terminal;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
+
+import ch.ethz.ssh2.Connection;
+import ch.ethz.ssh2.ServerHostKeyVerifier;
+import ch.ethz.ssh2.crypto.PEMDecoder;
 
 import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: AuthInfo</p>
- * <p>Description: Bean construct to wrap authentication credentials</p> 
+ * <p>Description: Bean construct to wrap connection properties and authentication credentials</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.tsdbex.monitor.ssh.AuthInfo</code></p>
@@ -48,6 +53,19 @@ public class AuthInfo {
 	private String privateKeyPassword = null;
 	/** The authentication methods in the order they should be attempted */
 	private AuthMethod[] authMethods = AuthMethod.values();
+	/** The server host key verifier */
+	private ServerHostKeyVerifier verifier = null;
+
+	/** The connection timeout in ms. */
+	private int connectTimeout = 10000;
+	/** The key exchange timeout in ms. */
+	private int kexTimeout = 10000;
+	
+	
+	/** The default private key file name */
+	public static final String DEFAULT_PRIVATE_PEM_KEY = System.getProperty("user.home") + File.separator + ".ssh" + File.separator + "id_dsa";
+	/** The default private key file name */
+	public static final File DEFAULT_PRIVATE_PEM_KEY_FILE = new File(DEFAULT_PRIVATE_PEM_KEY); 
 	
 	
 
@@ -66,6 +84,53 @@ public class AuthInfo {
 	public AuthInfo(final String userName) {
 		if(userName==null) throw new IllegalArgumentException("The passed user name was null");
 		this.userName = userName.trim();
+	}
+	
+	/**
+	 * Attempts to authenticate the passed connection.
+	 * Returns true if the connection is already fully authenticated
+	 * @param connection The connection to authenticate
+	 * @return true if connection is authenticated, false otherwise
+	 */
+	boolean authenticate(final Connection connection) {
+		if(connection==null) throw new IllegalArgumentException("Passed connection was null");
+		if(connection.isAuthenticationComplete()) return true;
+		if(authMethods==null || authMethods.length==0) return false;
+		if(verifier==null) verifier = new AuthorizedKeysHostKeyVerifier();
+		checkPrivateKey();
+		
+		if(connection.isClosed()) {
+			try {
+				connection.connect(verifier, connectTimeout, kexTimeout);
+			} catch (Exception ex) {
+				throw new RuntimeException("Failed to connect [" + connection + "]", ex);
+			}
+		}
+		for(AuthMethod am: authMethods) {
+			try {
+				am.authenticate(connection, this);
+				if(connection.isAuthenticationComplete()) return true;
+			} catch (Exception ex) {
+				/* No Op */
+			}
+		}
+		return false;
+	}
+	
+	private void checkPrivateKey() {
+		if(				
+			(userPassword==null || userPassword.isEmpty())
+			&&
+			(privateKey==null || privateKey.length==0)
+			) {
+			if(DEFAULT_PRIVATE_PEM_KEY_FILE.canRead()) {
+				final char[] pkey = URLHelper.getCharsFromURL(URLHelper.toURL(DEFAULT_PRIVATE_PEM_KEY_FILE));
+				try {
+					PEMDecoder.decode(pkey, privateKeyPassword);
+					privateKey = pkey;
+				} catch (Exception ex) { /* No Op */ }				
+			}
+		}
 	}
 	
 	// ======================================================================
@@ -138,6 +203,41 @@ public class AuthInfo {
 		return this;
 	}
 	
+	/**
+	 * Sets the host key verifier
+	 * @param verifier the verifier to set
+	 * @return this AuthInfo
+	 */
+	public AuthInfo setVerifier(final ServerHostKeyVerifier verifier) {
+		if(verifier==null) throw new IllegalArgumentException("The passed ServerHostKeyVerifier was null");
+		this.verifier = verifier;
+		return this;
+	}
+
+	/**
+	 * Sets the connection timeout in ms.
+	 * @param connectTimeout the connectTimeout to set
+	 * @return this AuthInfo
+	 */
+	public AuthInfo setConnectTimeout(final int connectTimeout) {
+		if(connectTimeout<0) throw new IllegalArgumentException("The passed connectTimeout [" + connectTimeout + "] was invalid");
+		this.connectTimeout = connectTimeout;
+		return this;
+	}
+
+	/**
+	 * Sets the key exchange timeout in ms.
+	 * @param kexTimeout the kexTimeout to set
+	 * @return this AuthInfo
+	 */
+	public AuthInfo setKexTimeout(final int kexTimeout) {
+		if(kexTimeout<0) throw new IllegalArgumentException("The passed kexTimeout [" + kexTimeout + "] was invalid");
+		this.kexTimeout = kexTimeout;
+		return this;
+	}
+	
+	
+	
 	// ======================================================================
 	// Getters
 	// ======================================================================
@@ -152,6 +252,31 @@ public class AuthInfo {
 	}
 	
 	/**
+	 * Returns the host key verifier
+	 * @return the verifier
+	 */
+	public ServerHostKeyVerifier getVerifier() {
+		return verifier;
+	}
+
+	/**
+	 * Returns the connection timeout in ms.
+	 * @return the connectTimeout
+	 */
+	public int getConnectTimeout() {
+		return connectTimeout;
+	}
+
+	/**
+	 * Returns the key exchange timeout in ms.
+	 * @return the kexTimeout
+	 */
+	public int getKexTimeout() {
+		return kexTimeout;
+	}
+	
+	
+	/**
 	 * {@inheritDoc}
 	 * @see java.lang.Object#toString()
 	 */
@@ -160,6 +285,8 @@ public class AuthInfo {
 		final StringBuilder b = new StringBuilder(userName).append("[");
 		b.append("pass:").append((userPassword==null || userPassword.isEmpty()) ? false : true).append(", ");
 		b.append("key:").append((privateKey==null) ? false : true).append(", ");
+		b.append("ctimeout:").append(connectTimeout).append("ms. , ");
+		b.append("ktimeout:").append(kexTimeout).append("ms. , ");
 		b.append("keypass:").append((privateKeyPassword==null || privateKeyPassword.isEmpty()) ? false : true).append(", ");		
 		b.append("authMethods:").append(Arrays.toString(authMethods));		
 		return b.append("]").toString();
@@ -196,6 +323,6 @@ public class AuthInfo {
 	public AuthMethod[] getAuthMethods() {
 		return authMethods.clone();
 	}
-	
+
 
 }

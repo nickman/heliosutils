@@ -41,5 +41,16 @@ public interface BroadcastingCloseable<T extends Closeable> extends Closeable {
 	 * @param listener The close listener to remove
 	 */
 	public void removeListener(final CloseListener<T> listener);
+	
+	/**
+	 * Resets the closeable (presumably opens it)
+	 */
+	public void reset();
+	
+	/**
+	 * Indicates if the closeable is open
+	 * @return true if the closeable is open, false otherwise
+	 */
+	public boolean isOpen();
 
 }

@@ -75,5 +75,17 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 	public String toString() {
 		return lpf.toString();
 	}
+
+	@Override
+	public void onClosed(WrappedConnection closeable, Throwable cause) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onReset(WrappedConnection resetCloseable) {
+		// TODO Auto-generated method stub
+		
+	}
 	
 }

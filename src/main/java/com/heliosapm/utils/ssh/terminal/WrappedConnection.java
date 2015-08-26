@@ -27,8 +27,6 @@ package com.heliosapm.utils.ssh.terminal;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import ch.ethz.ssh2.Connection;
@@ -36,6 +34,8 @@ import ch.ethz.ssh2.ConnectionInfo;
 import ch.ethz.ssh2.ConnectionMonitor;
 import ch.ethz.ssh2.Session;
 
+import com.heliosapm.utils.io.BroadcastingCloseable;
+import com.heliosapm.utils.io.BroadcastingCloseableImpl;
 import com.heliosapm.utils.io.CloseListener;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
@@ -47,11 +47,13 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
  * <p><code>com.heliosapm.utils.ssh.terminal.WrappedConnection</code></p>
  */
 
-public class WrappedConnection implements ConnectionMonitor, Closeable, CloseListener<Closeable> {
+public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseable<WrappedConnection>, CloseListener<Closeable> {
 	/** The wrapped connection */
 	private final Connection connection;
 	/** The connection info */
 	private final ConnectionInfo connectionInfo;
+	/** The auth info */
+	private final AuthInfo authInfo;
 	
 	/** The resolved host name and key for this connection */
 	private final String hostName;
@@ -61,17 +63,147 @@ public class WrappedConnection implements ConnectionMonitor, Closeable, CloseLis
 	/** The shared notification executor */
 	private final SharedNotificationExecutor notifExecutor;
 	
-	private final AtomicBoolean connected = new AtomicBoolean(false);
 	
-	/** Externally registered monitors */
-	private final Set<ConnectionMonitor> externalMonitors = new CopyOnWriteArraySet<ConnectionMonitor>();
+	/** The throwable message when the connection is closed by user request */
+	public static final String USER_CLOSED_MSG = "Closed due to user request.";
 	
-	public static final WrappedConnection connect(final String hostName, final int port, final AuthInfo authInfo) {
-		final Connection conn = new Connection(hostName, port);
-		final WrappedConnection wconn = new WrappedConnection(conn, authInfo);
+	/**  */
+	private final BroadcastingCloseableImpl<WrappedConnection> closeBroadcaster = new BroadcastingCloseableImpl<WrappedConnection>(this) {
+
+		@Override
+		public void close() throws IOException {
+			doClose(null);
+		}
 		
+		public void close(final Throwable cause) throws IOException {
+			if(cause!=null) {
+				if(USER_CLOSED_MSG.equals(cause.getMessage())) {
+					doClose(null);
+					return;
+				}
+			}
+			doClose(cause);
+		}
+
+		@Override
+		public void reset() {
+			doReset();
+			
+		}
+		
+		
+	};
+	
+	@Override
+	public void addListener(CloseListener<WrappedConnection> listener) {
+		closeBroadcaster.addListener(listener);		
+	}
+	
+	@Override
+	public void removeListener(final CloseListener<WrappedConnection> listener) {
+		closeBroadcaster.removeListener(listener);		
+	}
+	
+	public void addListener(final ConnectionMonitor listener) {
+		closeBroadcaster.addListener(new CloseListener<WrappedConnection>(){
+			@Override
+			public void onClosed(final WrappedConnection closeable, final Throwable cause) {				
+				listener.connectionLost(cause);
+			}
+			@Override
+			public void onReset(WrappedConnection resetCloseable) {
+				// No Op				
+			}
+		});	
+	}
+	
+	
+	
+	/**
+	 * 
+	 * @see com.heliosapm.utils.io.BroadcastingCloseable#reset()
+	 */
+	public void reset() {
+		closeBroadcaster.reset();
+	}
+
+
+
+
+	
+	/**
+	 * Creates and attempts to connect a new connection
+	 * @param hostName The host name
+	 * @param port The SSH listening port
+	 * @param authInfo The authentication info
+	 * @return a connected but not authenticated {@link WrappedConnection}
+	 */
+	public static final WrappedConnection connect(final String hostName, final int port, final AuthInfo authInfo) {
+		final WrappedConnection wconn = create(hostName, port, authInfo);
+		try {
+			wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to connect to [" + hostName + ":" + port + "]", ex);
+		}
 		return wconn;
 	}
+	
+	/**
+	 * Creates and attempts to connect a new connection on port 22
+	 * @param hostName The host name
+	 * @param authInfo The authentication info
+	 * @return a connected but not authenticated {@link WrappedConnection}
+	 */
+	public static final WrappedConnection connect(final String hostName, final AuthInfo authInfo) {
+		return connect(hostName, 22, authInfo);
+	}
+	
+	/**
+	 * Creates but does not attempt to connect a new connection
+	 * @param hostName The host name
+	 * @param port The SSH listening port
+	 * @param authInfo The authentication info
+	 * @return a disconnected and not authenticated {@link WrappedConnection}
+	 */
+	public static final WrappedConnection create(final String hostName, final int port, final AuthInfo authInfo) {
+		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
+		final Connection conn = new Connection(hostName, port);
+		return new WrappedConnection(conn, authInfo);
+	}
+	
+	/**
+	 * Creates but does not attempt to connect a new connection on port 22
+	 * @param hostName The host name
+	 * @param authInfo The authentication info
+	 * @return a disconnected and not authenticated {@link WrappedConnection}
+	 */
+	public static final WrappedConnection create(final String hostName, final AuthInfo authInfo) {
+		return create(hostName, 22, authInfo);
+	}
+	
+	/**
+	 * Creates and attempts to connect and authenticate a new connection
+	 * @param hostName The host name
+	 * @param port The SSH listening port
+	 * @param authInfo The authentication info
+	 * @return a connected and authenticated {@link WrappedConnection}
+	 */
+	public static final WrappedConnection connectAndAuthenticate(final String hostName, final int port, final AuthInfo authInfo) {
+		final WrappedConnection wconn = connect(hostName, port, authInfo);
+		wconn.reset();
+		return wconn;
+	}
+	
+	/**
+	 * Creates and attempts to connect and authenticate a new connection on port 22
+	 * @param hostName The host name
+	 * @param authInfo The authentication info
+	 * @return a connected and authenticated {@link WrappedConnection}
+	 */
+	public static final WrappedConnection connectAndAuthenticate(final String hostName, final AuthInfo authInfo) {
+		return connectAndAuthenticate(hostName, 22, authInfo);
+	}
+	
 	
 	
 	/**
@@ -82,6 +214,7 @@ public class WrappedConnection implements ConnectionMonitor, Closeable, CloseLis
 	public WrappedConnection(final Connection connection, final AuthInfo authInfo) {
 		if(connection==null) throw new IllegalArgumentException("The passed connection was null");
 		this.connection = connection;
+		this.authInfo = authInfo==null ? new AuthInfo() : authInfo;
 		String tmpName = null;
 		try {
 			tmpName = InetAddress.getByName(this.connection.getHostname()).getHostName();
@@ -108,49 +241,14 @@ public class WrappedConnection implements ConnectionMonitor, Closeable, CloseLis
 	}
 	
 	
+	/**
+	 * Returns the target port for this connection
+	 * @return the target port for this connection
+	 */
 	public int getPort() {
 		return port;
 	}
 	
-
-
-
-	/**
-	 * Add a ConnectionMonitor to this connection.
-	 * @param cmon The connection monitor to add
-	 * @see ch.ethz.ssh2.Connection#addConnectionMonitor(ch.ethz.ssh2.ConnectionMonitor)
-	 */
-	public void addConnectionMonitor(final ConnectionMonitor cmon) {
-		if(cmon==null) throw new IllegalArgumentException("The passed connection monitor was null");
-		externalMonitors.add(cmon);
-	}
-
-	/**
-	 * Removes a registered connection monitor
-	 * @param cmon The connection monitor to remove
-	 * @return true if removed, false if did not exist
-	 * @see ch.ethz.ssh2.Connection#removeConnectionMonitor(ch.ethz.ssh2.ConnectionMonitor)
-	 */
-	public boolean removeConnectionMonitor(final ConnectionMonitor cmon) {
-		if(cmon==null) throw new IllegalArgumentException("The passed connection monitor was null");
-		return externalMonitors.remove(cmon);
-	}
-	
-	/**
-	 * Delegates the connection list event to external monitors 
-	 * @param reason the connection loss reason
-	 */
-	protected void fireConnectionMonitors(final Throwable reason) {
-		if(!externalMonitors.isEmpty()) {
-			for(final ConnectionMonitor cm: externalMonitors) {
-				notifExecutor.execute(new Runnable(){
-					public void run() {
-						cm.connectionLost(reason);
-					}
-				});				
-			}
-		}
-	}
 
 	/**
 	 * Returns the ConnectionInfo for this connection
@@ -182,32 +280,62 @@ public class WrappedConnection implements ConnectionMonitor, Closeable, CloseLis
 		return connection.openSession();
 	}
 
+	private final AtomicBoolean closing = new AtomicBoolean(false); 
+	
 	/**
 	 * {@inheritDoc}
 	 * @see ch.ethz.ssh2.ConnectionMonitor#connectionLost(java.lang.Throwable)
 	 */
 	@Override
 	public void connectionLost(final Throwable reason) {
-//		log.info("Connection [{}] Closed:", hostName, reason);
-		fireConnectionMonitors(reason);
+		try {
+			if(closing.compareAndSet(false, true)) {
+				closeBroadcaster.doClose(reason);
+				connection.close(null, false);
+			}
+		} finally {
+			closing.set(false);
+		}
 	}
 	
-	public boolean isConnected() {
-		return connected.get();
-	}
-
-
-	@Override
-	public void onClosed(final Closeable closeable) {
-		// TODO Auto-generated method stub
-		
-	}
-
 
 	@Override
 	public void close() throws IOException {
+		try { connection.close(); } catch (Exception x) {/* No Op */}
+		// Should call connectionLost(null)
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.io.CloseListener#onReset(java.io.Closeable)
+	 */
+	@Override
+	public void onReset(Closeable resetCloseable) {
 		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public boolean isOpen() {		
+		return closeBroadcaster.isOpen();
+	}
+	
+
+	/**
+	 * Callback when a sub-session (session or tunnel) for this connection is closed
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.io.CloseListener#onClosed(java.io.Closeable, Throwable)
+	 */
+	@Override
+	public void onClosed(final Closeable closeable, final Throwable cause) {
+		if(closeable!=null) {
+			if(closeable instanceof WrappedSession) {
+				
+			} else if(closeable instanceof WrappedLocalPortForwarder) {
+				
+			}
+		}		
+	}
+
 
 }
