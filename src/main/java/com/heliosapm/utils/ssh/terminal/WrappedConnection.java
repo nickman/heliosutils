@@ -27,6 +27,8 @@ package com.heliosapm.utils.ssh.terminal;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import ch.ethz.ssh2.Connection;
@@ -47,7 +49,7 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
  * <p><code>com.heliosapm.utils.ssh.terminal.WrappedConnection</code></p>
  */
 
-public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseable<WrappedConnection>, CloseListener<Closeable> {
+public class WrappedConnection implements WrappedConnectionMBean, ConnectionMonitor, BroadcastingCloseable<WrappedConnection>, CloseListener<Closeable> {
 	/** The wrapped connection */
 	private final Connection connection;
 	/** The connection info */
@@ -56,25 +58,29 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 	private final AuthInfo authInfo;
 	
 	/** The resolved host name and key for this connection */
-	private final String hostName;
-	
+	private final String hostName;	
+	/** The remote port */
 	private final int port;
+	/** The connection key */
+	private final String key;
 
 	/** The shared notification executor */
 	private final SharedNotificationExecutor notifExecutor;
 	
+	/** The connection cache */
+	private static final Map<String, WrappedConnection> connectionCache = new ConcurrentHashMap<String, WrappedConnection>();
 	
 	/** The throwable message when the connection is closed by user request */
 	public static final String USER_CLOSED_MSG = "Closed due to user request.";
 	
-	/**  */
+	/** The close event broadcaster */
 	private final BroadcastingCloseableImpl<WrappedConnection> closeBroadcaster = new BroadcastingCloseableImpl<WrappedConnection>(this) {
 
 		@Override
 		public void close() throws IOException {
 			doClose(null);
 		}
-		
+				
 		public void close(final Throwable cause) throws IOException {
 			if(cause!=null) {
 				if(USER_CLOSED_MSG.equals(cause.getMessage())) {
@@ -90,9 +96,15 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 			doReset();
 			
 		}
-		
-		
 	};
+	
+	/**
+	 * Closes the connection and removes it from cache
+	 */
+	public void purge() {
+		try { close(); } catch (Exception x) {/* No Op */}
+		connectionCache.remove(key);
+	}
 	
 	@Override
 	public void addListener(CloseListener<WrappedConnection> listener) {
@@ -167,8 +179,18 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 	 */
 	public static final WrappedConnection create(final String hostName, final int port, final AuthInfo authInfo) {
 		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
-		final Connection conn = new Connection(hostName, port);
-		return new WrappedConnection(conn, authInfo);
+		final String key = hostName + ":" + port;
+		WrappedConnection wconn = connectionCache.get(key);
+		if(wconn==null) {
+			synchronized(connectionCache) {
+				wconn = connectionCache.get(key);
+				if(wconn==null) {
+					final Connection conn = new Connection(hostName, port);
+					wconn = new WrappedConnection(conn, authInfo);					
+				}
+			}
+		}
+		return wconn;
 	}
 	
 	/**
@@ -211,7 +233,7 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 	 * @param connection The wrapped connection
 	 * @param authInfo The authentication resources
 	 */
-	public WrappedConnection(final Connection connection, final AuthInfo authInfo) {
+	private WrappedConnection(final Connection connection, final AuthInfo authInfo) {
 		if(connection==null) throw new IllegalArgumentException("The passed connection was null");
 		this.connection = connection;
 		this.authInfo = authInfo==null ? new AuthInfo() : authInfo;
@@ -223,6 +245,7 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 		}
 		hostName = tmpName;
 		port = this.connection.getPort();
+		key = hostName + ":" + port;
 		try {
 			connectionInfo = this.connection.getConnectionInfo();
 		} catch (IOException e) {
@@ -230,6 +253,14 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 		}
 		notifExecutor = SharedNotificationExecutor.getInstance();
 		this.connection.addConnectionMonitor(this);
+	}
+	
+	/**
+	 * Returns the connection key
+	 * @return the connection key
+	 */
+	public String getKey() {
+		return key;
 	}
 	
 	/**
@@ -335,6 +366,14 @@ public class WrappedConnection implements ConnectionMonitor, BroadcastingCloseab
 				
 			}
 		}		
+	}
+
+	/**
+	 * Returns 
+	 * @return the authInfo
+	 */
+	public AuthInfo getAuthInfo() {
+		return authInfo;
 	}
 
 
