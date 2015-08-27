@@ -28,7 +28,13 @@ import java.beans.PropertyEditorManager;
 import java.beans.PropertyEditorSupport;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.InteractiveCallback;
@@ -43,7 +49,7 @@ import ch.ethz.ssh2.InteractiveCallback;
 
 public enum AuthMethod implements Authenticator {
 	/** Attempt to authenticate with a username and nothing else */
-	NONE{
+	NONE("none"){
 		@Override
 		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
@@ -51,7 +57,7 @@ public enum AuthMethod implements Authenticator {
 		}
 	},
 	/** Attempt to authenticate with a user name and password */
-	PASSWORD{
+	PASSWORD("password"){
 		@Override
 		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
@@ -59,7 +65,7 @@ public enum AuthMethod implements Authenticator {
 		}
 	},
 	/** Attempt to authenticate with an interactive callback */
-	INTERACTIVE{
+	INTERACTIVE("keyboard-interactive"){
 		@Override
 		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
@@ -67,7 +73,7 @@ public enum AuthMethod implements Authenticator {
 		}
 	},
 	/** Attempt to authenticate with a public key */
-	PUBLICKEY{
+	PUBLICKEY("publickey"){
 		@Override
 		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
@@ -75,9 +81,63 @@ public enum AuthMethod implements Authenticator {
 		}
 	};
 	
+	private AuthMethod(final String sshName) {
+		this.sshName = sshName;
+	}
+	
+	/** The SSH name of the authentication method */
+	public final String sshName;
+	
+	/** Recognized SSH names for the auth methods */
+	public static final Set<String> SSH_NAMES = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("password", "publickey", "keyboard-interactive")));
+	/** The AuthMethods keyed by the ssh name */
+	public static final Map<String, AuthMethod> SSHNAME2ENUM;
+	
+	private static final String[] SSH_NAMES_ARR = SSH_NAMES.toArray(new String[SSH_NAMES.size()]);
+	
+	/**
+	 * Returns the SSH names of the authentication methods
+	 * @return the SSH names of the authentication methods
+	 */
+	public static final String[] getSSHAuthMethodNames() {
+		return SSH_NAMES_ARR;
+	}
+	
 	static {
 		PropertyEditorManager.registerEditor(AuthMethod.class, AuthMethodPropertyEditor.class);
 		PropertyEditorManager.registerEditor(AuthMethod[].class, AuthMethodArrPropertyEditor.class);
+		final AuthMethod[] values = AuthMethod.values();
+		final Map<String, AuthMethod> tmp = new HashMap<String, AuthMethod>(values.length);
+		for(AuthMethod am: values) {
+			tmp.put(am.sshName, am);
+		}
+		SSHNAME2ENUM = Collections.unmodifiableMap(tmp);
+	}
+	
+	/**
+	 * Returns an initialized set of the default available AuthMethods
+	 * @return an initialized set of the default available AuthMethods
+	 */
+	public static Set<AuthMethod> getAvailableMethodSet() {
+		return EnumSet.of(PASSWORD, PUBLICKEY);
+	}
+	
+	/**
+	 * Removes the passed AuthMethods from the passed set and returns the remaining as an array of the remaining members' ssh names
+	 * @param remaining The set of remaining names
+	 * @param remove The methods to remove
+	 * @return A string array of the remaining auth method SSH names
+	 */
+	public static String[] toSSHNames(final Set<AuthMethod> remaining, final AuthMethod...remove) {
+		if(remaining==null || remaining.isEmpty()) return new String[]{};
+		final Set<String> set = new HashSet<String>(remaining.size());
+		remaining.removeAll(new HashSet<AuthMethod>(Arrays.asList(remove)));
+		if(!remaining.isEmpty()) {
+			for(AuthMethod am: remaining) {
+				set.add(am.sshName);
+			}
+		}
+		return set.toArray(new String[set.size()]);
 	}
 	
 	private static boolean validate(final Connection conn, final AuthInfo authInfo) {

@@ -43,6 +43,27 @@ public class SystemClock {
 		return new ElapsedTime();
 	}
 	
+	
+	/**
+	 * Sleeps for the specified number of ms The number of ms to sleep for.
+	 * @param ms
+	 */
+	public static void sleep(final long ms) {
+		try { Thread.currentThread().join(ms); } catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+	
+	/**
+	 * Sleeps for the specified period
+	 * @param time The time to sleep for
+	 * @param unit The unit of time. If null, defaults to {@link TimeUnit#MILLISECONDS}
+	 */
+	public static void sleep(final long time, final TimeUnit unit) {
+		sleep(time, unit==null ? TimeUnit.MILLISECONDS : unit);
+	}
+	
+	
 	/**
 	 * Returns the current time in ms.
 	 * @return the current time in ms.
