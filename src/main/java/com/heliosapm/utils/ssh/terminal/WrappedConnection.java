@@ -93,20 +93,23 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 
 		@Override
 		public void reset() {
-			doReset();
+			
 			try { connection.close(); } catch (Exception x) {}
 			try {
 				connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
 			} catch (Exception ex) {
 				throw new RuntimeException("Failed to reconnect", ex);
 			}
+			
 			try {				
-				authInfo.authenticate(connection);
+				if(!authInfo.authenticate(connection)) {
+					throw new Exception("Failed to authenticate");
+				}
 			} catch (Exception ex) {
 				ex.printStackTrace(System.err);
 				throw new RuntimeException("Failed to reauthenticate", ex);
 			}
-			
+			doReset();
 		}
 	};
 	
