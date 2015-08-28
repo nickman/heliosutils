@@ -137,6 +137,31 @@ public class SSHServer implements ServerAuthenticationCallback, ServerConnection
 	 * @param rsaKey The optional rsa key
 	 * @return a new SSHServer
 	 */
+	public static SSHServer getInstance(final String iface, final int port, final DSAPrivateKey dsaKey, final RSAPrivateKey rsaKey) {
+		final String _iface = (iface==null || iface.trim().isEmpty()) ? "0.0.0.0" : iface.trim();
+		final String key = _iface + ":" + port;
+		SSHServer server = servers.get(key);
+		if(server==null) {
+			synchronized(servers) {
+				server = servers.get(key);
+				if(server==null) {
+					server = new SSHServer(_iface, port, dsaKey, rsaKey);
+					servers.put(key, server);
+				}
+			}
+		}
+		return server;		
+	}
+	
+	
+	/**
+	 * Creates a new SSHServer
+	 * @param iface The binding interface
+	 * @param port The port to bind to
+	 * @param dsaKey The optional dsa key file name
+	 * @param rsaKey The optional rsa key file name
+	 * @return a new SSHServer
+	 */
 	public static SSHServer getInstance(final String iface, final int port, final String dsaKey, final String rsaKey) {
 		final String _iface = (iface==null || iface.trim().isEmpty()) ? "0.0.0.0" : iface.trim();
 		final String key = _iface + ":" + port;
@@ -155,26 +180,43 @@ public class SSHServer implements ServerAuthenticationCallback, ServerConnection
 	
 	/**
 	 * Creates a new SSHServer
+	 * @param iface The bind interface
+	 * @param port The listening port
+	 * @param dsaKeyFile An optional DSA private key file name
+	 * @param rsaKeyFile An optional RSA private key file name
 	 */
 	private SSHServer(final String iface, final int port, final String dsaKeyFile, final String rsaKeyFile) {
+		this(iface, port, (DSAPrivateKey)readKey(dsaKeyFile), (RSAPrivateKey)readKey(rsaKeyFile));
+	}
+	
+	/**
+	 * Creates a new SSHServer
+	 * @param iface The bind interface
+	 * @param port The listening port
+	 * @param dsaKeyFile An optional DSA private key file name
+	 * @param rsaKeyFile An optional RSA private key file name
+	 */
+	private SSHServer(final String iface, final int port, final DSAPrivateKey dsaKey, final RSAPrivateKey rsaKey) {
 		listeningIface = iface;
-		listeningPort = port;
-		dsaKey = (DSAPrivateKey)readKey(dsaKeyFile);
-		rsaKey = (RSAPrivateKey)readKey(rsaKeyFile);
+		this.dsaKey = dsaKey;
+		this.rsaKey = rsaKey;
+		
 		try {
 			serverSocket = new ServerSocket(port, 100, InetAddress.getByName(iface));
+			listeningPort = serverSocket.getLocalPort();
 			serverSocket.setSoTimeout(1000);
+			log("SSHServer bound on [%s:%s]", listeningIface, listeningPort);
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to initialize server for [" + iface + ":" + port + "]", ex);
 		}
 		CloseableService.getInstance().register(this);
 	}
 	
+	
 	public static void main(final String[] args) {
 		log("Test SSHServer");
-		final SSHServer server = SSHServer.getInstance("0.0.0.0", 22, DSA_PRIVATE_KEY_FILE, RSA_PRIVATE_KEY_FILE);
+		final SSHServer server = SSHServer.getInstance("0.0.0.0", 0, DSA_PRIVATE_KEY_FILE, RSA_PRIVATE_KEY_FILE);
 		server.start();
-		log("Server Started");
 		StdInCommandHandler.getInstance().registerCommand("stop", new Runnable(){
 			public void run() {
 				server.stop();
@@ -193,6 +235,21 @@ public class SSHServer implements ServerAuthenticationCallback, ServerConnection
 		
 	}
 	
+	/**
+	 * Returns the listening port
+	 * @return the listening port
+	 */
+	public int getListeningPort() {
+		return listeningPort;
+	}
+	
+	/**
+	 * Returns the iface the server is bound to
+	 * @return the iface the server is bound to
+	 */
+	public String getBoundInterface() {
+		return listeningIface;
+	}
 	
 	private static Object readKey(final String fileName) {
 		if(URLHelper.isFile(fileName)) {
@@ -207,7 +264,7 @@ public class SSHServer implements ServerAuthenticationCallback, ServerConnection
 		return null;
 	}
 	
-	public void start() {
+	public SSHServer start() {
 		if(started.compareAndSet(false, true)) {
 			acceptThread = new Thread("ServerAcceptThread") {				
 				public void run() {
@@ -230,7 +287,9 @@ public class SSHServer implements ServerAuthenticationCallback, ServerConnection
 				}
 			};
 			acceptThread.start();
+			log("SSHServer started and accepting on [%s:%s]", listeningIface, listeningPort);
 		}
+		return this;
 	}
 	
 	/**

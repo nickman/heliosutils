@@ -99,7 +99,7 @@ public class AuthInfo {
 		if(verifier==null) verifier = new AuthorizedKeysHostKeyVerifier();
 		checkPrivateKey();
 		
-		if(connection.isClosed()) {
+		if(!connection.isConnected()) {
 			try {
 				connection.connect(verifier, connectTimeout, kexTimeout);
 			} catch (Exception ex) {
@@ -211,6 +211,15 @@ public class AuthInfo {
 	public AuthInfo setVerifier(final ServerHostKeyVerifier verifier) {
 		if(verifier==null) throw new IllegalArgumentException("The passed ServerHostKeyVerifier was null");
 		this.verifier = verifier;
+		return this;
+	}
+	
+	/**
+	 * Sets the YesMan verifier for this auth
+	 * @return this AuthInfo
+	 */
+	public AuthInfo setYesManVerifier() {
+		this.verifier = YesManHostKeyVerifier.INSTANCE;
 		return this;
 	}
 

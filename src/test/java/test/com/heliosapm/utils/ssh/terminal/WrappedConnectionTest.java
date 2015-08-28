@@ -18,7 +18,16 @@ under the License.
  */
 package test.com.heliosapm.utils.ssh.terminal;
 
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
 import test.com.heliosutils.BaseTest;
+
+import com.heliosapm.utils.ssh.terminal.AuthInfo;
+import com.heliosapm.utils.ssh.terminal.WrappedConnection;
 
 /**
  * <p>Title: WrappedConnectionTest</p>
@@ -29,6 +38,54 @@ import test.com.heliosutils.BaseTest;
  */
 
 public class WrappedConnectionTest extends BaseTest {
-
+	/** The test SSHServer */
+	protected static SSHServer sshServer = null;
+	/** The test SSHServer bound interface */
+	protected static final String serverIface = "0.0.0.0";
+	/** The test SSHServer listening port */
+	protected static int serverPort = -1;
+	
+	/** The connection under test */
+	protected WrappedConnection wc = null;
+	
+	/**
+	 * Starts the test SSHServer
+	 */
+	@BeforeClass
+	public static void startServer() {
+		sshServer = SSHServer.getInstance(serverIface, 0, getDSAPrivateKey(), getRSAPrivateKey()).start();
+		serverPort = sshServer.getListeningPort();		
+	}
+	
+	/**
+	 * Stops the test SSHServer 
+	 */
+	@AfterClass
+	public static void stopServer() {
+		sshServer.stop();
+		sshServer = null;
+		serverPort = -1;
+	}
+	
+	/**
+	 * Attempts to close the wrapped connection after each test
+	 */
+	@After
+	public void closeWrappedConnection() {
+		if(wc!=null) {
+			try { wc.close(); } catch (Exception x) {/* No Op */}
+		}
+	}
+	
+	/**
+	 * Tests a connection using the special NSA user name 
+	 */
+	@Test
+	public void testNSAConnect() {
+		wc = WrappedConnection.connectAndAuthenticate("localhost", serverPort, new AuthInfo("nsa-agent").setYesManVerifier());
+		Assert.assertNotNull("Connection is null", wc);
+		Assert.assertTrue("Not connected", wc.isOpen());
+		
+	}
 
 }

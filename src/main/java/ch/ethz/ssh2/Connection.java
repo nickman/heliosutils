@@ -622,6 +622,10 @@ public class Connection {
     	return (am==null && cm==null);
     }
     
+    public boolean isConnected() {
+    	return tm!=null;
+    }
+    
     /**
      * Same as {@link #connect(ServerHostKeyVerifier, int, int) connect(null, 0, 0)}.
      *

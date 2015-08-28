@@ -80,11 +80,14 @@ public class JavaScriptShell implements Runnable, Closeable {
 	/** The delimiter to clear the buffer */
 	public final static int CLEAR = 'c';
 	/** Line feed char */
-	public final static int LF = 13;
+	public final static int LF = '\n';
 	/** Exit delimiter */
 	public final static int EXIT = 'x';
 	/** backspace delimiter */
 	public final static int BACK = 8;
+	
+	
+	public final static int CR = '\r';
 
 	
 	/**
@@ -175,7 +178,8 @@ public class JavaScriptShell implements Runnable, Closeable {
 			}
 			try {
 				final Object result = se.eval(codeBuffer.toString());
-				out(">>> Result:" + result);
+				//out(">>> Result:" + result);
+				out(result==null ? "" : result.toString());
 			} catch (Exception ex) {
 				eout("Failed to execute script", ex);
 				ex.printStackTrace(System.err);
@@ -197,7 +201,7 @@ public class JavaScriptShell implements Runnable, Closeable {
 	
 	private void cout(final int s) {
 		writer.print((char)s);
-		if(s==LF) writer.print((char)10);
+		if(s==LF) writer.print((char)CR);
 		of();
 	}
 	

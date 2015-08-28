@@ -20,6 +20,8 @@ package test.com.heliosutils;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.math.BigInteger;
+import java.security.SecureRandom;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -50,6 +52,9 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.rules.TestName;
 
+import ch.ethz.ssh2.signature.DSAPrivateKey;
+import ch.ethz.ssh2.signature.RSAPrivateKey;
+
 import com.heliosapm.utils.jmx.JMXHelper;
 
 /**
@@ -77,6 +82,8 @@ public class BaseTest {
 	protected static final AtomicInteger TAGK_COUNTER = new AtomicInteger();
 	/** Synthetic UIDMeta counter for tag values */
 	protected static final AtomicInteger TAGV_COUNTER = new AtomicInteger();
+	
+	public static final Random rnd = new SecureRandom();
 	
 	
 	
@@ -357,6 +364,37 @@ public class BaseTest {
 		t.setDaemon(true);
 		t.start();
 		log("Started Thread [%s]", threadName);
+	}
+	
+	
+	/**
+	 * Generate random RSA private key
+	 * @return the generated key
+	 */
+	public static RSAPrivateKey getRSAPrivateKey() {
+    final int N = 1500;
+    final BigInteger p = BigInteger.probablePrime(N / 2, rnd);
+    final BigInteger q = BigInteger.probablePrime(N / 2, rnd);
+    final BigInteger phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE));
+    final BigInteger n = p.multiply(q);
+    final BigInteger e = new BigInteger("65537");
+    final BigInteger d = e.modInverse(phi);
+    return new RSAPrivateKey(d, e, n);		
+	}
+	
+	/**
+	 * Generate random DSA private key
+	 * @return the generated key
+	 */
+	public static DSAPrivateKey getDSAPrivateKey() {
+    final int N = 1500;
+    final BigInteger p = BigInteger.probablePrime(N / 2, rnd);
+    final BigInteger q = BigInteger.probablePrime(N / 2, rnd);
+    final BigInteger phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE));
+    final BigInteger n = p.multiply(q);
+    final BigInteger e = new BigInteger("65537");
+    final BigInteger d = e.modInverse(phi);
+    return new DSAPrivateKey(d, e, n, BigInteger.ONE, BigInteger.TEN);		
 	}
 	
 

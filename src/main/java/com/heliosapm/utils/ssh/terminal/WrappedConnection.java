@@ -53,7 +53,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	/** The wrapped connection */
 	private final Connection connection;
 	/** The connection info */
-	private final ConnectionInfo connectionInfo;
+	private ConnectionInfo connectionInfo;
 	/** The auth info */
 	private final AuthInfo authInfo;
 	
@@ -94,6 +94,18 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		@Override
 		public void reset() {
 			doReset();
+			try { connection.close(); } catch (Exception x) {}
+			try {
+				connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
+			} catch (Exception ex) {
+				throw new RuntimeException("Failed to reconnect", ex);
+			}
+			try {				
+				authInfo.authenticate(connection);
+			} catch (Exception ex) {
+				ex.printStackTrace(System.err);
+				throw new RuntimeException("Failed to reauthenticate", ex);
+			}
 			
 		}
 	};
@@ -137,6 +149,12 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 */
 	public void reset() {
 		closeBroadcaster.reset();
+		try {
+			connectionInfo = this.connection.getConnectionInfo();
+		} catch (IOException e) {
+			this.close();
+			throw new RuntimeException("Failed to acquire ConnectionInfo for [" + hostName + "]", e);
+		}		
 	}
 
 
@@ -155,6 +173,8 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		try {
 			wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
 		} catch (Exception ex) {
+			// "is already in connected state"
+			ex.printStackTrace(System.err);
 			throw new RuntimeException("Failed to connect to [" + hostName + ":" + port + "]", ex);
 		}
 		return wconn;
@@ -186,6 +206,11 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 				wconn = connectionCache.get(key);
 				if(wconn==null) {
 					final Connection conn = new Connection(hostName, port);
+//					try {
+//						conn.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
+//					} catch (Exception ex) {
+//						throw new RuntimeException("Failed to connect to [" + key + "]", ex);
+//					}
 					wconn = new WrappedConnection(conn, authInfo);					
 				}
 			}
@@ -246,11 +271,6 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		hostName = tmpName;
 		port = this.connection.getPort();
 		key = hostName + ":" + port;
-		try {
-			connectionInfo = this.connection.getConnectionInfo();
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to acquire ConnectionInfo for [" + hostName + "]", e);
-		}
 		notifExecutor = SharedNotificationExecutor.getInstance();
 		this.connection.addConnectionMonitor(this);
 	}
@@ -331,7 +351,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	
 
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		try { connection.close(); } catch (Exception x) {/* No Op */}
 		// Should call connectionLost(null)
 	}
