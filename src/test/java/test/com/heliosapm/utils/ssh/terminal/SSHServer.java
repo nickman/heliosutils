@@ -20,11 +20,13 @@ package test.com.heliosapm.utils.ssh.terminal;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -416,6 +418,22 @@ public class SSHServer implements ServerAuthenticationCallback, ServerConnection
 			@Override
 			public Runnable requestExec(final ServerSession ss, final String command) throws IOException {
 				log("Requested Exec: [%s]", command);
+				if("PING".equalsIgnoreCase(command)) {
+					return new Runnable() {
+						public void run() {
+							OutputStream os = null;
+							try {
+								os = ss.getStdin(); 
+								os.write("PONG".getBytes(Charset.forName("UTF8")));
+								os.flush();
+							} catch (Exception ex) {
+								throw new RuntimeException("Failed to write PONG", ex);
+							} finally {
+								try { ss.close(); } catch (Exception x) { /* No Op */ }
+							}
+						}
+					};
+				}
 				return super.requestExec(ss, command);
 			}
 		};

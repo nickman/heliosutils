@@ -11,7 +11,7 @@ public class Version
 	{
 //		Package pkg = Version.class.getPackage();
 //		return (pkg == null) ? "SNAPSHOT" : pkg.getSpecificationVersion();
-		return "262";
+		return "262+";
 	}
 
 	public static String getImplementation()

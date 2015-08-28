@@ -85,7 +85,7 @@ public class WrappedConnectionTest extends BaseTest {
 		wc = WrappedConnection.connectAndAuthenticate("localhost", serverPort, new AuthInfo("nsa-agent").setYesManVerifier());
 		Assert.assertNotNull("Connection is null", wc);
 		Assert.assertTrue("Not connected", wc.isOpen());
-		
+		Assert.assertEquals("Did not get PONG", "PONG", wc.execCommand("PING"));
 	}
 
 }

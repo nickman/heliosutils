@@ -27,14 +27,17 @@ package com.heliosapm.utils.ssh.terminal;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import ch.ethz.ssh2.ChannelCondition;
 import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.ConnectionInfo;
 import ch.ethz.ssh2.ConnectionMonitor;
 import ch.ethz.ssh2.Session;
+import ch.ethz.ssh2.StreamGobbler;
 
 import com.heliosapm.utils.io.BroadcastingCloseable;
 import com.heliosapm.utils.io.BroadcastingCloseableImpl;
@@ -349,6 +352,29 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 			}
 		} finally {
 			closing.set(false);
+		}
+	}
+	
+	public String execCommand(final String cmd) {
+		return execCommand(cmd, "UTF8");
+	}
+	
+	public String execCommand(final String cmd, final String charsetName) {
+		Session session = null;
+		try {
+			session = connection.openSession();
+			final StreamGobbler err = new StreamGobbler(session.getStderr());
+			final StreamGobbler out = new StreamGobbler(session.getStdout());
+			session.execCommand(cmd, charsetName);
+			session.waitForCondition(ChannelCondition.EOF, authInfo.getConnectTimeout());
+			final Charset charset = Charset.forName(charsetName);
+			final byte[] osc = new byte[out.available()];
+			out.read(osc);
+			return new String(osc, charset);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to execute [" + cmd + "]", ex);
+		} finally {
+			if(session!=null) try { session.close(); } catch (Exception x) { /* No Op */ }
 		}
 	}
 	
