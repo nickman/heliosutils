@@ -93,6 +93,22 @@ public class StdInCommandHandler implements Runnable {
 	}
 	
 	/**
+	 * Runs the command handler in a background thread
+	 * @param daemon true to make the thread a daemon thread, false otherwise
+	 */
+	public void runAsync(final boolean daemon) {
+		final StdInCommandHandler handler = this;
+		final Thread t = new Thread("AsyncStdInCmdHandler") {
+			@Override
+			public void run() {
+				handler.run();
+			}
+		};
+		t.setDaemon(daemon);
+		t.start();
+	}
+	
+	/**
 	 * {@inheritDoc}
 	 * @see java.lang.Runnable#run()
 	 */

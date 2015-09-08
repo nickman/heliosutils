@@ -101,7 +101,7 @@ public class ConfigurationHelper {
 		}
 		String value = mergeProperties(properties).getProperty(name);
 		if(value==null) {
-			value = System.getenv(name.replace('.', '_'));
+			value = System.getenv(name.replace('.', '_').toUpperCase());
 		}
 		if(value==null) {
 			value=defaultValue;
