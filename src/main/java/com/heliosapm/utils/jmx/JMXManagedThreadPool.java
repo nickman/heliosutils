@@ -156,7 +156,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 			} catch (Exception ex) {
 				System.err.println("Failed to register JMX management interface. Will continue without:" + ex);
 			}		
-			System.out.println("Created JMX Managed Thread Pool [" + poolName + "]");
+			System.err.println("Created JMX Managed Thread Pool [" + poolName + "]");
 		}
 	}
 	

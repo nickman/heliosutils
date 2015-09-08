@@ -480,7 +480,7 @@ public static void log(String fmt, Object...args) {
   private static final Runnable deallocator = new Runnable() {
   	public void run() {
   		latch.countDown();
-  		log(StringHelper.banner("Started Unsafe Memory Manager Thread"));
+  		//log(StringHelper.banner("Started Unsafe Memory Manager Thread"));
   		while(true) {
   			try {
   				MemoryAllocationReference phantom = (MemoryAllocationReference) deallocations.remove();
