@@ -60,7 +60,10 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 		this.parentConnection = conn;
 		this.key = key;
 		this.parentConnection.addListener(this);
-		
+	}
+	
+	WrappedConnection parentConnection() {
+		return parentConnection;
 	}
 	
 	/**

@@ -246,6 +246,18 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 		return conn;
 	}
 	
+	/**
+	 * Registers a the port forwards WrappedConnection for reconnects
+	 * @param lpf The wrapped port forward to register
+	 * @return the passed port forward
+	 */
+	public WrappedLocalPortForwarder registerForReconnect(final WrappedLocalPortForwarder lpf) {
+		if(lpf==null) throw new IllegalArgumentException("The passed WrappedLocalPortForwarder was null");
+		registerForReconnect(lpf.parentConnection());
+		return lpf;
+	}
+
+	
 	public WrappedConnection removeReconnect(final WrappedConnection conn) {
 		if(conn==null) throw new IllegalArgumentException("The passed connection was null");
 		final ScheduledFuture<?> handle = conn.getReconnectHandle();
