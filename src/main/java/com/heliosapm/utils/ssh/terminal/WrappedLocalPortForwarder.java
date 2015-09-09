@@ -19,6 +19,8 @@ under the License.
 package com.heliosapm.utils.ssh.terminal;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import ch.ethz.ssh2.LocalPortForwarder;
 
@@ -37,14 +39,31 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 	private final LocalPortForwarder lpf;
 	/** The local port forward's parent connection */
 	private final WrappedConnection parentConnection;
+	/** The number of claimed callers */
+	private final AtomicInteger claims = new AtomicInteger(0);
+	/** The local port forward key */
+	private final String key;
+	/** Tracks if this forwarder is actually open */
+	private final AtomicBoolean open = new AtomicBoolean(true);
+	
 	/**
 	 * Creates a new WrappedLocalPortForwarder
 	 * @param lpf The local port forwarder
+	 * @param key The local port forwared key
 	 * @param conn The wrapped connection
 	 */
-	public WrappedLocalPortForwarder(final LocalPortForwarder lpf, final WrappedConnection conn) {
+	public WrappedLocalPortForwarder(final LocalPortForwarder lpf, final String key, final WrappedConnection conn) {
 		this.lpf = lpf;
 		this.parentConnection = conn;
+		this.key = key;
+	}
+	
+	/**
+	 * Returns the tunnel key
+	 * @return the tunnel key
+	 */
+	public String getKey() {
+		return key;
 	}
 
 	/**
@@ -57,33 +76,77 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 	}
 	
 	/**
+	 * Returns the local port
+	 * @return the local port
+	 */
+	public int getLocalPort() {
+		return lpf.getLocalSocketAddress().getPort();
+	}
+	
+	/**
+	 * Returns the current claim count
+	 * @return the current claim count
+	 */
+	public int getClaimCount() {
+		return claims.get();
+	}
+	
+	/**
+	 * Increments and returns the new claim count
+	 * @return the new claim count
+	 */
+	int incrementClaimCount() {
+		return claims.incrementAndGet();
+	}
+	/**
 	 * Closes the local port forward
 	 * @see ch.ethz.ssh2.LocalPortForwarder#close()
 	 */
 	public void close() {
-		try {
-			lpf.close();
-		} catch (Exception ex) {
-			/* No Op */
+		final int cc = claims.decrementAndGet();
+		if(cc==0) {
+			hardClose();
 		}
+		this.parentConnection.onLocalPortForwardClosed(key);
 	}
 	
 	/**
-	 * @return
+	 * Hard closes the underlying port forward
+	 */
+	void hardClose() {
+		try {
+			lpf.close();
+			open.set(false);
+		} catch (Exception ex) {
+			/* No Op */
+		}		
+	}
+	
+	/**
+	 * Indicates if this tunnel is open
+	 * @return true if this tunnel is open, false if it has been hard closed
+	 */
+	public boolean isOpen() {
+		return open.get();
+	}
+	
+	/**
+	 * @return the to string
 	 * @see java.lang.Object#toString()
 	 */
+	@Override
 	public String toString() {
 		return lpf.toString();
 	}
 
 	@Override
-	public void onClosed(WrappedConnection closeable, Throwable cause) {
+	public void onClosed(final WrappedConnection closeable, final Throwable cause) {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	public void onReset(WrappedConnection resetCloseable) {
+	public void onReset(final WrappedConnection resetCloseable) {
 		// TODO Auto-generated method stub
 		
 	}

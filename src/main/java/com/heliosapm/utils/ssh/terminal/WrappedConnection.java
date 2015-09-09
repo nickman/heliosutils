@@ -36,6 +36,7 @@ import ch.ethz.ssh2.ChannelCondition;
 import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.ConnectionInfo;
 import ch.ethz.ssh2.ConnectionMonitor;
+import ch.ethz.ssh2.LocalPortForwarder;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
 
@@ -69,6 +70,9 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 
 	/** The shared notification executor */
 	private final SharedNotificationExecutor notifExecutor;
+	
+	/** The local port forwards created through this connection */
+	private final Map<String, WrappedLocalPortForwarder> localPortForwards = new ConcurrentHashMap<String, WrappedLocalPortForwarder>();
 	
 	/** The connection cache */
 	private static final Map<String, WrappedConnection> connectionCache = new ConcurrentHashMap<String, WrappedConnection>();
@@ -147,6 +151,59 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		});	
 	}
 	
+	/**
+	 * Acquires a local port forward
+	 * @param hostToTunnel The host to tunnel to
+	 * @param portToTunnel The port to tunnel to
+	 * @return the local port forward reference
+	 */
+	public WrappedLocalPortForwarder tunnel(final String hostToTunnel, final int portToTunnel) {
+		if(hostToTunnel==null || hostToTunnel.trim().isEmpty()) throw new IllegalArgumentException("The passed hostToTunnel was null or empty");		
+		if(!isOpen()) throw new RuntimeException("This connection to [" + hostName + ":" + port + "] is closed");
+		final String key = hostToTunnel + ":" + portToTunnel;
+		WrappedLocalPortForwarder lpf = localPortForwards.get(key);
+		if(lpf==null) {
+			synchronized(localPortForwards) {
+				lpf = localPortForwards.get(key);
+				if(lpf==null) {
+					try {
+						final LocalPortForwarder loc = connection.createLocalPortForwarder(0, hostToTunnel, portToTunnel);
+						lpf = new WrappedLocalPortForwarder(loc, key, this);
+						localPortForwards.put(key, lpf);
+					} catch (Exception ex) {
+						throw new RuntimeException("Failed to tunnel to [" + key + "]", ex);
+					}
+				}
+			}
+		}
+		if(!lpf.isOpen()) {
+			localPortForwards.remove(lpf.getKey());
+			return tunnel(hostToTunnel, portToTunnel);
+		}
+		lpf.incrementClaimCount();
+		return lpf;
+	}
+	
+	/**
+	 * Acquires a local port forward to the connected host
+	 * @param portToTunnel The port to tunnel to
+	 * @return the local port forward reference
+	 */
+	public WrappedLocalPortForwarder tunnel(final int portToTunnel) {
+		return tunnel(hostName, portToTunnel);
+	}
+	
+	
+	/**
+	 * Callback from issued WrappedLocalPortForwarder when the claim count drops to zero
+	 * @param key The tunnel key
+	 */
+	void onLocalPortForwardClosed(final String key) {
+		final WrappedLocalPortForwarder lpf = localPortForwards.remove(key);
+		if(lpf!=null) {
+			lpf.hardClose();
+		}
+	}
 	
 	
 	/**
@@ -348,7 +405,9 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		try {
 			if(closing.compareAndSet(false, true)) {
 				closeBroadcaster.doClose(reason);
+				
 				connection.close(null, false);
+				
 			}
 		} finally {
 			closing.set(false);
