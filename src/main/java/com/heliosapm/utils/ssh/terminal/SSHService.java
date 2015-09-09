@@ -20,22 +20,26 @@ package com.heliosapm.utils.ssh.terminal;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import javax.management.ObjectName;
-
-import ch.ethz.ssh2.auth.AgentIdentity;
-import ch.ethz.ssh2.auth.AgentProxy;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.io.CloseListener;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedScheduler;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
+import com.heliosapm.utils.time.SystemClock;
 import com.heliosapm.utils.url.URLHelper;
+
+import ch.ethz.ssh2.auth.AgentIdentity;
+import ch.ethz.ssh2.auth.AgentProxy;
 
 /**
  * <p>Title: SSHService</p>
@@ -55,6 +59,13 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 	public static final String PROP_SSH_CONNECT_TIMEOUT = "ssh.connect.timeout";
 	/** The default SSHService connect timeout */
 	public static final int DEFAULT_SSH_CONNECT_TIMEOUT = 2000;
+	
+	/** The configuration key for the SSHService reconnect attempt period (in s) */
+	public static final String PROP_SSH_RECONNECT_PERIOD = "ssh.reconnect.period";
+	/** The default SSHService reconnect attempt period (in s) */
+	public static final int DEFAULT_SSH_RECONNECT_PERIOD = 5;
+
+	
 	/** The configuration key for the SSHService read timeout (in ms) */
 	public static final String PROP_SSH_READ_TIMEOUT = "ssh.read.timeout";
 	/** The default SSHService read timeout */
@@ -103,10 +114,13 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 	protected final JMXManagedThreadPool reconnectThreadPool = new JMXManagedThreadPool(reconnectThreadPoolObjectName, "SSHReconnectExecutor", 1, 10, 100, 60000, 100, 99, true);
 	/** The SSH connection reconnect scheduler */
 	protected final JMXManagedScheduler reconnectScheduler = new JMXManagedScheduler(reconnectSchedulerObjectName, "SSHReconnectScheduler", 2, true);
-	/** Connections watched for disconnect and scheduled for reconnect */
-	protected final Map<WrappedConnection, ScheduledFuture<?>> reconnectConnections = new ConcurrentHashMap<WrappedConnection, ScheduledFuture<?>>();
-	
-	
+	/** The reconnect period in seconds */
+	protected int reconnectPeriod = DEFAULT_SSH_RECONNECT_PERIOD;
+	/** The number of connections pending reconnect */
+	protected final AtomicInteger pendingReconnects = new AtomicInteger(0);
+	/** The reconnect registered connections */
+	protected final Set<WrappedConnection> reconnects = new CopyOnWriteArraySet<WrappedConnection>();
+
 	
 	/**
 	 * Acquires and returns the SSHService singleton
@@ -123,11 +137,37 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 		return instance;
 	}
 	
+	public static void log(final Object msg) {
+		System.out.println(msg);
+	}
+	
+	public static void main(final String[] args) {
+		log("SSHServiceTest");
+		WrappedConnection wc  = null;
+		WrappedSession session = null;
+		try {
+			SSHService ssh = SSHService.getInstance();
+			//wc = ssh.connect("127.0.0.1");
+			wc = ssh.connect("rv-qa28-ceas-a01.intcx.net");
+			log("Connected:" + wc);
+			session = wc.getSession();
+			log("Acquired Session:" + session);
+			CommandTerminal ct = session.openCommandTerminal();
+			String uptime = ct.exec("uptime").toString();
+			log("Uptime:" + uptime);
+		} catch (Exception ex) {
+			ex.printStackTrace(System.err);
+		} finally {
+			if(wc!=null) try { wc.close(); } catch (Exception x) {/* No Op */}
+		}
+	}
+	
 	
 	/**
 	 * Creates a new SSHService
 	 */
 	private SSHService() {
+		reconnectPeriod = ConfigurationHelper.getIntSystemThenEnvProperty(PROP_SSH_RECONNECT_PERIOD, DEFAULT_SSH_RECONNECT_PERIOD);
 		connectTimeout = ConfigurationHelper.getIntSystemThenEnvProperty(PROP_SSH_CONNECT_TIMEOUT, DEFAULT_SSH_CONNECT_TIMEOUT); 				
 		readTimeout = ConfigurationHelper.getIntSystemThenEnvProperty(PROP_SSH_READ_TIMEOUT, DEFAULT_SSH_READ_TIMEOUT);
 		user = ConfigurationHelper.getSystemThenEnvProperty(PROP_SSH_USER, DEFAULT_SSH_USER);
@@ -160,14 +200,17 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 	private AuthInfo defaultAuthInfo() {
 		final AuthInfo authInfo = new AuthInfo(user)
 			.setConnectTimeout(connectTimeout)
-			.setKexTimeout(readTimeout)  // FIXME:  rename read timeout to kex timeout
-			.setUserPassword(userPass)
-			.setYesManVerifier()				// FIXME:  add hosts file to use
-			.setPrivateKeyPassword(pkPass);
+			.setKexTimeout(readTimeout)  // FIXME:  rename read timeout to kex timeout			
+			.setYesManVerifier();				// FIXME:  add hosts file to use
+			
 		if(pkFile!=null) authInfo.setPrivateKey(new File(pkFile));
+		if(userPass!=null) authInfo.setUserPassword(userPass);
+		if(pkPass!=null) authInfo.setPrivateKeyPassword(pkPass);
 		return authInfo;
 			
 	}
+	
+
 	
 	/**
 	 * Connects to the SSH server at the passed host and port using all the configured defaults
@@ -186,8 +229,34 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 	 * @return the wrapped SSH connection
 	 */
 	public WrappedConnection connect(final String host) {
-		return WrappedConnection.connectAndAuthenticate(host, 22, defaultAuthInfo());
+		return connect(host, 22);
 	}
+	
+	
+	/**
+	 * Registers a WrappedConnection for reconnects
+	 * @param conn The connection to register
+	 * @return the passed connection
+	 */
+	public WrappedConnection registerForReconnect(final WrappedConnection conn) {
+		if(conn==null) throw new IllegalArgumentException("The passed connection was null");
+		if(reconnects.add(conn)) {			
+			conn.registerListener(this);
+		}
+		return conn;
+	}
+	
+	public WrappedConnection removeReconnect(final WrappedConnection conn) {
+		if(conn==null) throw new IllegalArgumentException("The passed connection was null");
+		final ScheduledFuture<?> handle = conn.getReconnectHandle();
+		if(handle!=null) {
+			conn.cancelReconnectHandle();
+			pendingReconnects.decrementAndGet();
+		}
+		reconnects.remove(conn);
+		return conn;
+	}
+	
 
 
 	/**
@@ -331,17 +400,59 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 	}
 
 
+	/**
+	 * <p>Registers the passed connection for a reconnect retry loop</p>
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.io.CloseListener#onClosed(java.io.Closeable, java.lang.Throwable)
+	 */
 	@Override
-	public void onClosed(WrappedConnection closeable, Throwable cause) {
-		// TODO Auto-generated method stub
-		
+	public void onClosed(final WrappedConnection closedConnection, final Throwable cause) {
+		final AtomicReference<ScheduledFuture<?>> handleRef = new AtomicReference<ScheduledFuture<?>>(null); 
+		final ScheduledFuture<?> handle = reconnectScheduler.scheduleWithFixedDelay(new Runnable(){
+			public void run() {
+				try {
+					closedConnection.reset();					
+					handleRef.get().cancel(false);
+					pendingReconnects.decrementAndGet();
+				} catch (Exception ex) {
+					System.err.println("Reconnect Failed on [" + closedConnection + "]:" + ex);
+				}
+			}
+		}, reconnectPeriod, reconnectPeriod, TimeUnit.SECONDS);
+		closedConnection.setReconnectHandle(handle);
+		pendingReconnects.incrementAndGet();
+		handleRef.set(handle);;		
 	}
 
 
 	@Override
-	public void onReset(WrappedConnection resetCloseable) {
-		// TODO Auto-generated method stub
+	public void onReset(final WrappedConnection closedConnection) {
+		System.err.println("Reconnected !!! [" + closedConnection + "]");
 		
+	}
+
+
+	/**
+	 * Returns the failed connection reconnect period in s.
+	 * @return the failed connection reconnect period
+	 */
+	public int getReconnectPeriod() {
+		return reconnectPeriod;
+	}
+
+
+	/**
+	 * Sets the failed connection reconnect period
+	 * @param reconnectPeriod the reconnect period in s.
+	 */
+	public void setReconnectPeriod(final int reconnectPeriod) {
+		if(reconnectPeriod<1) throw new IllegalArgumentException("Invalid reconnect period [" + reconnectPeriod + "]. Must be > 0");
+		this.reconnectPeriod = reconnectPeriod;
+	}
+
+
+	public AtomicInteger getPendingReconnects() {
+		return pendingReconnects;
 	}
 
 }

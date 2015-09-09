@@ -19,8 +19,7 @@ public final class MAC
 	{
 		/* Higher Priority First */
 
-		return new String[] { "hmac-sha2-512" , "hmac-sha2-256" , "hmac-sha1-96", "hmac-sha1", "hmac-md5-96", "hmac-md5" };
-		//return new String[] { "hmac-sha2-512" , "hmac-sha2-256"};
+		return new String[] { "hmac-sha1-96", "hmac-sha1", "hmac-md5-96", "hmac-md5" };
 	}
 
 	public final static void checkMacList(String[] macs)
@@ -39,13 +38,6 @@ public final class MAC
 			return 16;
 		if (type.equals("hmac-md5-96"))
 			return 16;
-        if(type.equals("hmac-sha2-256")) {
-            return 32;
-        }
-        if(type.equals("hmac-sha2-512")) {
-            return 64;
-        }
-		
 		throw new IllegalArgumentException("Unkown algorithm " + type);
 	}
 
@@ -67,12 +59,6 @@ public final class MAC
 		{
 			mac = new HMAC(new MD5(), key, 12);
 		}
-        else if(type.equals("hmac-sha2-256")) {
-            mac = new HMAC(new SHA256(), key, 32);
-        }
-        else if(type.equals("hmac-sha2-512")) {
-            mac = new HMAC(new SHA512(), key, 64);
-        }		
 		else
 			throw new IllegalArgumentException("Unkown algorithm " + type);
 

@@ -26,9 +26,7 @@ public class HashForSSH2Types
 		if (type.equals("SHA1"))
 		{
 			md = new SHA1();
-		} else if(type.equals("SHA2")) {
-            md = new SHA256();
-        }
+		}
 		else if (type.equals("MD5"))
 		{
 			md = new MD5();

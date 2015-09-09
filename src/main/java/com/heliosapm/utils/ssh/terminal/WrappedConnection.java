@@ -30,7 +30,13 @@ import java.net.InetAddress;
 import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.heliosapm.utils.io.BroadcastingCloseable;
+import com.heliosapm.utils.io.BroadcastingCloseableImpl;
+import com.heliosapm.utils.io.CloseListener;
+import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 import ch.ethz.ssh2.ChannelCondition;
 import ch.ethz.ssh2.Connection;
@@ -39,11 +45,6 @@ import ch.ethz.ssh2.ConnectionMonitor;
 import ch.ethz.ssh2.LocalPortForwarder;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
-
-import com.heliosapm.utils.io.BroadcastingCloseable;
-import com.heliosapm.utils.io.BroadcastingCloseableImpl;
-import com.heliosapm.utils.io.CloseListener;
-import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
  * <p>Title: WrappedConnection</p>
@@ -67,6 +68,8 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	private final int port;
 	/** The connection key */
 	private final String key;
+	/** The reconnect schedule handle */
+	private ScheduledFuture<?> reconnectHandle = null;
 
 	/** The shared notification executor */
 	private final SharedNotificationExecutor notifExecutor;
@@ -128,9 +131,25 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		connectionCache.remove(key);
 	}
 	
+	/**
+	 * Registers a closed connection listener
+	 * @param listener The listener to register
+	 */
 	@Override
 	public void addListener(CloseListener<WrappedConnection> listener) {
+		if(listener==null) throw new IllegalArgumentException("The passed listener was null");
 		closeBroadcaster.addListener(listener);		
+	}
+	
+	/**
+	 * Registers a closed connection listener
+	 * @param listener The listener to register
+	 * @return this connection
+	 */
+	public WrappedConnection registerListener(final CloseListener<WrappedConnection> listener) {
+		if(listener==null) throw new IllegalArgumentException("The passed listener was null");
+		closeBroadcaster.addListener(listener);
+		return this;
 	}
 	
 	@Override
@@ -138,7 +157,13 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		closeBroadcaster.removeListener(listener);		
 	}
 	
-	public void addListener(final ConnectionMonitor listener) {
+	/**
+	 * Registers a connection monitor
+	 * @param listener The listener to register
+	 * @return this connection
+	 */
+	public WrappedConnection addListener(final ConnectionMonitor listener) {
+		if(listener==null) throw new IllegalArgumentException("The passed listener was null");
 		closeBroadcaster.addListener(new CloseListener<WrappedConnection>(){
 			@Override
 			public void onClosed(final WrappedConnection closeable, final Throwable cause) {				
@@ -149,6 +174,23 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 				// No Op				
 			}
 		});	
+		return this;
+	}
+	
+	/**
+	 * Creates an unwrapped local port forward
+	 * @param hostToTunnel The host to tunnel to
+	 * @param portToTunnel The port to tunnel to
+	 * @return the local port forward reference
+	 */
+	LocalPortForwarder rawTunnel(final String hostToTunnel, final int portToTunnel) {
+		if(hostToTunnel==null || hostToTunnel.trim().isEmpty()) throw new IllegalArgumentException("The passed hostToTunnel was null or empty");		
+		if(!isOpen()) throw new RuntimeException("This connection to [" + hostName + ":" + port + "] is closed");
+		try {
+			return connection.createLocalPortForwarder(0, hostToTunnel, portToTunnel);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to tunnel to [" + key + "]", ex);
+		}		
 	}
 	
 	/**
@@ -234,7 +276,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	public static final WrappedConnection connect(final String hostName, final int port, final AuthInfo authInfo) {
 		final WrappedConnection wconn = create(hostName, port, authInfo);
 		try {
-			wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
+			final ConnectionInfo ci = wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());			
 		} catch (Exception ex) {
 			// "is already in connected state"
 			ex.printStackTrace(System.err);
@@ -300,7 +342,11 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 */
 	public static final WrappedConnection connectAndAuthenticate(final String hostName, final int port, final AuthInfo authInfo) {
 		final WrappedConnection wconn = connect(hostName, port, authInfo);
-		wconn.reset();
+		final boolean authed = authInfo.authenticate(wconn.connection);
+		if(!authed) {
+			throw new RuntimeException("Failed to authenticate");
+		}
+		//wconn.reset();
 		return wconn;
 	}
 	
@@ -361,6 +407,14 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 */
 	public int getPort() {
 		return port;
+	}
+	
+	public WrappedSession getSession() {
+		try {
+			return new WrappedSession(connection.openSession(), this);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to open session", ex);
+		}
 	}
 	
 
@@ -482,6 +536,33 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 */
 	public AuthInfo getAuthInfo() {
 		return authInfo;
+	}
+
+	/**
+	 * Returns the reconnect handle
+	 * @return the reconnect handle
+	 */
+	ScheduledFuture<?> getReconnectHandle() {
+		return reconnectHandle;
+	}
+
+	/**
+	 * Sets the reconnect handle
+	 * @param reconnectHandle the reconnect handle
+	 */
+	void setReconnectHandle(final ScheduledFuture<?> reconnectHandle) {
+		if(reconnectHandle==null) throw new IllegalArgumentException("The passed reconnect handle was null");
+		this.reconnectHandle = reconnectHandle;
+	}
+	
+	/**
+	 * Cancels the reconnect handle and sets it to null
+	 */
+	void cancelReconnectHandle() {
+		if(reconnectHandle!=null) {
+			reconnectHandle.cancel(false);
+			reconnectHandle = null;
+		}
 	}
 
 

@@ -21,6 +21,7 @@ package com.heliosapm.utils.ssh.terminal;
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import ch.ethz.ssh2.LocalPortForwarder;
 
@@ -36,15 +37,17 @@ import com.heliosapm.utils.io.CloseListener;
 
 public class WrappedLocalPortForwarder implements CloseListener<WrappedConnection> {
 	/** The local port forward reference */
-	private final LocalPortForwarder lpf;
+	private LocalPortForwarder lpf;
 	/** The local port forward's parent connection */
-	private final WrappedConnection parentConnection;
+	private WrappedConnection parentConnection;
 	/** The number of claimed callers */
 	private final AtomicInteger claims = new AtomicInteger(0);
 	/** The local port forward key */
 	private final String key;
 	/** Tracks if this forwarder is actually open */
 	private final AtomicBoolean open = new AtomicBoolean(true);
+	
+	public static final Pattern KEY_SPLITTER = Pattern.compile(":");
 	
 	/**
 	 * Creates a new WrappedLocalPortForwarder
@@ -56,6 +59,8 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 		this.lpf = lpf;
 		this.parentConnection = conn;
 		this.key = key;
+		this.parentConnection.addListener(this);
+		
 	}
 	
 	/**
@@ -147,7 +152,13 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 
 	@Override
 	public void onReset(final WrappedConnection resetCloseable) {
-		// TODO Auto-generated method stub
+		final String[] hostPort = KEY_SPLITTER.split(key);
+		try {
+			lpf = resetCloseable.rawTunnel(hostPort[0], Integer.parseInt(hostPort[1]));
+			open.set(true);
+		} catch (Exception ex) {
+			open.set(false);
+		}
 		
 	}
 	

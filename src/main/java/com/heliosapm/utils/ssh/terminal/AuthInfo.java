@@ -99,18 +99,20 @@ public class AuthInfo {
 		if(verifier==null) verifier = new AuthorizedKeysHostKeyVerifier();
 		checkPrivateKey();
 		
-		if(!connection.isConnected()) {
-			try {
-				connection.connect(verifier, connectTimeout, kexTimeout);
-			} catch (Exception ex) {
-				throw new RuntimeException("Failed to connect [" + connection + "]", ex);
-			}
-		}
 		for(AuthMethod am: authMethods) {
 			try {
+				if(!connection.isConnected()) {
+					try {
+						connection.connect(verifier, connectTimeout, kexTimeout);
+					} catch (Exception ex) {				
+						throw new RuntimeException("Failed to connect [" + connection + "]", ex);
+					}
+				}				
 				am.authenticate(connection, this);
 				if(connection.isAuthenticationComplete()) return true;
 			} catch (Exception ex) {
+//				System.err.println("Failed to authenticate [" + connection + "] with method [" + am.name() + "]:" + ex);
+//				ex.printStackTrace(System.err);
 				/* No Op */
 			}
 		}
@@ -177,7 +179,7 @@ public class AuthInfo {
 	 */
 	public AuthInfo setPrivateKey(final File privateKey) {
 		if(privateKey==null) throw new IllegalArgumentException("The passed privateKey was null");
-		if(privateKey.canRead()) throw new IllegalArgumentException("The passed privateKey file [" + privateKey.getAbsolutePath() + "] cannot be read");
+		if(!privateKey.canRead()) throw new IllegalArgumentException("The passed privateKey file [" + privateKey.getAbsolutePath() + "] cannot be read");
 		this.privateKey = URLHelper.getCharsFromURL(privateKey.getAbsolutePath());
 		return this;		
 	}
