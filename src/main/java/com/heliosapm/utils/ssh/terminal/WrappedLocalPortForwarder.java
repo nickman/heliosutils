@@ -46,6 +46,8 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 	private final String key;
 	/** Tracks if this forwarder is actually open */
 	private final AtomicBoolean open = new AtomicBoolean(true);
+	/** Indicates if this port forward is dedicated (unshared) */
+	private final boolean dedicated;
 	
 	public static final Pattern KEY_SPLITTER = Pattern.compile(":");
 	
@@ -54,13 +56,26 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 	 * @param lpf The local port forwarder
 	 * @param key The local port forwared key
 	 * @param conn The wrapped connection
+	 * @param dedicated true for a dedicated tunnel, false otherwise
 	 */
-	public WrappedLocalPortForwarder(final LocalPortForwarder lpf, final String key, final WrappedConnection conn) {
+	public WrappedLocalPortForwarder(final LocalPortForwarder lpf, final String key, final WrappedConnection conn, final boolean dedicated) {
 		this.lpf = lpf;
 		this.parentConnection = conn;
 		this.key = key;
 		this.parentConnection.addListener(this);
+		this.dedicated = dedicated;
 	}
+	
+	/**
+	 * Creates a new WrappedLocalPortForwarder
+	 * @param lpf The local port forwarder
+	 * @param key The local port forwared key
+	 * @param conn The wrapped connection
+	 */
+	public WrappedLocalPortForwarder(final LocalPortForwarder lpf, final String key, final WrappedConnection conn) {
+		this(lpf, key, conn, false); 
+	}
+	
 	
 	WrappedConnection parentConnection() {
 		return parentConnection;
@@ -111,6 +126,10 @@ public class WrappedLocalPortForwarder implements CloseListener<WrappedConnectio
 	 * @see ch.ethz.ssh2.LocalPortForwarder#close()
 	 */
 	public void close() {
+		if(dedicated) {
+			hardClose();
+			return;
+		}
 		final int cc = claims.decrementAndGet();
 		if(cc==0) {
 			hardClose();

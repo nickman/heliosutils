@@ -194,6 +194,27 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	}
 	
 	/**
+	 * Acquires a dedicated (unshared) local port forward
+	 * @param hostToTunnel The host to tunnel to
+	 * @param portToTunnel The port to tunnel to
+	 * @return the local port forward reference
+	 */
+	public WrappedLocalPortForwarder dedicatedTunnel(final String hostToTunnel, final int portToTunnel) {
+		if(hostToTunnel==null || hostToTunnel.trim().isEmpty()) throw new IllegalArgumentException("The passed hostToTunnel was null or empty");		
+		if(!isOpen()) throw new RuntimeException("This connection to [" + hostName + ":" + port + "] is closed");
+		LocalPortForwarder loc;
+		final String key = hostToTunnel + ":" + portToTunnel;
+		try {
+			loc = connection.createLocalPortForwarder(0, hostToTunnel, portToTunnel);
+			return new WrappedLocalPortForwarder(loc, key, this, true);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to tunnel to [" + key + "]", ex);
+		}
+		
+	}
+	
+	
+	/**
 	 * Acquires a local port forward
 	 * @param hostToTunnel The host to tunnel to
 	 * @param portToTunnel The port to tunnel to
@@ -276,7 +297,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	public static final WrappedConnection connect(final String hostName, final int port, final AuthInfo authInfo) {
 		final WrappedConnection wconn = create(hostName, port, authInfo);
 		try {
-			final ConnectionInfo ci = wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());			
+			wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());			
 		} catch (Exception ex) {
 			// "is already in connected state"
 			ex.printStackTrace(System.err);
@@ -510,7 +531,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 
 	@Override
 	public boolean isOpen() {		
-		return closeBroadcaster.isOpen();
+		return connection.isConnected();
 	}
 	
 

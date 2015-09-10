@@ -183,7 +183,7 @@ public class URLHelper {
 		if(urlStr==null || urlStr.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed URL stringy was null or empty");
 		try {
 			if(isFile(urlStr)) {
-				System.out.println("URL from File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
+//				System.out.println("URL from File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
 				return toURL(new File(urlStr.toString()).getAbsoluteFile());
 			}
 //			System.err.println("NOT A File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");

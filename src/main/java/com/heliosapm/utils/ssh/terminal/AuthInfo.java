@@ -25,14 +25,15 @@
 package com.heliosapm.utils.ssh.terminal;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.heliosapm.utils.url.URLHelper;
 
 import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.ServerHostKeyVerifier;
 import ch.ethz.ssh2.crypto.PEMDecoder;
-
-import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: AuthInfo</p>
@@ -67,7 +68,8 @@ public class AuthInfo {
 	/** The default private key file name */
 	public static final File DEFAULT_PRIVATE_PEM_KEY_FILE = new File(DEFAULT_PRIVATE_PEM_KEY); 
 	
-	
+	/** A map of known successful authentication methods keyed by host:port */
+	private static final Map<String, AuthMethod> successfulAuthMethods = new ConcurrentHashMap<String, AuthMethod>();
 
 
 	/**
@@ -98,20 +100,45 @@ public class AuthInfo {
 		if(authMethods==null || authMethods.length==0) return false;
 		if(verifier==null) verifier = new AuthorizedKeysHostKeyVerifier();
 		checkPrivateKey();
-		
+		final String amKey = connection.getHostname() + ":" + connection.getPort();
+		AuthMethod method = successfulAuthMethods.get(amKey);
+		if(method != null) {
+			try {
+				if(!connection.isConnected()) {
+					try {
+						connection.connect(verifier, connectTimeout, kexTimeout);
+					} catch (Exception ex) {				
+						throw new RuntimeException("Failed to connect [" + amKey + "]", ex);
+					}
+				}				
+				method.authenticate(connection, this);
+				if(connection.isAuthenticationComplete()) {
+//					System.err.println("Completed authentication to [" + amKey + "] with method [" + method.name() + "]");
+					successfulAuthMethods.put(amKey, method);
+					return true;
+				}
+			} catch (Exception ex) {
+				/* No Op */
+			}
+			
+		}
 		for(AuthMethod am: authMethods) {
 			try {
 				if(!connection.isConnected()) {
 					try {
 						connection.connect(verifier, connectTimeout, kexTimeout);
 					} catch (Exception ex) {				
-						throw new RuntimeException("Failed to connect [" + connection + "]", ex);
+						throw new RuntimeException("Failed to connect [" + amKey + "]", ex);
 					}
 				}				
 				am.authenticate(connection, this);
-				if(connection.isAuthenticationComplete()) return true;
+				if(connection.isAuthenticationComplete()) {
+					successfulAuthMethods.put(amKey, am);
+//					System.err.println("Completed authentication to [" + amKey + "] with method [" + am.name() + "]");
+					return true;
+				}
 			} catch (Exception ex) {
-//				System.err.println("Failed to authenticate [" + connection + "] with method [" + am.name() + "]:" + ex);
+				System.err.println("Failed to authenticate [" + amKey + "] with method [" + am.name() + "]:" + ex);
 //				ex.printStackTrace(System.err);
 				/* No Op */
 			}
