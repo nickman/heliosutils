@@ -18,6 +18,9 @@ under the License.
  */
 package com.heliosapm.utils.enums;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
  * <p>Title: BitMasked</p>
  * <p>Description: Defines the basic bit maked enums operations</p> 
@@ -43,6 +46,12 @@ public interface BitMasked {
 	 */
 	public boolean isEnabled(final int mask);
 	
+	public int enableFor(int mask);
+	
+	public int disableFor(int mask);
+	
+//	public <E extends Enum<E> & BitMasked> int maskFor(final E...members);
+	
 	
 	
 	/**
@@ -58,10 +67,39 @@ public interface BitMasked {
 		 * @param member The enum member
 		 * @return the bit mask for the passed member
 		 */
-		public static <E extends Enum<E>> int ordinalBitMaskInt(final Enum<E> member) {
+		public static <E extends Enum<E>> int ordinalBitMaskInt(final E member) {
 			return Integer.parseInt("1" + INTBITS.substring(0, member.ordinal()), 2);
 		}
 		
+		public static boolean isEnabled(final BitMasked member, final int mask) {
+			return mask == (mask | member.getMask());
+		}
+		
+		public static int enableFor(final BitMasked member, final int mask) {
+			return mask | member.getMask();
+		}
+		
+		public static int disableFor(final BitMasked member, final int mask) {
+			return mask & ~member.getMask();
+		}
+		
+		public static <E extends Enum<E> & BitMasked> Set<E> membersFor(final Class<E> type, final int mask) {
+			final EnumSet<E> set = EnumSet.noneOf(type);			
+			for(E e: type.getEnumConstants()) {
+				if(e.isEnabled(mask)) set.add(e);
+			}
+			return set;
+		}
+		
+		
+		public static <E extends Enum<E> & BitMasked> int maskFor(final E...members) {
+			int mask = 0;
+			for(E e : members) {
+				if(e==null) continue;
+				mask = mask | e.getMask();
+			}			
+			return mask;
+		}
 		
 	}
 	
