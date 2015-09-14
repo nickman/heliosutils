@@ -30,7 +30,7 @@ import com.heliosapm.utils.ssh.terminal.SSHService;
  * @author Christian Plattner
  * @version 2.50, 03/15/10
  */
-public class LocalPortForwarder implements LocalPortForwarderMBean
+public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 {
 	final ChannelManager cm;
 
@@ -41,6 +41,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean
 	final LocalAcceptThread lat;
 	
 	final AtomicBoolean open = new AtomicBoolean(false);
+	final AtomicBoolean clean = new AtomicBoolean(true);
 	final ObjectName objectName;
 	final AtomicReference<ScheduledFuture<?>> handle = new AtomicReference<ScheduledFuture<?>>(null); 
 
@@ -51,7 +52,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
 
-		lat = new LocalAcceptThread(cm, local_port, host_to_connect, port_to_connect);
+		lat = new LocalAcceptThread(cm, local_port, host_to_connect, port_to_connect, this);
 		lat.setDaemon(true);
 		lat.start();
 		open.set(true);
@@ -88,7 +89,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
 
-		lat = new LocalAcceptThread(cm, addr, host_to_connect, port_to_connect);
+		lat = new LocalAcceptThread(cm, addr, host_to_connect, port_to_connect, this);
 		lat.setDaemon(true);
 		lat.start();
 		open.set(true);
@@ -103,6 +104,16 @@ public class LocalPortForwarder implements LocalPortForwarderMBean
 	{
 		return (InetSocketAddress) lat.getServerSocket().getLocalSocketAddress();
 	}
+	
+	public void run() {
+		try { 
+			clean.set(false); 
+			close(); 
+		} catch (Exception ex) {
+			System.err.println("Failed to close");
+			ex.printStackTrace(System.err);
+		}
+	}
 
 	/**
 	 * Stop TCP/IP forwarding of newly arriving connections.
@@ -111,8 +122,9 @@ public class LocalPortForwarder implements LocalPortForwarderMBean
 	 */
 	public void close() throws IOException
 	{
+		
 		LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect).removeForwarder(this);
-		lat.stopWorking();
+		try { lat.stopWorking(); } catch (Exception x) {/* No Op */}
 		open.set(false);		
 		handle.set(SSHService.getInstance().schedule(new Runnable(){
 			public void run() {
@@ -123,6 +135,38 @@ public class LocalPortForwarder implements LocalPortForwarderMBean
 			}
 		}, 60, TimeUnit.SECONDS));
 	}
+	
+	public String getAcceptThreadState() {
+		if(lat==null) return "NULL";
+		return lat.getState().name();
+	}
+	
+	public String getAcceptThreadName() {
+		if(lat==null) return "NULL";
+		return lat.getName();		
+	}
+	
+	public long getAcceptThreadId() {
+		if(lat==null) return -1L;;
+		return lat.getId();		
+	}
+	
+	public boolean isServerSocketBound() {
+		if(lat==null) return false;
+		ServerSocket ss = lat.getServerSocket();
+		if(ss==null) return false;
+		return ss.isBound();		
+	}
+	
+	public boolean isServerSocketClosed() {
+		if(lat==null) return true;
+		ServerSocket ss = lat.getServerSocket();
+		if(ss==null) return true;		
+		return ss.isClosed();		
+	}
+	
+	
+	
 
 	/**
 	 * Returns the remote host

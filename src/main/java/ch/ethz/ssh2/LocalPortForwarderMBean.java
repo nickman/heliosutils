@@ -19,6 +19,7 @@ under the License.
 package ch.ethz.ssh2;
 
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 
 /**
  * <p>Title: LocalPortForwarderMBean</p>
@@ -64,5 +65,16 @@ public interface LocalPortForwarderMBean {
 	public long getAccepts();
 	
 	public long getTimeTillUnregister();
+	
+	public String getAcceptThreadState();
+	
+	public String getAcceptThreadName();
+	
+	public long getAcceptThreadId();
+	
+	public boolean isServerSocketBound();
+	
+	public boolean isServerSocketClosed();
+	
 
 }

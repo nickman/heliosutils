@@ -88,6 +88,10 @@ public class URLRewriter {
 	}
 	
 	public HostPort get(final String relayHost, final int relayPort, final String hostName, final int port) {
+		return get(relayHost, relayPort, hostName, port, null);
+	}
+	
+	public HostPort get(final String relayHost, final int relayPort, final String hostName, final int port, final ConnectInfo connectInfo) {
 		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("Passed host was null or empty");						
 		if(port < 1) throw new IllegalArgumentException("Invalid port: " + port);
 		if(relayPort < 1) throw new IllegalArgumentException("Invalid relay port: " + port);
@@ -99,7 +103,7 @@ public class URLRewriter {
 			synchronized(hostPorts) {
 				hostPort = hostPorts.get(key);
 				if(hostPort==null) {
-					hostPort = new HostPort(relayHost, relayPort, host, port);
+					hostPort = new HostPort(relayHost, relayPort, host, port, connectInfo);
 					hostPorts.put(key, hostPort);
 				}
 			}
@@ -149,7 +153,7 @@ public class URLRewriter {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl, final String relayHost, final int relayPort) {
+	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl, final Map<String, Object> env, final String relayHost, final int relayPort) {
 		if(jmxUrl==null) throw new IllegalArgumentException("Passed jmxUrl was null");
 		Rewritten<JMXServiceURL> rw = (Rewritten<JMXServiceURL>)rewrites.get(jmxUrl);
 		if(rw==null) {
@@ -158,8 +162,15 @@ public class URLRewriter {
 				if(rw==null) {
 					final int port = jmxUrl.getPort();
 					final String host = jmxUrl.getHost();
+					ConnectInfo ci = null;
+					HostPort hp = null;
+					if(env!=null && !env.isEmpty()) {
+						ci = ConnectInfo.fromMap(env);
+						hp = get(relayHost, relayPort, host, port, ci);
+					} else {
+						hp = get(relayHost, relayPort, host, port);
+					}
 					
-					HostPort hp = get(relayHost, relayPort, host, port);
 					final String url = jmxUrl.toString().replace(host, hp.getLocalBind()).replace("" + port, "" + hp.getLocalPort()).replace(":sshjmxmp", ":jmxmp");
 					try {
 						JMXServiceURL rewrittenJmxUrl = new JMXServiceURL(url);
@@ -174,13 +185,13 @@ public class URLRewriter {
 		return rw;				
 	}
 	
-	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl, final String relayHost) {
-		return rewrite(jmxUrl, relayHost, 22);
+	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl, final Map<String, Object> env, final String relayHost) {
+		return rewrite(jmxUrl, env, relayHost, 22);
 	}
 	
-	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl) {
+	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl, final Map<String, Object> env) {
 		if(jmxUrl==null) throw new IllegalArgumentException("Passed jmxUrl was null");
-		return rewrite(jmxUrl, jmxUrl.getHost(), 22);
+		return rewrite(jmxUrl, env, jmxUrl.getHost(), 22);
 	}
 	
 	

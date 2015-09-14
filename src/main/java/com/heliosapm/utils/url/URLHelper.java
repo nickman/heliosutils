@@ -71,6 +71,16 @@ public class URLHelper {
 	}
 	
 	/**
+	 * Reads the content of a file as text using the default connect and read timeouts.
+	 * @param file The file to get the text from
+	 * @return a string representing the text read from the passed file
+	 */
+	public static String getTextFromFile(final File file) {
+		return getTextFromURL(toURL(file));
+	}
+
+	
+	/**
 	 * Reads the content of a URL as text using the default connect and read timeouts.
 	 * @param urlStr The url stringy to get the text from
 	 * @return a string representing the text read from the passed URL

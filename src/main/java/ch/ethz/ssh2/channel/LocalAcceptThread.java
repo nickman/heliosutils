@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.TimeUnit;
 
 import jsr166e.DeltaLongAdder;
 
@@ -22,6 +23,8 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 	ChannelManager cm;
 	String host_to_connect;
 	int port_to_connect;
+	Runnable onStop;
+	long startTime = System.currentTimeMillis();
 	
 	final DeltaLongAdder bytesUp = new DeltaLongAdder();
 	final DeltaLongAdder bytesDown = new DeltaLongAdder();
@@ -51,7 +54,7 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 
 	final ServerSocket ss;
 
-	public LocalAcceptThread(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect)
+	public LocalAcceptThread(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect, final Runnable onStop)
 			throws IOException
 	{
 		this.cm = cm;
@@ -59,17 +62,19 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 		this.port_to_connect = port_to_connect;
 
 		ss = new ServerSocket(local_port);
+		this.onStop = onStop;
 	}
 
 	public LocalAcceptThread(ChannelManager cm, InetSocketAddress localAddress, String host_to_connect,
-			int port_to_connect) throws IOException
+			int port_to_connect, final Runnable onStop) throws IOException
 	{
 		this.cm = cm;
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
-
+		
 		ss = new ServerSocket();
 		ss.bind(localAddress);
+		this.onStop = onStop;
 	}
 
 	public ServerSocket getServerSocket()
@@ -161,6 +166,9 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 
 	public void stopWorking()
 	{
+		long endTime = System.currentTimeMillis() - startTime;
+		System.err.println("Stopping Work after [" + TimeUnit.SECONDS.convert(endTime, TimeUnit.MILLISECONDS) + "] secs.");
+		new Exception().printStackTrace(System.err);
 		try
 		{
 			/* This will lead to an IOException in the ss.accept() call */
@@ -168,6 +176,13 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 		}
 		catch (IOException ignored)
 		{
+		} finally {
+			if(onStop!=null) {				
+				Runnable p = onStop;
+				onStop = null;
+				p.run();
+				
+			}
 		}
 	}
 }

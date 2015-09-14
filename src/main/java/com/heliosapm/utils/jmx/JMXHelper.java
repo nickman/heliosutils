@@ -941,8 +941,7 @@ public class JMXHelper {
 		try {
 			server.unregisterMBean(objectName);
 		} catch(Exception e) {
-			if(isDebugAgentLoaded()) e.printStackTrace(System.err);
-			throw new RuntimeException("Failed to unregister MBean [" + objectName + "]", e);
+			if(isDebugAgentLoaded()) System.err.println("Failed to unregister MBean [" + objectName + "]:" + e);			
 		}		
 	}
 	

@@ -365,7 +365,7 @@ public class ConcurrentLongSlidingWindow extends LongSlidingWindow implements IL
 	 */
 	@Override
 	public long min() {
-		if(array.size==0) return 0;
+		if(array.size==0) return -1;
 		long[] arr = null;
 		readLock.lock();
 		try {
@@ -383,7 +383,7 @@ public class ConcurrentLongSlidingWindow extends LongSlidingWindow implements IL
 	 */
 	@Override
 	public long max() {
-		if(array.size==0) return 0;
+		if(array.size==0) return -1;
 		long[] arr = null;
 		readLock.lock();
 		try {

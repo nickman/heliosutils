@@ -232,7 +232,11 @@ public class ConnectInfo implements ServerHostKeyVerifier {
 		} 
 		for(String key: PROPERTY_NAMES) {
 			if(config.has(key)) {
-				p.setProperty(key, "" + config.get(key));
+				if("pkpassword".equals(key)) {
+					p.setProperty(key, "" + config.get(key));
+				} else {
+					p.setProperty(key, "" + config.get(key));
+				}
 			}
 		}
 		return p;
@@ -300,7 +304,7 @@ public class ConnectInfo implements ServerHostKeyVerifier {
 		
 		if(userName!=null) env.put("sshusername", userName);
 		if(userPassword!=null) env.put("sshpassword", userPassword);
-		if(privateKey!=null) env.put("privatekey", privateKey);
+		if(privateKey!=null) env.put("privatekey", new String(privateKey));
 		if(privateKeyPassword!=null) env.put("pkpassword", privateKeyPassword);
 		if(privateKeyPasswordFile!=null) env.put("pkpasswordf", privateKeyPasswordFile);
 

@@ -60,8 +60,8 @@ public class ClientProvider implements JMXConnectorProvider {
 			throw new MalformedURLException("Protocol not [" + PROTOCOL_NAME + "]: " +
 						    serviceURL.getProtocol());
 		}
-		final ConnectInfo ci = ConnectInfo.fromMap(environment);
-		final Rewritten<JMXServiceURL> rewriter = URLRewriter.getInstance().rewrite(serviceURL);
+		//final ConnectInfo ci = ConnectInfo.fromMap(environment);
+		final Rewritten<JMXServiceURL> rewriter = URLRewriter.getInstance().rewrite(serviceURL, (Map<String, Object>) environment);
 		return WrappedJMXConnector.addressable(new SSHJMXConnector(rewriter, environment), serviceURL);
 	}
 
