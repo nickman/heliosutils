@@ -51,7 +51,7 @@ public enum AuthMethod implements Authenticator {
 	/** Attempt to authenticate with a username and nothing else */
 	NONE("none"){
 		@Override
-		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
+		public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
 			return conn.authenticateWithNone(authInfo.getUserName());
 		}
@@ -59,7 +59,7 @@ public enum AuthMethod implements Authenticator {
 	/** Attempt to authenticate with a user name and password */
 	PASSWORD("password"){
 		@Override
-		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
+		public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
 			if(authInfo.getUserPassword()==null) return false;
 			return conn.authenticateWithPassword(authInfo.getUserName(), authInfo.getUserPassword());
@@ -68,7 +68,7 @@ public enum AuthMethod implements Authenticator {
 	/** Attempt to authenticate with an interactive callback */
 	INTERACTIVE("keyboard-interactive"){
 		@Override
-		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
+		public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
 			return conn.authenticateWithKeyboardInteractive(authInfo.getUserName(), iback(authInfo));
 		}
@@ -76,7 +76,7 @@ public enum AuthMethod implements Authenticator {
 	/** Attempt to authenticate with a public key */
 	PUBLICKEY("publickey"){
 		@Override
-		public boolean authenticate(final Connection conn, final AuthInfo authInfo) throws IOException {
+		public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException {
 			if(validate(conn, authInfo)) return true;
 			return conn.authenticateWithPublicKey(authInfo.getUserName(), authInfo.getPrivateKey(), authInfo.getPrivateKeyPassword());
 		}
@@ -141,14 +141,14 @@ public enum AuthMethod implements Authenticator {
 		return set.toArray(new String[set.size()]);
 	}
 	
-	private static boolean validate(final Connection conn, final AuthInfo authInfo) {
+	private static boolean validate(final Connection conn, final ConnectInfo authInfo) {
 		if(conn==null) throw new IllegalArgumentException("The passed connection was null");
 		if(conn.isAuthenticationComplete()) return true;
-		if(authInfo==null) throw new IllegalArgumentException("The passed AuthInfo was null");
+		if(authInfo==null) throw new IllegalArgumentException("The passed ConnectInfo was null");
 		return false;
 	}
 	
-	private static InteractiveCallback iback(final AuthInfo authInfo) {
+	private static InteractiveCallback iback(final ConnectInfo authInfo) {
 		return new InteractiveCallback() {
 			@Override
 			public String[] replyToChallenge(String name, String instruction,

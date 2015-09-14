@@ -9,6 +9,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import jsr166e.DeltaLongAdder;
+
 /**
  * LocalAcceptThread.
  * 
@@ -20,6 +22,32 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 	ChannelManager cm;
 	String host_to_connect;
 	int port_to_connect;
+	
+	final DeltaLongAdder bytesUp = new DeltaLongAdder();
+	final DeltaLongAdder bytesDown = new DeltaLongAdder();
+	final DeltaLongAdder accepts = new DeltaLongAdder();
+	
+	public long getBytesUp() {
+		return bytesUp.longValue();
+	}
+	
+	public long getBytesDown() {
+		return bytesDown.longValue();
+	}
+	public long getAccepts() {
+		return accepts.longValue();
+	}
+	
+	public long getDeltaBytesUp() {
+		return bytesUp.getDelta();
+	}
+	
+	public long getDeltaBytesDown() {
+		return bytesDown.getDelta();
+	}
+	public long getDeltaAccepts() {
+		return accepts.getDelta();
+	}
 
 	final ServerSocket ss;
 
@@ -69,6 +97,7 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 			try
 			{
 				s = ss.accept();
+				accepts.increment();
 			}
 			catch (IOException e)
 			{
@@ -105,8 +134,8 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 
 			try
 			{
-				r2l = new StreamForwarder(cn, null, null, cn.stdoutStream, s.getOutputStream(), "RemoteToLocal");
-				l2r = new StreamForwarder(cn, r2l, s, s.getInputStream(), cn.stdinStream, "LocalToRemote");
+				r2l = new StreamForwarder(cn, null, null, cn.stdoutStream, s.getOutputStream(), "RemoteToLocal", bytesDown);
+				l2r = new StreamForwarder(cn, r2l, s, s.getInputStream(), cn.stdinStream, "LocalToRemote", bytesUp);
 			}
 			catch (IOException e)
 			{
@@ -135,7 +164,7 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 		try
 		{
 			/* This will lead to an IOException in the ss.accept() call */
-			ss.close();
+			ss.close();			
 		}
 		catch (IOException ignored)
 		{

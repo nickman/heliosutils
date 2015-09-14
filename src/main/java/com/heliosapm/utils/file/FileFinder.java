@@ -50,6 +50,11 @@ public class FileFinder {
 		addSearchDir(dirs);
 	}
 	
+	FileFinder setFilter(final FileFilter filter) {
+		this.filter = filter;
+		return this;
+	}
+	
 	public static FileFinder newFileFinder(final String...dirsToSearch) {
 		return new FileFinder(dirsToSearch);
 	}
@@ -83,7 +88,7 @@ public class FileFinder {
 	}
 	
 	public File[] find() {
-		dirsToSearch.clear();
+		foundFiles.clear();
 		actualCount = 0;
 		actualLevel = 0;
 		if(dirsToSearch.isEmpty() || maxFiles==0) return EMPTY_FILE_ARR;

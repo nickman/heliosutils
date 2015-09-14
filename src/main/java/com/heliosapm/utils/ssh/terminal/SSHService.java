@@ -197,8 +197,8 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 		return null;
 	}
 	
-	private AuthInfo defaultAuthInfo() {
-		final AuthInfo authInfo = new AuthInfo(user)
+	private ConnectInfo defaultAuthInfo() {
+		final ConnectInfo authInfo = new ConnectInfo(user)
 			.setConnectTimeout(connectTimeout)
 			.setKexTimeout(readTimeout)  // FIXME:  rename read timeout to kex timeout			
 			.setYesManVerifier();				// FIXME:  add hosts file to use
@@ -210,7 +210,18 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 			
 	}
 	
+	/**
+	 * Connects to the SSH server at the passed host and port using all the configured defaults
+	 * @param host The SSH server host name
+	 * @param port The SSH listening port
+	 * @param authInfo The auth info to use. If null, will use the default auth info
+	 * @return the wrapped SSH connection
+	 */
+	public WrappedConnection connect(final String host, final int port, final ConnectInfo authInfo) {
+		if(host==null || host.trim().isEmpty()) throw new IllegalArgumentException("The passed host was null or empty");
+		return WrappedConnection.connectAndAuthenticate(host, port, authInfo==null ? defaultAuthInfo() : authInfo);
 
+	}
 	
 	/**
 	 * Connects to the SSH server at the passed host and port using all the configured defaults
@@ -220,8 +231,10 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 	 */
 	public WrappedConnection connect(final String host, final int port) {
 		if(host==null || host.trim().isEmpty()) throw new IllegalArgumentException("The passed host was null or empty");
-		return WrappedConnection.connectAndAuthenticate(host, port, defaultAuthInfo());
+		return connect(host, port, defaultAuthInfo());
 	}
+	
+	
 	
 	/**
 	 * Connects to the SSH server at the passed host and port 22 using all the configured defaults
@@ -465,6 +478,17 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 
 	public AtomicInteger getPendingReconnects() {
 		return pendingReconnects;
+	}
+
+	/**
+	 * @param command
+	 * @param delay
+	 * @param unit
+	 * @return
+	 * @see java.util.concurrent.ScheduledThreadPoolExecutor#schedule(java.lang.Runnable, long, java.util.concurrent.TimeUnit)
+	 */
+	public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+		return reconnectScheduler.schedule(command, delay, unit);
 	}
 
 }

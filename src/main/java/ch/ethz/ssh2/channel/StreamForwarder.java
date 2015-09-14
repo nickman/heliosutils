@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import jsr166e.LongAdder;
+
 /**
  * A StreamForwarder forwards data between two given streams. 
  * If two StreamForwarder threads are used (one for each direction)
@@ -27,8 +29,9 @@ public class StreamForwarder extends Thread
 	StreamForwarder sibling;
 	Socket s;
 	String mode;
+	final LongAdder byteCount;
 
-	StreamForwarder(Channel c, StreamForwarder sibling, Socket s, InputStream is, OutputStream os, String mode)
+	StreamForwarder(Channel c, StreamForwarder sibling, Socket s, InputStream is, OutputStream os, String mode, final LongAdder byteCount)
 			throws IOException
 	{
 		this.is = is;
@@ -37,6 +40,7 @@ public class StreamForwarder extends Thread
 		this.c = c;
 		this.sibling = sibling;
 		this.s = s;
+		this.byteCount = byteCount;
 	}
 
 	@Override
@@ -51,6 +55,7 @@ public class StreamForwarder extends Thread
 					break;
 				os.write(buffer, 0, len);
 				os.flush();
+				byteCount.add(len);
 			}
 		}
 		catch (IOException ignore)

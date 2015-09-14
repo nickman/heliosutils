@@ -66,8 +66,8 @@ public class FileFilterBuilder {
 		return new FileFilterBuilder(parent);
 	}
 	
-	public FileFinder fileFinder() {
-		return parent;
+	public FileFinder fileFinder() {		
+		return parent.setFilter(build());
 	}
 	public FileFilter build() {
 		if(enabledFilters.isEmpty()) throw new IllegalStateException("No filters defined");

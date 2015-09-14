@@ -16,28 +16,31 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.ssh.terminal;
+package jsr166e;
 
-import java.io.IOException;
-
-import ch.ethz.ssh2.Connection;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * <p>Title: Authenticator</p>
+ * <p>Title: DeltaLongAdder</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.ssh.terminal.Authenticator</code></p>
+ * <p><code>jsr166e.DeltaLongAdder</code></p>
  */
 
-public interface Authenticator {
+public class DeltaLongAdder extends LongAdder {
+	protected final AtomicLong last = new AtomicLong(0);
 	/**
-	 * Attempts an authentication agains the passed connection using the resources in the passed authed info.
-	 * If the connection is already fully authenticated, immediately returns true
-	 * @param conn The connection to authenticate against
-	 * @param authInfo The authentication resources
-	 * @return true the connection is now authenticated, false otherwise
-	 * @throws IOException Thrown on any IO error
+	 * Creates a new DeltaLongAdder
 	 */
-	public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException;
+	public DeltaLongAdder() {
+		super();
+	}
+	
+	public long getDelta() {
+		final long d = longValue();
+		final long state = last.getAndSet(d);
+		return d - state;		
+	}
+
 }

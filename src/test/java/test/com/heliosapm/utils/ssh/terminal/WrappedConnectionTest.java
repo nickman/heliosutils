@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import test.com.heliosutils.BaseTest;
 
-import com.heliosapm.utils.ssh.terminal.AuthInfo;
+import com.heliosapm.utils.ssh.terminal.ConnectInfo;
 import com.heliosapm.utils.ssh.terminal.WrappedConnection;
 
 /**
@@ -82,7 +82,7 @@ public class WrappedConnectionTest extends BaseTest {
 	 */
 	@Test
 	public void testNSAConnect() {
-		wc = WrappedConnection.connectAndAuthenticate("localhost", serverPort, new AuthInfo("nsa-agent").setYesManVerifier());
+		wc = WrappedConnection.connectAndAuthenticate("localhost", serverPort, new ConnectInfo("nsa-agent").setYesManVerifier());
 		Assert.assertNotNull("Connection is null", wc);
 		Assert.assertTrue("Not connected", wc.isOpen());
 		Assert.assertEquals("Did not get PONG", "PONG", wc.execCommand("PING"));

@@ -422,18 +422,33 @@ public class PrivateAccessor {
 		if(clazz==null) throw new IllegalArgumentException("Target Class Was Null");
 		if(isDebug()) log("PrivateAccessor Creating Instance of class [" , clazz.getName() , "] with arguments [" , argsToString(arguments) , "]");
 		int key = invocationKey(clazz, "CTOR", signature);
+		Method staticCtor = null;
 		Constructor<?> constructor = (Constructor<?>)cacheLookup(key);
 		if(constructor==null) {
 			constructor = findConstructorFromClass(clazz, signature);
 			if(constructor==null) {
-				elog(null, "The constructor was not found in the class [" , clazz.getName() , "]");
-				throw new RuntimeException("The constructor was not found in the class [" + clazz.getName() + "]");
+				
+				try {
+					staticCtor = clazz.getDeclaredMethod("getInstance", signature);
+				} catch (NoSuchMethodException nsme) {
+					try {
+						staticCtor = clazz.getMethod("getInstance", signature);
+					} catch (NoSuchMethodException nsme2) {
+						elog(null, "No constructor or static getInstance was not found in the class [" , clazz.getName() , "]");
+						throw new RuntimeException("No constructor or static getInstance was not found in the class [" + clazz.getName() + "]");						
+					}
+				}
+				staticCtor.setAccessible(true);
 			} else {
+				
 				constructor.setAccessible(true);
 				addToCache(key, constructor);
 			}
 		}
 		try {			
+			if(constructor==null) {
+				return staticCtor.invoke(null, arguments);
+			}
 			return constructor.newInstance(arguments);
 		} catch (Exception e) {
 			elog(e, "Exception invoking constructor for the class [" , clazz.getName() , "]", "with arguments:" , argsToIndentedString(arguments));

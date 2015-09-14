@@ -60,7 +60,8 @@ public class SystemClock {
 	 * @param unit The unit of time. If null, defaults to {@link TimeUnit#MILLISECONDS}
 	 */
 	public static void sleep(final long time, final TimeUnit unit) {
-		sleep(time, unit==null ? TimeUnit.MILLISECONDS : unit);
+		final TimeUnit u = unit==null ? TimeUnit.MILLISECONDS : unit;
+		sleep(TimeUnit.MILLISECONDS.convert(time, u));
 	}
 	
 	

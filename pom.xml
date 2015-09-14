@@ -12,8 +12,8 @@
  		<compiler-source.version>1.6</compiler-source.version>
  		<compiler-target.version>1.6</compiler-target.version>
  		<!-- Dependencies -->
- 		<junit.version>4.12</junit.version>
-		<json.version>20090211</json.version>
+ 		<junit.version>4.12</junit.version>		
+		<json.version>20131018</json.version>
 		<jmx-optional.version>1.0-b02-SNAPSHOT</jmx-optional.version>
 		<slf4j.version>1.7.7</slf4j.version>
 		<logback.version>1.0.13</logback.version>
@@ -25,6 +25,7 @@
 		<eclipse-plugin.version>2.9</eclipse-plugin.version>
 		<surefire.version>2.16</surefire.version>
 		<cobertura.version>2.5.1</cobertura.version>
+		<shade.version>2.1</shade.version>
 	</properties>
 	
 	
@@ -36,8 +37,14 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>${junit.version}</version>
+			<scope>test</scope>
 		</dependency>
 		
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>${json.version}</version>
+    </dependency>
 
 			
 	</dependencies>
@@ -92,7 +99,46 @@
 			  </manifestEntries>
 		      </archive>
 		  </configuration>
-            	</plugin>			
+            	</plugin>
+            	
+  <plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>${shade.version}</version>
+        <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <artifactSet>
+                  <excludes>
+	                  <exclude>META-INF/*.SF</exclude>
+	                  <exclude>META-INF/*.DSA</exclude>
+	                  <exclude>META-INF/*.RSA</exclude>                       
+                  </excludes>
+                  <includes>
+                    
+                  </includes>
+                </artifactSet>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+              <includePluginDependencies>false</includePluginDependencies>
+            <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ComponentsXmlResourceTransformer"/>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                    <resource>.SF</resource>
+                    <resource>.DSA</resource>
+                    <resource>.RSA</resource>
+                </transformer>
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>   
+      </plugin>
+            				
 		</plugins>
 	</build>
 </project>

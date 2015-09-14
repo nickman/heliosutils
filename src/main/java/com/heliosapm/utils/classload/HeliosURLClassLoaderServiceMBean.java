@@ -16,28 +16,30 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.ssh.terminal;
+package com.heliosapm.utils.classload;
 
-import java.io.IOException;
-
-import ch.ethz.ssh2.Connection;
+import java.net.URL;
 
 /**
- * <p>Title: Authenticator</p>
- * <p>Description: </p> 
+ * <p>Title: HeliosURLClassLoaderServiceMBean</p>
+ * <p>Description: JMX MBean interface for {@link HeliosURLClassLoaderService}</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.ssh.terminal.Authenticator</code></p>
+ * <p><code>com.heliosapm.utils.classload.HeliosURLClassLoaderServiceMBean</code></p>
  */
 
-public interface Authenticator {
-	/**
-	 * Attempts an authentication agains the passed connection using the resources in the passed authed info.
-	 * If the connection is already fully authenticated, immediately returns true
-	 * @param conn The connection to authenticate against
-	 * @param authInfo The authentication resources
-	 * @return true the connection is now authenticated, false otherwise
-	 * @throws IOException Thrown on any IO error
-	 */
-	public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException;
+public interface HeliosURLClassLoaderServiceMBean {
+	/** The object name prefix */
+	public static final String OBJECT_NAME = "com.heliosapm.classpath:service=HeliosURLClassLoaderService";
+	
+	public int getCount();
+	
+	public long getClearedCount();
+	
+	public String[] getNames();
+	
+	public URL[] getURLsFor(final String name);
+	
+	public String getClassLoaderNameFor(final String className);
+
 }

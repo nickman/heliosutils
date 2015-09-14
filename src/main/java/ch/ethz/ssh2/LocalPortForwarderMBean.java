@@ -16,28 +16,53 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.ssh.terminal;
+package ch.ethz.ssh2;
 
-import java.io.IOException;
-
-import ch.ethz.ssh2.Connection;
+import java.net.InetSocketAddress;
 
 /**
- * <p>Title: Authenticator</p>
- * <p>Description: </p> 
+ * <p>Title: LocalPortForwarderMBean</p>
+ * <p>Description: JMX MBean interface for {@link LocalPortForwarder} instances</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.ssh.terminal.Authenticator</code></p>
+ * <p><code>ch.ethz.ssh2.LocalPortForwarderMBean</code></p>
  */
 
-public interface Authenticator {
+public interface LocalPortForwarderMBean {
 	/**
-	 * Attempts an authentication agains the passed connection using the resources in the passed authed info.
-	 * If the connection is already fully authenticated, immediately returns true
-	 * @param conn The connection to authenticate against
-	 * @param authInfo The authentication resources
-	 * @return true the connection is now authenticated, false otherwise
-	 * @throws IOException Thrown on any IO error
+	 * Returns the remote host
+	 * @return the remote host
 	 */
-	public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException;
+	public String getHost();
+	
+	/**
+	 * Returns the local bind interface
+	 * @return the local bind interface
+	 */
+	public String getLocalIface();
+
+	/**
+	 * Returns the local listening port
+	 * @return the local listening port
+	 */
+	public int getLocalPort();
+
+	//lat.getServerSocket().getLocalSocketAddress()
+	
+	/**
+	 * Returns 
+	 * @return the port_to_connect
+	 */
+	public int getPort();
+	
+	public boolean isOpen();
+	
+	public long getBytesUp();
+	
+	public long getBytesDown();
+	
+	public long getAccepts();
+	
+	public long getTimeTillUnregister();
+
 }

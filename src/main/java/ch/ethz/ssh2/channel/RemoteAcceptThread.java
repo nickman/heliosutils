@@ -7,6 +7,7 @@ package ch.ethz.ssh2.channel;
 import java.io.IOException;
 import java.net.Socket;
 
+import jsr166e.LongAdder;
 import ch.ethz.ssh2.log.Logger;
 
 /**
@@ -18,6 +19,10 @@ import ch.ethz.ssh2.log.Logger;
 public class RemoteAcceptThread extends Thread
 {
 	private static final Logger log = Logger.getLogger(RemoteAcceptThread.class);
+	
+	final LongAdder bytesUp = new LongAdder();
+	final LongAdder bytesDown = new LongAdder();
+
 
 	Channel c;
 
@@ -55,9 +60,9 @@ public class RemoteAcceptThread extends Thread
 			s = new Socket(targetAddress, targetPort);
 
 			StreamForwarder r2l = new StreamForwarder(c, null, null, c.getStdoutStream(), s.getOutputStream(),
-					"RemoteToLocal");
+					"RemoteToLocal", bytesDown);
 			StreamForwarder l2r = new StreamForwarder(c, null, null, s.getInputStream(), c.getStdinStream(),
-					"LocalToRemote");
+					"LocalToRemote", bytesUp);
 
 			/* No need to start two threads, one can be executed in the current thread */
 

@@ -24,12 +24,14 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
+import com.heliosapm.utils.time.SystemClock;
 
 /**
  * <p>Title: FileChangeWatcher</p>
@@ -47,8 +49,12 @@ public class FileChangeWatcher extends Thread {
 	protected final AtomicBoolean running = new AtomicBoolean(false);
 	protected final AtomicBoolean dead = new AtomicBoolean(false);
 	protected final boolean initBeforeFire;
+	protected int scanPeriod = DEFAULT_SCAN_PERIOD;
 	
 	private static final AtomicInteger serial = new AtomicInteger(0);
+	
+	/** The default number of seconds between change scans */
+	public static final int DEFAULT_SCAN_PERIOD = 5;
 	
 	
 	public FileChangeWatcher(final FileFinder finder, final long scanPeriodSecs, final boolean initBeforeFire, final FileChangeEventListener...listeners) {
@@ -88,8 +94,14 @@ public class FileChangeWatcher extends Thread {
 	
 	
 	public FileChangeWatcher startWatcher() {
+		return startWatcher(DEFAULT_SCAN_PERIOD);
+	}
+	
+	public FileChangeWatcher startWatcher(final int period) {
 		if(dead.get()) throw new IllegalStateException("The FileChangeWatcher is dead");
+		if(period < 1) throw new IllegalArgumentException("Invalid scan period [" + period + "]");
 		if(running.compareAndSet(false, true)) {
+			this.scanPeriod = period;
 			start();
 		}
 		return this;
@@ -118,6 +130,8 @@ public class FileChangeWatcher extends Thread {
 			} catch (Exception ex) {
 				if(Thread.interrupted()) Thread.interrupted();
 				/* No Op */
+			} finally {
+				SystemClock.sleep(scanPeriod, TimeUnit.SECONDS);
 			}
 		}
 	}

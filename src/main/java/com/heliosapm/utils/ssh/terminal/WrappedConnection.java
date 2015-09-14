@@ -60,7 +60,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	/** The connection info */
 	private ConnectionInfo connectionInfo;
 	/** The auth info */
-	private final AuthInfo authInfo;
+	private final ConnectInfo authInfo;
 	
 	/** The resolved host name and key for this connection */
 	private final String hostName;	
@@ -294,7 +294,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param authInfo The authentication info
 	 * @return a connected but not authenticated {@link WrappedConnection}
 	 */
-	public static final WrappedConnection connect(final String hostName, final int port, final AuthInfo authInfo) {
+	public static final WrappedConnection connect(final String hostName, final int port, final ConnectInfo authInfo) {
 		final WrappedConnection wconn = create(hostName, port, authInfo);
 		try {
 			wconn.connection.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());			
@@ -312,7 +312,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param authInfo The authentication info
 	 * @return a connected but not authenticated {@link WrappedConnection}
 	 */
-	public static final WrappedConnection connect(final String hostName, final AuthInfo authInfo) {
+	public static final WrappedConnection connect(final String hostName, final ConnectInfo authInfo) {
 		return connect(hostName, 22, authInfo);
 	}
 	
@@ -323,7 +323,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param authInfo The authentication info
 	 * @return a disconnected and not authenticated {@link WrappedConnection}
 	 */
-	public static final WrappedConnection create(final String hostName, final int port, final AuthInfo authInfo) {
+	public static final WrappedConnection create(final String hostName, final int port, final ConnectInfo authInfo) {
 		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
 		final String key = hostName + ":" + port;
 		WrappedConnection wconn = connectionCache.get(key);
@@ -350,7 +350,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param authInfo The authentication info
 	 * @return a disconnected and not authenticated {@link WrappedConnection}
 	 */
-	public static final WrappedConnection create(final String hostName, final AuthInfo authInfo) {
+	public static final WrappedConnection create(final String hostName, final ConnectInfo authInfo) {
 		return create(hostName, 22, authInfo);
 	}
 	
@@ -361,7 +361,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param authInfo The authentication info
 	 * @return a connected and authenticated {@link WrappedConnection}
 	 */
-	public static final WrappedConnection connectAndAuthenticate(final String hostName, final int port, final AuthInfo authInfo) {
+	public static final WrappedConnection connectAndAuthenticate(final String hostName, final int port, final ConnectInfo authInfo) {
 		final WrappedConnection wconn = connect(hostName, port, authInfo);
 		final boolean authed = authInfo.authenticate(wconn.connection);
 		if(!authed) {
@@ -377,7 +377,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param authInfo The authentication info
 	 * @return a connected and authenticated {@link WrappedConnection}
 	 */
-	public static final WrappedConnection connectAndAuthenticate(final String hostName, final AuthInfo authInfo) {
+	public static final WrappedConnection connectAndAuthenticate(final String hostName, final ConnectInfo authInfo) {
 		return connectAndAuthenticate(hostName, 22, authInfo);
 	}
 	
@@ -388,10 +388,10 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * @param connection The wrapped connection
 	 * @param authInfo The authentication resources
 	 */
-	private WrappedConnection(final Connection connection, final AuthInfo authInfo) {
+	private WrappedConnection(final Connection connection, final ConnectInfo authInfo) {
 		if(connection==null) throw new IllegalArgumentException("The passed connection was null");
 		this.connection = connection;
-		this.authInfo = authInfo==null ? new AuthInfo() : authInfo;
+		this.authInfo = authInfo==null ? new ConnectInfo() : authInfo;
 		String tmpName = null;
 		try {
 			tmpName = InetAddress.getByName(this.connection.getHostname()).getHostName();
@@ -555,7 +555,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	 * Returns 
 	 * @return the authInfo
 	 */
-	public AuthInfo getAuthInfo() {
+	public ConnectInfo getAuthInfo() {
 		return authInfo;
 	}
 

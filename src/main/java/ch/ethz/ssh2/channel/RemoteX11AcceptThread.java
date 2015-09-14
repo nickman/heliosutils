@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import jsr166e.LongAdder;
 import ch.ethz.ssh2.log.Logger;
 import ch.ethz.ssh2.util.StringEncoder;
 
@@ -23,6 +24,10 @@ public class RemoteX11AcceptThread extends Thread
 	private static final Logger log = Logger.getLogger(RemoteX11AcceptThread.class);
 
 	Channel c;
+	
+	final LongAdder bytesUp = new LongAdder();
+	final LongAdder bytesDown = new LongAdder();
+	
 
 	String remoteOriginatorAddress;
 	int remoteOriginatorPort;
@@ -197,8 +202,8 @@ public class RemoteX11AcceptThread extends Thread
 
 			/* Start forwarding traffic */
 
-			StreamForwarder r2l = new StreamForwarder(c, null, null, remote_is, x11_os, "RemoteToX11");
-			StreamForwarder l2r = new StreamForwarder(c, null, null, x11_is, remote_os, "X11ToRemote");
+			StreamForwarder r2l = new StreamForwarder(c, null, null, remote_is, x11_os, "RemoteToX11", bytesDown);
+			StreamForwarder l2r = new StreamForwarder(c, null, null, x11_is, remote_os, "X11ToRemote", bytesUp);
 
 			/* No need to start two threads, one can be executed in the current thread */
 

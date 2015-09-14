@@ -16,28 +16,41 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.ssh.terminal;
-
-import java.io.IOException;
-
-import ch.ethz.ssh2.Connection;
+package ch.ethz.ssh2;
 
 /**
- * <p>Title: Authenticator</p>
- * <p>Description: </p> 
+ * <p>Title: LocalPortForwardWatcherMBean</p>
+ * <p>Description: JMX MBean  interface for {@link LocalPortForwardWatcher} instances</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.ssh.terminal.Authenticator</code></p>
+ * <p><code>ch.ethz.ssh2.LocalPortForwardWatcherMBean</code></p>
  */
 
-public interface Authenticator {
+public interface LocalPortForwardWatcherMBean {
+	
+	public String getRemoteHost();
+	
+	public int getRemotePort();
+
+	
+	public long getBytesUp();
+	
+	public long getBytesDown();
+	
+	public long getAccepts();
+	
+	public int getOpen();
+
 	/**
-	 * Attempts an authentication agains the passed connection using the resources in the passed authed info.
-	 * If the connection is already fully authenticated, immediately returns true
-	 * @param conn The connection to authenticate against
-	 * @param authInfo The authentication resources
-	 * @return true the connection is now authenticated, false otherwise
-	 * @throws IOException Thrown on any IO error
+	 * Returns the total number of opens
+	 * @return the opens
 	 */
-	public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException;
+	public long getOpens();
+
+	/**
+	 * Returns the total number of closes
+	 * @return the closes
+	 */
+	public long getCloses();
+
 }

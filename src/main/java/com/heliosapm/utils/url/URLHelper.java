@@ -12,6 +12,8 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Properties;
 
+import com.heliosapm.utils.config.TokenAwareProperties;
+
 /**
  * <p>Title: URLHelper</p>
  * <p>Description: Helper functions for URLs, URIs and Files and what-not</p> 
@@ -161,7 +163,16 @@ public class URLHelper {
 	 */
 	public static boolean isFile(final CharSequence urlStr) {
 		if(urlStr==null || urlStr.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed URL stringy was null or empty");
-		return new File(urlStr.toString().trim()).exists();
+		return new File(token(urlStr)).exists();
+	}
+	
+	public static String token(final CharSequence name) {
+		if(name==null || name.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed name was null or empty");
+		String s = name.toString().trim();
+		if(s.startsWith("~")) {
+			s = System.getProperty("user.home") + s.substring(1);
+		}		
+		return TokenAwareProperties.token(s);
 	}
 	
 	/**
@@ -184,7 +195,7 @@ public class URLHelper {
 		try {
 			if(isFile(urlStr)) {
 //				System.out.println("URL from File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
-				return toURL(new File(urlStr.toString()).getAbsoluteFile());
+				return toURL(new File(token(urlStr.toString())).getAbsoluteFile());
 			}
 //			System.err.println("NOT A File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
 			return new URL(nvl(urlStr, "Passed string was null").toString());
@@ -205,6 +216,8 @@ public class URLHelper {
 			throw new RuntimeException("Failed to create URL from string [" + uriStr + "]", e);
 		}
 	}
+	
+	
 	
 	
 	

@@ -52,6 +52,8 @@ public class KnownHosts
 	public static final int HOSTKEY_IS_OK = 0;
 	public static final int HOSTKEY_IS_NEW = 1;
 	public static final int HOSTKEY_HAS_CHANGED = 2;
+	
+	private String fileName = null;
 
 	private class KnownHostsEntry
 	{
@@ -79,11 +81,17 @@ public class KnownHosts
 	public KnownHosts(String knownHosts) throws IOException
 	{
 		initialize(new File(knownHosts));
+		fileName = knownHosts;
 	}
 
 	public KnownHosts(File knownHosts) throws IOException
 	{
 		initialize(knownHosts);
+		fileName = knownHosts.getAbsolutePath();
+	}
+	
+	public String getFileName() {
+		return fileName;
 	}
 
 	/**

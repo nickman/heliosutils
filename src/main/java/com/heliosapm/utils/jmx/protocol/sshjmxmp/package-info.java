@@ -16,28 +16,12 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.ssh.terminal;
-
-import java.io.IOException;
-
-import ch.ethz.ssh2.Connection;
-
 /**
- * <p>Title: Authenticator</p>
- * <p>Description: </p> 
+ * <p>Title: package-info</p>
+ * <p>Description: JMX Remoting implementations for JMXMP over SSH</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.ssh.terminal.Authenticator</code></p>
+ * <p><code>com.heliosapm.utils.jmx.protocol.sshjmxmp.package-info</code></p>
  */
 
-public interface Authenticator {
-	/**
-	 * Attempts an authentication agains the passed connection using the resources in the passed authed info.
-	 * If the connection is already fully authenticated, immediately returns true
-	 * @param conn The connection to authenticate against
-	 * @param authInfo The authentication resources
-	 * @return true the connection is now authenticated, false otherwise
-	 * @throws IOException Thrown on any IO error
-	 */
-	public boolean authenticate(final Connection conn, final ConnectInfo authInfo) throws IOException;
-}
+package com.heliosapm.utils.jmx.protocol.sshjmxmp;
