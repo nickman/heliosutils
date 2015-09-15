@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import ch.ethz.ssh2.channel.Channel;
 import ch.ethz.ssh2.channel.ChannelManager;
@@ -25,12 +26,18 @@ public class LocalStreamForwarder
 	private ChannelManager cm;
 
 	private Channel cn;
+	private final AtomicBoolean open = new AtomicBoolean(false);
 
 	LocalStreamForwarder(ChannelManager cm, String host_to_connect, int port_to_connect) throws IOException
 	{
 		this.cm = cm;
 		cn = cm.openDirectTCPIPChannel(host_to_connect, port_to_connect,
 				InetAddress.getLocalHost().getHostAddress(), 0);
+		open.set(true);
+	}
+	
+	public boolean isOpen() {
+		return open.get();
 	}
 
 	/**
@@ -69,6 +76,8 @@ public class LocalStreamForwarder
 	 */
 	public void close() throws IOException
 	{
-		cm.closeChannel(cn, "Closed due to user request.", true);
+		if(open.compareAndSet(true, false)) {
+			cm.closeChannel(cn, "Closed due to user request.", true);
+		}
 	}
 }

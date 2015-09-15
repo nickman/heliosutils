@@ -104,6 +104,16 @@ public class SSHJMXConnector implements JMXConnector {
 	 */
 	@Override
 	public void connect(final Map<String, ?> env) throws IOException {
+		copyEnvs(env);
+		delegate.connect(originalEnv);
+	}
+
+	/**
+	 * Copies the emap items from the passed map into the original environment
+	 * without overwriting any existing items
+	 * @param env The environment to copy from
+	 */
+	private void copyEnvs(final Map<String, ?> env) {
 		if(env!=null) {
 			final Map<String, Object> map = (Map<String, Object>)env; 
 			final Map<String, Object> tomap = (Map<String, Object>)originalEnv;
@@ -113,7 +123,6 @@ public class SSHJMXConnector implements JMXConnector {
 				}
 			}
 		}
-		delegate.connect(originalEnv);
 	}
 
 	/**

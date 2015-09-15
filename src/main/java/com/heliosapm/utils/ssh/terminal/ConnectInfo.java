@@ -620,6 +620,16 @@ public class ConnectInfo implements ServerHostKeyVerifier {
 	}
 	
 	/**
+	 * Returns the relay host or the supplied default
+	 * @param defaultHost the host to return if the info's relay host is null
+	 * @return the relay host or the supplied default
+	 */
+	public String getRelayHost(final String defaultHost) {
+		return relayHost==null ? defaultHost : relayHost;
+	}
+	
+	
+	/**
 	 * Returns the relay port
 	 * @return the relay port
 	 */

@@ -29,7 +29,7 @@ import com.heliosapm.utils.io.CloseListener;
 
 /**
  * <p>Title: WrappedLocalPortForwarder</p>
- * <p>Description: </p> 
+ * <p>Description: Functional wrapper for local port forwards</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.ssh.terminal.WrappedLocalPortForwarder</code></p>

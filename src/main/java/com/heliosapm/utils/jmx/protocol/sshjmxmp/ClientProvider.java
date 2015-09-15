@@ -25,6 +25,7 @@ import java.util.Map;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorProvider;
 import javax.management.remote.JMXServiceURL;
+import javax.management.remote.generic.GenericConnector;
 
 import com.heliosapm.utils.jmx.protocol.WrappedJMXConnector;
 import com.heliosapm.utils.ssh.terminal.ConnectInfo;
@@ -60,9 +61,13 @@ public class ClientProvider implements JMXConnectorProvider {
 			throw new MalformedURLException("Protocol not [" + PROTOCOL_NAME + "]: " +
 						    serviceURL.getProtocol());
 		}
+		final Map<String, Object> env = (Map<String, Object>)environment; 
 		//final ConnectInfo ci = ConnectInfo.fromMap(environment);
-		final Rewritten<JMXServiceURL> rewriter = URLRewriter.getInstance().rewrite(serviceURL, (Map<String, Object>) environment);
-		return WrappedJMXConnector.addressable(new SSHJMXConnector(rewriter, environment), serviceURL);
+//		final Rewritten<JMXServiceURL> rewriter = URLRewriter.getInstance().rewrite(serviceURL, (Map<String, Object>) environment);
+//		return WrappedJMXConnector.addressable(new SSHJMXConnector(rewriter, environment), serviceURL);
+//		SSHTunnelMessageConnection
+		final GenericConnector gc = new GenericConnector(env);
+		return WrappedJMXConnector.addressable(new SSHTunnelMessageConnection(serviceURL, env), serviceURL);
 	}
 
 }

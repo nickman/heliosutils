@@ -33,18 +33,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.heliosapm.utils.io.BroadcastingCloseable;
-import com.heliosapm.utils.io.BroadcastingCloseableImpl;
-import com.heliosapm.utils.io.CloseListener;
-import com.heliosapm.utils.jmx.SharedNotificationExecutor;
-
 import ch.ethz.ssh2.ChannelCondition;
 import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.ConnectionInfo;
 import ch.ethz.ssh2.ConnectionMonitor;
 import ch.ethz.ssh2.LocalPortForwarder;
+import ch.ethz.ssh2.LocalStreamForwarder;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
+
+import com.heliosapm.utils.io.BroadcastingCloseable;
+import com.heliosapm.utils.io.BroadcastingCloseableImpl;
+import com.heliosapm.utils.io.CloseListener;
+import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
  * <p>Title: WrappedConnection</p>
@@ -194,6 +195,23 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	}
 	
 	/**
+	 * Creates an unwrapped local stream forward
+	 * @param hostToTunnel The host to tunnel to
+	 * @param portToTunnel The port to tunnel to
+	 * @return the local stream forward reference
+	 */
+	LocalStreamForwarder rawStreamTunnel(final String hostToTunnel, final int portToTunnel) {
+		if(hostToTunnel==null || hostToTunnel.trim().isEmpty()) throw new IllegalArgumentException("The passed hostToTunnel was null or empty");		
+		if(!isOpen()) throw new RuntimeException("This connection to [" + hostName + ":" + port + "] is closed");
+		try {
+			return connection.createLocalStreamForwarder(hostToTunnel, portToTunnel);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to tunnel stream to [" + key + "]", ex);
+		}		
+	}
+	
+	
+	/**
 	 * Acquires a dedicated (unshared) local port forward
 	 * @param hostToTunnel The host to tunnel to
 	 * @param portToTunnel The port to tunnel to
@@ -212,6 +230,27 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		}
 		
 	}
+	
+	/**
+	 * Acquires a dedicated (unshared) local stream forward
+	 * @param hostToTunnel The host to tunnel to
+	 * @param portToTunnel The port to tunnel to
+	 * @return the local stream forward reference
+	 */
+	public WrappedStreamForwarder dedicatedStreamTunnel(final String hostToTunnel, final int portToTunnel) {
+		if(hostToTunnel==null || hostToTunnel.trim().isEmpty()) throw new IllegalArgumentException("The passed hostToTunnel was null or empty");		
+		if(!isOpen()) throw new RuntimeException("This connection to [" + hostName + ":" + port + "] is closed");
+		LocalStreamForwarder loc;
+		final String key = hostToTunnel + ":" + portToTunnel;
+		try {
+			loc = rawStreamTunnel(hostToTunnel, portToTunnel);
+			return new WrappedStreamForwarder(loc, key, this);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to tunnel stream to [" + key + "]", ex);
+		}
+		
+	}
+	
 	
 	
 	/**
@@ -267,6 +306,7 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 			lpf.hardClose();
 		}
 	}
+	
 	
 	
 	/**

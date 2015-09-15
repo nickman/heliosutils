@@ -236,7 +236,9 @@ public class URLRewriter {
 		public final int port;
 		public final String relayHost;
 		public final int relayPort;
-		private final WrappedLocalPortForwarder lpf;
+		private final ConnectInfo authInfo;
+		private volatile WrappedLocalPortForwarder lpf;
+		private volatile WrappedStreamForwarder lsf;
 		private final AtomicInteger claims = new AtomicInteger(0);
 		
 		
@@ -292,9 +294,10 @@ public class URLRewriter {
 			this.port = port;
 			this.relayHost = relayHost;
 			this.relayPort = relayPort;
-			lpf = SSHService.getInstance().connect(relayHost, relayPort, authInfo).dedicatedTunnel(host, port);
-			claims.set(1);
-			SSHService.getInstance().registerForReconnect(lpf);
+			this.authInfo = authInfo;
+//			lpf = SSHService.getInstance().connect(relayHost, relayPort, authInfo).dedicatedTunnel(host, port);
+//			claims.set(1);
+//			SSHService.getInstance().registerForReconnect(lpf);
 		}
 		
 		public String toString() {
@@ -302,11 +305,30 @@ public class URLRewriter {
 		}
 		
 		public WrappedLocalPortForwarder getTunnel() {
+			if(lpf==null) {
+				synchronized(this) {
+					if(lpf==null) {
+						lpf = SSHService.getInstance().connect(relayHost, relayPort, authInfo).dedicatedTunnel(host, port);
+					}
+				}
+			}
 			return lpf;
 		}
 		
-		public int getLocalPort() {
-			return lpf.getLocalPort();
+		public WrappedStreamForwarder getStreamTunnel() {
+			if(lsf==null) {
+				synchronized(this) {
+					if(lsf==null) {
+						lsf = SSHService.getInstance().connect(relayHost, relayPort, authInfo).dedicatedStreamTunnel(host, port);
+					}
+				}
+			}
+			return lsf;
+		}
+		
+		
+		public int getLocalPort() {			
+			return lpf==null ? -1 : lpf.getLocalPort();
 		}
 		
 		public String getLocalBind() {
@@ -322,7 +344,8 @@ public class URLRewriter {
 		}
 		
 		void hardClose() {			
-			try { lpf.close(); } catch (Exception ex) {}
+			if(lpf!=null) try { lpf.close(); lpf = null; } catch (Exception ex) {}
+			if(lsf!=null) try { lsf.close(); lsf = null; } catch (Exception ex) {}
 			hostPorts.remove(toString());
 		}
 
