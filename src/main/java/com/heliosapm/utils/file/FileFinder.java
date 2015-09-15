@@ -71,6 +71,17 @@ public class FileFinder {
 		return this;
 	}
 	
+	public FileFinder addSearchDir(final File...dirs) {
+		for(File f : dirs) {
+			if(f==null) continue;
+			if(f.exists() && f.isDirectory()) {
+				dirsToSearch.add(f);
+			}
+		}
+		return this;
+	}
+	
+	
 	public FileFilterBuilder filterBuilder() {
 		return FileFilterBuilder.newBuilder(this);
 	}
