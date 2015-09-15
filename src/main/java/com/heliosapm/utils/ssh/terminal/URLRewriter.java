@@ -295,9 +295,9 @@ public class URLRewriter {
 			this.relayHost = relayHost;
 			this.relayPort = relayPort;
 			this.authInfo = authInfo;
-//			lpf = SSHService.getInstance().connect(relayHost, relayPort, authInfo).dedicatedTunnel(host, port);
-//			claims.set(1);
-//			SSHService.getInstance().registerForReconnect(lpf);
+			lpf = SSHService.getInstance().connect(relayHost, relayPort, authInfo).dedicatedTunnel(host, port);
+			claims.set(1);
+			SSHService.getInstance().registerForReconnect(lpf);
 		}
 		
 		public String toString() {

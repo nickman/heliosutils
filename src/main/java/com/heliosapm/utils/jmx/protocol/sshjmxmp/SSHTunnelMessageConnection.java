@@ -62,7 +62,7 @@ import com.sun.jmx.remote.generic.DefaultConfig;
  * <p><code>com.heliosapm.jmx.remote.protocol.tunnel.SSHTunnelMessageConnection</code></p>
  */
 
-public class SSHTunnelMessageConnection extends GenericConnector implements MessageConnection, JMXAddressable {
+public class SSHTunnelMessageConnection implements MessageConnection, JMXAddressable {
 	/** The buffered input stream */
 	protected BufferedInputStream bis = null;
 	/** The buffered output stream */
@@ -103,6 +103,7 @@ public class SSHTunnelMessageConnection extends GenericConnector implements Mess
 	 * @param env  The original environment
 	 */
 	public SSHTunnelMessageConnection(final JMXServiceURL serviceURL, final Map<String, Object> env) {
+		
 		if(serviceURL==null) throw new IllegalArgumentException("The passed JMXServiceURL was null");
 		this.serviceURL = serviceURL;
 		this.originalEnv = env==null ? new HashMap<String, Object>() : env;
@@ -110,6 +111,7 @@ public class SSHTunnelMessageConnection extends GenericConnector implements Mess
 		final int port = serviceURL.getPort();		
 		
 	}
+	
 	
 	protected ConnectInfo extractConnectInfo() {
 		final String uri = serviceURL.getURLPath();
@@ -154,8 +156,7 @@ public class SSHTunnelMessageConnection extends GenericConnector implements Mess
 			}
 			bufferStreams();  // this will trigger the creation of the tunnel
 			state.set(TunnelState.CONNECTED);
-			checkState();
-			super.connect();
+			checkState();			
 		}
 	}
 	

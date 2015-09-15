@@ -154,12 +154,7 @@ public enum AuthMethod implements Authenticator {
 			public String[] replyToChallenge(String name, String instruction,
 					int numPrompts, String[] prompt, boolean[] echo)
 					throws Exception {
-				System.err.println("InteractiveCallback...");
-				System.err.println("Prompt:" + Arrays.toString(prompt));
-				if("Password:".equalsIgnoreCase(prompt[0])) {
 					return new String[]{authInfo.getUserPassword()};
-				}
-				return null;
 			}
 		};
 	}

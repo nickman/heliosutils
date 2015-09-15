@@ -15,11 +15,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.management.ObjectName;
 
-import ch.ethz.ssh2.channel.ChannelManager;
-import ch.ethz.ssh2.channel.LocalAcceptThread;
-
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.ssh.terminal.SSHService;
+
+import ch.ethz.ssh2.channel.ChannelManager;
+import ch.ethz.ssh2.channel.LocalAcceptThread;
+import jsr166e.AccumulatingLongAdder;
+import jsr166e.LongAdder;
 
 /**
  * A <code>LocalPortForwarder</code> forwards TCP/IP connections to a local
@@ -39,62 +41,78 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	final int port_to_connect;
 
 	final LocalAcceptThread lat;
+	final LongAdder bytesUp;
+	final LongAdder bytesDown;
+	final LongAdder accepts;
+	
 	
 	final AtomicBoolean open = new AtomicBoolean(false);
 	final AtomicBoolean clean = new AtomicBoolean(true);
 	final ObjectName objectName;
 	final AtomicReference<ScheduledFuture<?>> handle = new AtomicReference<ScheduledFuture<?>>(null); 
 
-	LocalPortForwarder(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect)
-			throws IOException
+	LocalPortForwarder(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect) throws IOException
 	{
 		this.cm = cm;
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
-
-		lat = new LocalAcceptThread(cm, local_port, host_to_connect, port_to_connect, this);
+		
+		final LocalPortForwardWatcher watcher = LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect);
+		bytesUp = watcher.getBytesUpAccumulator();
+		bytesDown = watcher.getBytesDownAccumulator();
+		accepts = watcher.getAcceptsAccumulator();		
+		lat = new LocalAcceptThread(cm, local_port, host_to_connect, port_to_connect, bytesUp, bytesDown, accepts, this);
 		lat.setDaemon(true);
 		lat.start();
 		open.set(true);
+		watcher.incrementOpens();
 		objectName = register();
 	}
 	
-	protected ObjectName register() {
-		ObjectName on = JMXHelper.objectName(new StringBuilder("com.heliosapm.ssh.localtunnel:remoteHost=")
-		.append(this.host_to_connect)
-		.append(",remotePort=").append(this.port_to_connect)
-		.append(",iface=").append(getLocalIface())
-		.append(",localPort=").append(getLocalPort())
-	);
-	if(JMXHelper.isRegistered(on)) {
-		if(JMXHelper.getAttribute(on, "Open")) {
-			System.err.println("LocalPortForward [" + on + "] still open and registered");
-		} else {
-			final ScheduledFuture<?> h = handle.getAndSet(null);
-			if(h!=null) {
-				h.cancel(true);								
-				try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
-			}
-		}
-	}
-	JMXHelper.registerMBean(this, on);
-	LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect).addForwarder(this);
-	return on;		
-	}
-
-	LocalPortForwarder(ChannelManager cm, InetSocketAddress addr, String host_to_connect, int port_to_connect)
-			throws IOException
+	LocalPortForwarder(ChannelManager cm, InetSocketAddress addr, String host_to_connect, int port_to_connect) throws IOException
 	{
 		this.cm = cm;
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
-
-		lat = new LocalAcceptThread(cm, addr, host_to_connect, port_to_connect, this);
+		
+		final LocalPortForwardWatcher watcher = LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect);
+		bytesUp = watcher.getBytesUpAccumulator();
+		bytesDown = watcher.getBytesDownAccumulator();
+		accepts = watcher.getAcceptsAccumulator();		
+		lat = new LocalAcceptThread(cm, addr, host_to_connect, port_to_connect, bytesUp, bytesDown, accepts, this);
 		lat.setDaemon(true);
 		lat.start();
 		open.set(true);
+		watcher.incrementOpens();
 		objectName = register();
+		
+		
+		//lat = new LocalAcceptThread(cm, addr, host_to_connect, port_to_connect, bytesUp, bytesDown, accepts, this);
 	}
+
+	
+	protected ObjectName register() {
+			ObjectName on = JMXHelper.objectName(new StringBuilder("com.heliosapm.ssh.localtunnel:remoteHost=")
+			.append(this.host_to_connect)
+			.append(",remotePort=").append(this.port_to_connect)
+			.append(",iface=").append(getLocalIface())
+			.append(",localPort=").append(getLocalPort())
+		);
+		if(JMXHelper.isRegistered(on)) {
+			if(JMXHelper.getAttribute(on, "Open")) {
+				System.err.println("LocalPortForward [" + on + "] still open and registered");
+			} else {
+				final ScheduledFuture<?> h = handle.getAndSet(null);
+				if(h!=null) {
+					h.cancel(true);								
+					try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+				}
+			}
+		}
+		JMXHelper.registerMBean(this, on);	
+		return on;		
+	}
+
 
 	/**
 	 * Return the local socket address of the {@link ServerSocket} used to accept connections.
@@ -120,20 +138,20 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	 * 
 	 * @throws IOException
 	 */
-	public void close() throws IOException
-	{
-		
-		LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect).removeForwarder(this);
-		try { lat.stopWorking(); } catch (Exception x) {/* No Op */}
-		open.set(false);		
-		handle.set(SSHService.getInstance().schedule(new Runnable(){
-			public void run() {
-				final ScheduledFuture<?> h = handle.getAndSet(null);
-				if(h!=null && !h.isCancelled()) {
-					try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+	public void close() throws IOException 	{
+		if(open.compareAndSet(true, false)) {
+			LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect).incrementCloses();
+			try { lat.stopWorking(); } catch (Exception x) {/* No Op */}
+			open.set(false);		
+			handle.set(SSHService.getInstance().schedule(new Runnable(){
+				public void run() {
+					final ScheduledFuture<?> h = handle.getAndSet(null);
+					if(h!=null && !h.isCancelled()) {
+						try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+					}
 				}
-			}
-		}, 60, TimeUnit.SECONDS));
+			}, 60, TimeUnit.SECONDS));
+		}
 	}
 	
 	public String getAcceptThreadState() {
@@ -218,18 +236,6 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	
 	public long getAccepts() {
 		return lat.getAccepts();
-	}
-	
-	public long getDeltaBytesUp() {
-		return lat.getDeltaBytesUp();
-	}
-	
-	public long getDeltaBytesDown() {
-		return lat.getDeltaBytesDown();
-	}
-	
-	public long getDeltaAccepts() {
-		return lat.getDeltaAccepts();
 	}
 	
 	

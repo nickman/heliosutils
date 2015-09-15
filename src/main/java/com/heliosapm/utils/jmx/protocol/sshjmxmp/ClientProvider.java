@@ -26,11 +26,9 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorProvider;
 import javax.management.remote.JMXServiceURL;
 import javax.management.remote.generic.GenericConnector;
+import javax.management.remote.generic.MessageConnection;
 
 import com.heliosapm.utils.jmx.protocol.WrappedJMXConnector;
-import com.heliosapm.utils.ssh.terminal.ConnectInfo;
-import com.heliosapm.utils.ssh.terminal.URLRewriter;
-import com.heliosapm.utils.ssh.terminal.URLRewriter.Rewritten;
 
 /**
  * <p>Title: ClientProvider</p>
@@ -66,8 +64,10 @@ public class ClientProvider implements JMXConnectorProvider {
 //		final Rewritten<JMXServiceURL> rewriter = URLRewriter.getInstance().rewrite(serviceURL, (Map<String, Object>) environment);
 //		return WrappedJMXConnector.addressable(new SSHJMXConnector(rewriter, environment), serviceURL);
 //		SSHTunnelMessageConnection
+		final MessageConnection messageConnection = new SSHTunnelMessageConnection(serviceURL, env);
+		env.put(GenericConnector.MESSAGE_CONNECTION, messageConnection);
 		final GenericConnector gc = new GenericConnector(env);
-		return WrappedJMXConnector.addressable(new SSHTunnelMessageConnection(serviceURL, env), serviceURL);
+		return WrappedJMXConnector.addressable(gc, serviceURL);
 	}
 
 }

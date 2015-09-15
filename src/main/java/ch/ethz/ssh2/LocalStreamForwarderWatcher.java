@@ -29,38 +29,33 @@ import jsr166e.AccumulatingLongAdder;
 import jsr166e.LongAdder;
 
 /**
- * <p>Title: LocalPortForwardWatcher</p>
- * <p>Description: Service to provide aggregated local port forwarding stats</p> 
+ * <p>Title: LocalStreamForwarderWatcher</p>
+ * <p>Description: Service to provide aggregated local stream forwarding stats</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>ch.ethz.ssh2.LocalPortForwardWatcher</code></p>
+ * <p><code>ch.ethz.ssh2.LocalStreamForwarderWatcher</code></p>
  */
 
-public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
-	private static final Map<String, LocalPortForwardWatcher> watchers = new ConcurrentHashMap<String, LocalPortForwardWatcher>();
+public class LocalStreamForwarderWatcher implements LocalStreamForwarderWatcherMBean {
+	private static final Map<String, LocalStreamForwarderWatcher> watchers = new ConcurrentHashMap<String, LocalStreamForwarderWatcher>();
 
 	private final String host;
 	private final int port;
 	private final ObjectName objectName;
-	
 	private final LongAdder opens = new LongAdder();
 	private final LongAdder closes = new LongAdder();
 	private final LongAdder bytesUp = new LongAdder();
 	private final LongAdder bytesDown = new LongAdder();
-	private final LongAdder accepts = new LongAdder();
-	private final LongAdder openForwards = new LongAdder();
-	
+	private final LongAdder openStreams = new LongAdder();
 
-	
-	
-	public static LocalPortForwardWatcher getInstance(final String host, final int port) {
+	public static LocalStreamForwarderWatcher getInstance(final String host, final int port) {
 		final String key = host + ":" + port;
-		LocalPortForwardWatcher watcher = watchers.get(key);
+		LocalStreamForwarderWatcher watcher = watchers.get(key);
 		if(watcher==null) {
 			synchronized(watchers) {
 				watcher = watchers.get(key);
 				if(watcher==null) {
-					watcher = new LocalPortForwardWatcher(host, port);
+					watcher = new LocalStreamForwarderWatcher(host, port);
 					watchers.put(key, watcher);
 				}
 			}
@@ -68,31 +63,32 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 		return watcher;
 	}
 	
+
 	/**
-	 * Creates a new LocalPortForwardWatcher
+	 * Creates a new LocalStreamForwarderWatcher
 	 */
-	private LocalPortForwardWatcher(final String host, final int port) {
+	private LocalStreamForwarderWatcher(final String host, final int port) {
 		this.host = host;
 		this.port = port;
-		objectName = JMXHelper.objectName(new StringBuilder("com.heliosapm.ssh:service=LocalPortForwards,remoteHost=")
+		objectName = JMXHelper.objectName(new StringBuilder("com.heliosapm.ssh:service=LocalStreamForwards,remoteHost=")
 		.append(this.host)
-		.append(",localPort=").append(this.port)
+		.append(",remotePort=").append(this.port)
 		);
 		JMXHelper.registerMBean(this, objectName);
 	}
 	
 	void incrementOpens() {
 		opens.increment();
-		openForwards.increment();
+		openStreams.increment();
 	}
 	void incrementCloses() {
 		closes.increment();
-		openForwards.decrement();
+		openStreams.decrement();
 	}
 	
 	
 	public int getOpen() {
-		return openForwards.intValue();
+		return openStreams.intValue();
 	}
 	
 	public String getRemoteHost() {
@@ -110,13 +106,8 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 	
 	public long getBytesDown() {
 		return bytesDown.longValue();
-		
-		
 	}
 	
-	public long getAccepts() {
-		return accepts.longValue();		
-	}
 
 	/**
 	 * Returns the total number of opens
@@ -134,9 +125,6 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 		return closes.longValue();
 	}
 
-	LongAdder getAcceptsAccumulator() {
-		return new AccumulatingLongAdder(accepts);
-	}
 	LongAdder getBytesDownAccumulator() {
 		return new AccumulatingLongAdder(bytesDown);
 	}
@@ -150,5 +138,6 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 		return new AccumulatingLongAdder(opens);
 	}
 
+	
 
 }

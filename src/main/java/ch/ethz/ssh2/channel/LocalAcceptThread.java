@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.util.concurrent.TimeUnit;
 
 import jsr166e.DeltaLongAdder;
+import jsr166e.LongAdder;
 
 /**
  * LocalAcceptThread.
@@ -26,9 +27,9 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 	Runnable onStop;
 	long startTime = System.currentTimeMillis();
 	
-	final DeltaLongAdder bytesUp = new DeltaLongAdder();
-	final DeltaLongAdder bytesDown = new DeltaLongAdder();
-	final DeltaLongAdder accepts = new DeltaLongAdder();
+	final LongAdder bytesUp;
+	final LongAdder bytesDown;
+	final LongAdder accepts;
 	
 	public long getBytesUp() {
 		return bytesUp.longValue();
@@ -41,32 +42,33 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 		return accepts.longValue();
 	}
 	
-	public long getDeltaBytesUp() {
-		return bytesUp.getDelta();
-	}
-	
-	public long getDeltaBytesDown() {
-		return bytesDown.getDelta();
-	}
-	public long getDeltaAccepts() {
-		return accepts.getDelta();
-	}
 
 	final ServerSocket ss;
 
-	public LocalAcceptThread(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect, final Runnable onStop)
+	public LocalAcceptThread(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect, 
+			final LongAdder bytesUp,
+			final LongAdder bytesDown,
+			final LongAdder accepts,
+			final Runnable onStop)
 			throws IOException
 	{
 		this.cm = cm;
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
 
-		ss = new ServerSocket(local_port);
+		ss = new ServerSocket(local_port);		
 		this.onStop = onStop;
+		this.bytesDown = bytesDown;
+		this.bytesUp = bytesUp;
+		this.accepts = accepts;
 	}
 
 	public LocalAcceptThread(ChannelManager cm, InetSocketAddress localAddress, String host_to_connect,
-			int port_to_connect, final Runnable onStop) throws IOException
+			int port_to_connect, 			
+			final LongAdder bytesUp,
+			final LongAdder bytesDown,
+			final LongAdder accepts,
+			final Runnable onStop) throws IOException
 	{
 		this.cm = cm;
 		this.host_to_connect = host_to_connect;
@@ -75,6 +77,10 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 		ss = new ServerSocket();
 		ss.bind(localAddress);
 		this.onStop = onStop;
+		this.bytesDown = bytesDown;
+		this.bytesUp = bytesUp;
+		this.accepts = accepts;
+		
 	}
 
 	public ServerSocket getServerSocket()
@@ -166,9 +172,9 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 
 	public void stopWorking()
 	{
-		long endTime = System.currentTimeMillis() - startTime;
-		System.err.println("Stopping Work after [" + TimeUnit.SECONDS.convert(endTime, TimeUnit.MILLISECONDS) + "] secs.");
-		new Exception().printStackTrace(System.err);
+//		long endTime = System.currentTimeMillis() - startTime;
+//		System.err.println("Stopping Work after [" + TimeUnit.SECONDS.convert(endTime, TimeUnit.MILLISECONDS) + "] secs.");
+//		new Exception().printStackTrace(System.err);
 		try
 		{
 			/* This will lead to an IOException in the ss.accept() call */
