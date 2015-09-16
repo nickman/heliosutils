@@ -576,7 +576,7 @@ public static void log(String fmt, Object...args) {
       		totalAlignmentOverhead = new AtomicLong(0L);
 //      		deallocators = new HashSet<String>(1024);
 //      		allocators = new HashSet<String>(1024);
-      		JMXHelper.registerMBean(unsafeMemoryStats, JMXHelper.objectName("%s:%s=%s", UnsafeAdapter.class.getPackage().getName(), "service", UnsafeMemory.class.getSimpleName()));
+      		JMXHelper.registerMBean(unsafeMemoryStats, JMXHelper.objectNameTemplate("%s:%s=%s", UnsafeAdapter.class.getPackage().getName(), "service", UnsafeMemory.class.getSimpleName()));
       	} else {
       		totalMemoryAllocated = null;
       		memoryAllocations = null;

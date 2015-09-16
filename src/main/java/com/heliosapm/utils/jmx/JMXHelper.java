@@ -676,7 +676,7 @@ public class JMXHelper {
 	 * @param args The arguments to populate the template with
 	 * @return an ObjectName the created ObjectName
 	 */
-	public static ObjectName objectName(String format, Object...args) {
+	public static ObjectName objectNameTemplate(String format, Object...args) {
 		try {
 			return new ObjectName(String.format(format.trim(), args));
 		} catch (MalformedObjectNameException moex) {
@@ -690,6 +690,17 @@ public class JMXHelper {
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to create Object Name", e);
 		}		
+	}
+	
+	public static ObjectName objectName(final String domain, final Map<String, String> props) {
+		if(domain==null || domain.trim().isEmpty()) throw new IllegalArgumentException("The passed domain was null or empty");
+		if(props==null || props.isEmpty()) throw new IllegalArgumentException("The passed property map was null or empty");
+		final StringBuilder b = new StringBuilder(domain.trim()).append(":");
+		for(Map.Entry<String, String> p: props.entrySet()) {
+			b.append(p.getKey().trim()).append("=").append(p.getValue().trim()).append(",");
+		}
+		b.deleteCharAt(b.length()-1);
+		return objectName(b);
 	}
 	
 	
@@ -1576,13 +1587,13 @@ public class JMXHelper {
 					final String key = keyIter.next();
 					if(won.isPropertyValuePattern(key)) keyIter.remove();
 				}
-				won = objectName(won.getDomain(), props);
+				won = objectNameTemplate(won.getDomain(), props);
 			}
 		}
 		if(won.isDomainPattern()) {
 			final String dom = won.getDomain().replace("*", "");
 			if(dom.isEmpty()) throw new RuntimeException("Cannot dePatternize [" + objectName + "]. Depatternized domain is empty");	
-			won = objectName(dom, won.getKeyPropertyList());
+			won = objectNameTemplate(dom, won.getKeyPropertyList());
 		}
 		if(won.isPattern()) throw new RuntimeException("Depatternizing protocols failed for [" + objectName + "]. Final result was [" + won + "]");
 		return won;
