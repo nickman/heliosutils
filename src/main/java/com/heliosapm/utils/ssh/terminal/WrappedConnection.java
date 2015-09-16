@@ -57,11 +57,11 @@ import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 public class WrappedConnection implements WrappedConnectionMBean, ConnectionMonitor, BroadcastingCloseable<WrappedConnection>, CloseListener<Closeable> {
 	/** The wrapped connection */
-	private final Connection connection;
+	private Connection connection;
 	/** The connection info */
 	private ConnectionInfo connectionInfo;
 	/** The auth info */
-	private final ConnectInfo authInfo;
+	private ConnectInfo authInfo;
 	
 	/** The resolved host name and key for this connection */
 	private final String hostName;	
@@ -307,7 +307,20 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		}
 	}
 	
-	
+	public void hardReset(final ConnectInfo connectInfo) {
+		try { connection.close(new Throwable("Hard reset"), true); } catch (Exception x) {/* No Op */}
+		connection = null;
+		try { reconnectHandle.cancel(true); } catch (Exception x) {/* No Op */}
+		reconnectHandle = null;
+		connection = connectRaw(hostName, port, connectInfo);
+		try {
+			connectionInfo = connection.getConnectionInfo();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		this.authInfo = authInfo==null ? new ConnectInfo() : authInfo;		
+		this.connection.addConnectionMonitor(this);		
+	}
 	
 	/**
 	 * 
@@ -347,6 +360,30 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	}
 	
 	/**
+	 * Creates and attempts to connect a new connection
+	 * @param hostName The host name
+	 * @param port The SSH listening port
+	 * @param authInfo The authentication info
+	 * @return a connected but not authenticated {@link WrappedConnection}
+	 */
+	public static final Connection connectRaw(final String hostName, final int port, final ConnectInfo authInfo) {
+		final Connection conn;
+		try {
+			conn = createRaw(hostName, port);
+			conn.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());			
+		} catch (Exception ex) {
+			ex.printStackTrace(System.err);
+			throw new RuntimeException("Failed to connect to [" + hostName + ":" + port + "]", ex);
+		}
+		final boolean authed = authInfo.authenticate(conn);
+		if(!authed) {
+			throw new RuntimeException("Failed to authenticate");
+		}		
+		return conn;
+	}
+	
+	
+	/**
 	 * Creates and attempts to connect a new connection on port 22
 	 * @param hostName The host name
 	 * @param authInfo The authentication info
@@ -357,8 +394,23 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	}
 	
 	/**
+	 * Resets the SSH connection to the passed host/port
+	 * @param hostName The SSH server host name
+	 * @param port The SSH listening port
+	 * @param connectInfo The connect info to reset with
+	 */
+	public static void reset(final String hostName, final int port, final ConnectInfo connectInfo) {
+		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
+		final String key = hostName + ":" + port;
+		WrappedConnection wconn = connectionCache.get(key);
+		if(wconn!=null) {
+			wconn.hardReset(connectInfo);
+		}
+	}
+	
+	/**
 	 * Creates but does not attempt to connect a new connection
-	 * @param hostName The host name
+	 * @param hostName The SSH server host name
 	 * @param port The SSH listening port
 	 * @param authInfo The authentication info
 	 * @return a disconnected and not authenticated {@link WrappedConnection}
@@ -383,6 +435,18 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		}
 		return wconn;
 	}
+	
+	/**
+	 * Creates but does not attempt to connect a new raw connection
+	 * @param hostName The SSH server host name
+	 * @param port The SSH listening port
+	 * @return a disconnected and not authenticated {@link WrappedConnection}
+	 */
+	public static final Connection createRaw(final String hostName, final int port) {
+		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
+		return new Connection(hostName, port);
+	}
+	
 	
 	/**
 	 * Creates but does not attempt to connect a new connection on port 22

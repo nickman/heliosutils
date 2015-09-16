@@ -137,6 +137,10 @@ public class SSHService implements AgentProxy, CloseListener<WrappedConnection> 
 		return instance;
 	}
 	
+	public void reset(final String hostName, final int port, final ConnectInfo connectInfo) {		
+		WrappedConnection.reset(hostName, port, connectInfo);
+	}
+	
 	public static void log(final Object msg) {
 		System.out.println(msg);
 	}

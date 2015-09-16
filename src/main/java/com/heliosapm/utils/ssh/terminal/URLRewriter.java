@@ -21,8 +21,10 @@ package com.heliosapm.utils.ssh.terminal;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -33,9 +35,7 @@ import java.util.regex.Pattern;
 
 import javax.management.remote.JMXServiceURL;
 
-import com.heliosapm.utils.ssh.terminal.ConnectInfo;
-import com.heliosapm.utils.ssh.terminal.SSHService;
-import com.heliosapm.utils.ssh.terminal.WrappedLocalPortForwarder;
+import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: URLRewriter</p>
@@ -112,10 +112,14 @@ public class URLRewriter {
 		return hostPort;
 	}
 
-	@SuppressWarnings("unchecked")
+	
 	public Rewritten<String> rewriteJdbcUrl(final String jdbcUrl, final String relayHost, final int relayPort, final Properties info) {
 		if(jdbcUrl==null || jdbcUrl.trim().isEmpty()) throw new IllegalArgumentException("Passed jdbcUrl was null or empty");
-		final ConnectInfo authInfo = info==null ? null : ConnectInfo.fromProperties(info);
+		return rewriteJdbcUrl(jdbcUrl, relayHost, relayPort, ConnectInfo.fromProperties(info));
+	}
+	
+	public Rewritten<String> rewriteJdbcUrl(final String jdbcUrl, final String relayHost, final int relayPort, final ConnectInfo authInfo) {
+		if(jdbcUrl==null || jdbcUrl.trim().isEmpty()) throw new IllegalArgumentException("Passed jdbcUrl was null or empty");		
 		Rewritten<String> rw = (Rewritten<String>)rewrites.get(jdbcUrl);
 		if(rw==null) {
 			synchronized(rewrites) {
@@ -151,6 +155,7 @@ public class URLRewriter {
 		}
 		return rw;
 	}
+	
 	
 	@SuppressWarnings("unchecked")
 	public Rewritten<JMXServiceURL> rewrite(final JMXServiceURL jmxUrl, final Map<String, Object> env, final String relayHost, final int relayPort) {
@@ -343,10 +348,12 @@ public class URLRewriter {
 			}
 		}
 		
-		void hardClose() {			
+		
+		URI hardClose() {			
 			if(lpf!=null) try { lpf.close(); lpf = null; } catch (Exception ex) {}
 			if(lsf!=null) try { lsf.close(); lsf = null; } catch (Exception ex) {}
 			hostPorts.remove(toString());
+			return URLHelper.toURI("ssh://" + relayHost + ":" + relayPort);
 		}
 
 		private URLRewriter getOuterType() {
@@ -378,6 +385,20 @@ public class URLRewriter {
 			for(HostPort hp: hostPorts) {
 				try { hp.close(); } catch (Exception x) {/* No Op */}
 			}			
+		}
+		
+		public List<ConnectInfo> hardReset() {
+			final List<ConnectInfo> connectInfos = new ArrayList<ConnectInfo>();
+			for(HostPort hp: hostPorts) {
+				try { 
+					hp.hardClose();
+					ConnectInfo ci = hp.authInfo;
+					ci.setRelayHost(hp.relayHost);
+					ci.setRelayPort(hp.relayPort);
+					connectInfos.add(ci);
+				} catch (Exception x) {/* No Op */}
+			}						
+			return connectInfos;
 		}
 
 		public HostPort[] getHostPorts() {
