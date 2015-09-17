@@ -1115,6 +1115,19 @@ public class JMXHelper {
 	}
 	
 	/**
+	 * Returns a String->Object Map of the named attributes from the Mbean.
+	 * @param on The object name of the MBean.
+	 * @param server The MBeanServerConnection the MBean is registered in. If this is null, uses the helios mbean server
+	 * @param attributes An array of attribute names to retrieve. If this is null or empty, retrieves all the names
+	 * @return A name value map of the requested attributes.
+	 */
+	public static Map<String, Object> getAttributes(CharSequence on, MBeanServerConnection server, String...attributes) {
+		if(on==null || on.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed ObjectName was null or empty");
+		return getAttributes(objectName(on), server, attributes);
+	}
+
+	
+	/**
 	 * Returns a String->Object Map of the <b>numeric</b> named attributes from the Mbean.
 	 * @param on The object name of the MBean.
 	 * @param server The MBeanServerConnection the MBean is registered in. If this is null, uses the helios mbean server
@@ -1644,6 +1657,10 @@ while(m.find()) {
 		return null;
 	}
 	
+	public static Map<ObjectName, Map<String, Object>> getMBeanAttributeMap(MBeanServerConnection server, CharSequence objectName, String delimeter, String...attributeNames) {
+		return getMBeanAttributeMap(server, objectName(objectName), "/", attributeNames);
+	}
+	
 	/**
 	 * Retrieves maps of attribute values keyed by attribute name, in turn keyed by the ObjectName of the MBean.
 	 * @param server An MBeanServerConnection
@@ -1688,7 +1705,7 @@ while(m.find()) {
 					if(attrs.size()<1) continue;
 				} catch (Exception e) {
 					continue;
-				}
+				}				
 				Map<String, Object> attrMap = new HashMap<String, Object>();
 				map.put(on, attrMap);
 				final MBeanInfo mbeanInfo = getMBeanInfo(server, on);
@@ -1939,6 +1956,36 @@ while(m.find()) {
 		}
 		return null;
 	}
+	
+	public static Object getAttribute(final MBeanServerConnection mbs, final String on, final String attributeName) {
+		try {
+			return mbs.getAttribute(objectName(on), attributeName);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to retrieve attribute [" + on + "/" + attributeName + "]", ex);
+		}
+	}
+	
+	public static Object getAttribute(final String on, final String attributeName) {
+		return getAttribute(getHeliosMBeanServer(), on, attributeName);
+	}
+	
+	public static String getHostName(final MBeanServerConnection mbs) {
+		return getAttribute(mbs, ManagementFactory.RUNTIME_MXBEAN_NAME, "Name").toString().split("@")[1];
+	}
+	
+	public static String getHostName() {
+		return getHostName(getHeliosMBeanServer());
+	}
+	
+	public static long getPID(final MBeanServerConnection mbs) {
+		return Long.parseLong(getAttribute(mbs, ManagementFactory.RUNTIME_MXBEAN_NAME, "Name").toString().split("@")[0]);
+	}
+	
+	public static long getPID() {
+		return getPID(getHeliosMBeanServer());
+	}
+
+
 	
 	/**
 	 * Retrieves an attribute from an MBeanServer connection. 
