@@ -400,6 +400,15 @@ public class URLRewriter {
 			}						
 			return connectInfos;
 		}
+		
+		public void hardClose() {
+			for(HostPort hp: hostPorts) {
+				try { 
+					hp.hardClose();
+				} catch (Exception x) {/* No Op */}
+			}						
+		}
+		
 
 		public HostPort[] getHostPorts() {
 			return hostPorts.clone();
