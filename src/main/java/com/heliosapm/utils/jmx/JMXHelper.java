@@ -114,6 +114,23 @@ public class JMXHelper {
 	
 	/** An object name filter that maps to all registered MBeans */
 	public static final ObjectName ALL_MBEANS_FILTER = objectName("*:*");
+	/** The Runtime MXBean ObjectName */
+	public static final ObjectName MXBEAN_RUNTIME_ON = objectName(ManagementFactory.RUNTIME_MXBEAN_NAME);
+	/** The OS MXBean ObjectName */
+	public static final ObjectName MXBEAN_OS_ON = objectName(ManagementFactory.OPERATING_SYSTEM_MXBEAN_NAME);
+	/** The Memory MXBean ObjectName */
+	public static final ObjectName MXBEAN_MEM_ON = objectName(ManagementFactory.MEMORY_MXBEAN_NAME);
+	/** The Threading MXBean ObjectName */
+	public static final ObjectName MXBEAN_THREADING_ON = objectName(ManagementFactory.THREAD_MXBEAN_NAME);
+	/** The Classloading MXBean ObjectName */
+	public static final ObjectName MXBEAN_CL_ON = objectName(ManagementFactory.CLASS_LOADING_MXBEAN_NAME);
+	/** The Complation MXBean ObjectName */
+	public static final ObjectName MXBEAN_COMP_ON = objectName(ManagementFactory.COMPILATION_MXBEAN_NAME);
+	/** The GC MXBean ObjectName pattern */
+	public static final ObjectName MXBEAN_GC_ON = objectName(ManagementFactory.GARBAGE_COLLECTOR_MXBEAN_DOMAIN_TYPE + ",*");
+	/** The Memory Pool MXBean ObjectName pattern */
+	public static final ObjectName MXBEAN_MEMPOOL_ON = objectName(ManagementFactory.MEMORY_POOL_MXBEAN_DOMAIN_TYPE + ",*");
+	
 	
 	/** A no arg op signature */
 	public static final String[] NO_ARG_SIGNATURE = {}; 
@@ -250,6 +267,66 @@ public class JMXHelper {
 		}		
 		return server;
 	}
+	
+	/**
+	 * Returns the ObjectNames for the passed MBeanServer's garbage collectors
+	 * @param mbs The MBeanServer to to query
+	 * @return a set of GC MXBean ObjectNames
+	 */
+	public static Set<ObjectName> getGCMXBeans(final MBeanServerConnection mbs) {
+		try {
+			return mbs.queryNames(MXBEAN_GC_ON, null);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to get GC ObjectNames for [" + mbs + "]", ex);
+		}
+	}
+	
+	/**
+	 * Returns the ObjectNames for the default MBeanServer's garbage collectors
+	 * @return a set of GC MXBean ObjectNames
+	 */
+	public static Set<ObjectName> getGCMXBeans() {
+		return getGCMXBeans(getHeliosMBeanServer());
+	}
+	
+	/**
+	 * Returns the ObjectNames for the passed MBeanServer's memory pools
+	 * @param mbs The MBeanServer to to query
+	 * @return a set of Memory Pool MXBean ObjectNames
+	 */
+	public static Set<ObjectName> getMemPoolMXBeans(final MBeanServerConnection mbs) {
+		try {
+			return mbs.queryNames(MXBEAN_MEMPOOL_ON, null);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to get MemPool ObjectNames for [" + mbs + "]", ex);
+		}
+	}
+	
+	/**
+	 * Returns the ObjectNames for the default MBeanServer's memory pools
+	 * @return a set of MemPool MXBean ObjectNames
+	 */
+	public static Set<ObjectName> getMemPoolMXBeans() {
+		return getMemPoolMXBeans(getHeliosMBeanServer());
+	}
+	
+	/**
+	 * Returns the uptime for the passed mbeanserver in ms.
+	 * @param mbs The mbeanserver to query
+	 * @return the uptime in ms.
+	 */
+	public static long getUptime(final MBeanServerConnection mbs) {
+		return (Long)getAttribute(MXBEAN_RUNTIME_ON, mbs, "Uptime");
+	}
+	
+	/**
+	 * Returns the uptime for the default mbeanserver
+	 * @return the uptime in ms.
+	 */
+	public static long getUptime() {
+		return getUptime(getHeliosMBeanServer());
+	}
+	
 	
 	/**
 	 * Returns an array of matching ObjectNames
