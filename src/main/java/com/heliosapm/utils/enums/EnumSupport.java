@@ -20,6 +20,7 @@ package com.heliosapm.utils.enums;
 
 import java.lang.reflect.Array;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -113,6 +114,42 @@ public class EnumSupport<E extends Enum<E>> {
 	 */
 	public E[] from(final String...names) {
 		return from(true, names);
+	}
+	
+	public static class EnumCardinality<E extends Enum<E>> {
+		/** The cardinality counting map */
+		private final EnumMap<E, int[]> map;
+		
+		/**
+		 * Creates a new EnumCardinality
+		 * @param type The type of the enum we're counting for
+		 */
+		public EnumCardinality(final Class<E> type) {
+			map = new EnumMap<E, int[]>(type);
+			for(E e: type.getEnumConstants()) {
+				map.put(e, new int[1]);
+			}
+		}
+		
+		/**
+		 * Accumulates the passed enum events into the cardinality map
+		 * @param es An array of enum members to accumulate
+		 */
+		public void accumulate(final E...es) {
+			if(es!=null) {
+				for(E e: es) {
+					map.get(e)[0]++;
+				}
+			}			 
+		}
+		
+		/**
+		 * Returns the accumulated map
+		 * @return the accumulated map
+		 */
+		public Map<E, int[]> getResults() {
+			return map;
+		}
 	}
 	
 

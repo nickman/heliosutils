@@ -23,6 +23,7 @@ import java.beans.Introspector;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -87,6 +89,7 @@ import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
+import com.heliosapm.utils.enums.EnumSupport.EnumCardinality;
 import com.heliosapm.utils.io.CloseableService;
 import com.heliosapm.utils.lang.StringHelper;
 
@@ -326,6 +329,24 @@ public class JMXHelper {
 	public static long getUptime() {
 		return getUptime(getHeliosMBeanServer());
 	}
+	
+	/**
+	 * Returns the startime timestamp for the passed mbeanserver in ms.
+	 * @param mbs The mbeanserver to query
+	 * @return the startime timestamp
+	 */
+	public static long getStartTime(final MBeanServerConnection mbs) {
+		return (Long)getAttribute(MXBEAN_RUNTIME_ON, mbs, "StartTime");
+	}
+	
+	/**
+	 * Returns the uptime for the default mbeanserver
+	 * @return the uptime in ms.
+	 */
+	public static long getStartTime() {
+		return getStartTime(getHeliosMBeanServer());
+	}
+	
 	
 	
 	/**
@@ -1195,6 +1216,16 @@ public class JMXHelper {
 	 * Returns a String->Object Map of the named attributes from the Mbean.
 	 * @param on The object name of the MBean.
 	 * @param server The MBeanServerConnection the MBean is registered in. If this is null, uses the helios mbean server
+	 * @param attributes An collection of attribute names to retrieve. If this is null or empty, retrieves all the names
+	 * @return A name value map of the requested attributes.
+	 */
+	public static Map<String, Object> getAttributes(ObjectName on, MBeanServerConnection server, Collection<String> attributeNames) {
+		return getAttributes(on, server, attributeNames.toArray(new String[0]));
+	}
+	/**
+	 * Returns a String->Object Map of the named attributes from the Mbean.
+	 * @param on The object name of the MBean.
+	 * @param server The MBeanServerConnection the MBean is registered in. If this is null, uses the helios mbean server
 	 * @param attributes An array of attribute names to retrieve. If this is null or empty, retrieves all the names
 	 * @return A name value map of the requested attributes.
 	 */
@@ -1407,6 +1438,39 @@ public class JMXHelper {
 	 */
 	public static String getAgentId() {
 		return getAgentId(getHeliosMBeanServer());
+	}
+	
+	public static long[] getMaxMems(final MBeanServerConnection mbs) {
+		final long[] maxs = new long[2];
+		final Map<String, Object> mem = getAttributes(MXBEAN_MEM_ON, mbs, "HeapMemoryUsage", "NonHeapMemoryUsage");
+		maxs[0] = (Long)((CompositeData)mem.get("HeapMemoryUsage")).get("max");
+		maxs[1] = (Long)((CompositeData)mem.get("NonHeapMemoryUsage")).get("max");
+		return maxs;
+	}
+	
+	public static long[] getMaxMems() {
+		return getMaxMems(getHeliosMBeanServer());
+	}
+	
+	private static final Object[] DUMP_THREAD_PARAM = new Object[]{false, false};
+	private static final String[] DUMP_THREAD_SIG = new String[]{"boolean", "boolean"};
+	
+	public static Map<Thread.State, Integer> getThreadStateCounts(final MBeanServerConnection mbs) {
+		try {
+			final CompositeData[] cds = (CompositeData[])mbs.invoke(MXBEAN_THREADING_ON, "dumpAllThreads", DUMP_THREAD_PARAM, DUMP_THREAD_SIG);
+			final EnumCardinality<Thread.State> map = new EnumCardinality<Thread.State>(Thread.State.class);
+			for(CompositeData cd: cds) {
+				map.accumulate(ThreadInfo.from(cd).getThreadState());
+			}
+			final Map<Thread.State, int[]> result = map.getResults();
+			final EnumMap<Thread.State, Integer> summary = new EnumMap<Thread.State, Integer>(Thread.State.class);  
+			for(final Thread.State state: Thread.State.values()) {
+				summary.put(state, result.get(state)[0]);
+			}
+			return summary;
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to get thread state counts for [" + mbs + "]", ex);
+		}
 	}
 	
 	

@@ -33,6 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.heliosapm.utils.ref.ReferenceService;
+
 import jsr166e.LongAdder;
 
 /**
@@ -63,23 +65,6 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	protected static final ReferenceQueue<? super HeliosURLClassLoader> refQueue = new ReferenceQueue(); 
 	
 	static {
-		final Thread t = new Thread("HeliosURLClassLoaderRefCleaner") {
-			@Override
-			public void run() {
-				while(true) {
-					try {
-						final HeliosURLClassLoaderWeakReference ref = (HeliosURLClassLoaderWeakReference) refQueue.remove();
-						if(ref!=null) {
-							if(loaders.remove(ref.name)!=null) {
-								cleared.increment();
-							}
-						}
-					} catch (Exception x) {/* No Op */}
-				}
-			}
-		};
-		t.setDaemon(true);
-		t.start();
 		HeliosURLClassLoaderService.getInstance();
 	}
 	
@@ -95,21 +80,21 @@ public class HeliosURLClassLoader extends URLClassLoader {
 		ref(this);
 	}
 	
-	private static class HeliosURLClassLoaderWeakReference extends WeakReference<HeliosURLClassLoader> {
-		final String name;
-		public HeliosURLClassLoaderWeakReference(final String name, final HeliosURLClassLoader loader) {
-			super(loader, refQueue);
-			this.name = name;
-		}
-	}		
-	
 	
 	private static void ref(final HeliosURLClassLoader loader) {
 		final String key = loader.getName();
 		if(!loaders.containsKey(key)) {
 			synchronized(loaders) {
 				if(!loaders.containsKey(key)) {
-					loaders.put(key, new HeliosURLClassLoaderWeakReference(loader.getName(), loader));
+					final String name = loader.getName();
+					loaders.put(key, ReferenceService.getInstance().newWeakReference(loader, new Runnable(){
+						public void run() {
+							loaders.remove(name);
+							cleared.increment();
+							System.err.println("HeliosURLClassLoader[" + name + "] was garbage collected");
+						}
+					})); 
+							//new HeliosURLClassLoaderWeakReference(loader.getName(), loader));
 					return;
 				}
 			}
