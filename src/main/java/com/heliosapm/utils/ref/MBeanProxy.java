@@ -63,7 +63,7 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	 * @see java.lang.Runnable#run()
 	 */
 	public void run() {
-		System.out.println(" ================> Unregister Task: Server [" + server + "], ObjectName: [" + name + "]");
+//		System.out.println(" ================> Unregister Task: Server [" + server + "], ObjectName: [" + name + "]");
 		if(server!=null && name != null) {
 			try {
 				server.unregisterMBean(name);
@@ -92,10 +92,10 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	 * @param mbeanInterface MBean interface to be exposed
 	 * @param object MBean instance to be exposed
 	 */
-	public static void register(ReferenceType refType, MBeanServer server, ObjectName name, Class<Object> mbeanInterface, Object object) {
+	public static <T> void register(ReferenceType refType, MBeanServer server, ObjectName name, Class<T> mbeanInterface, T object) {
 		try {
 			MBeanProxy mbeanProxy = new MBeanProxy(refType, object);
-			Object proxy = mbeanInterface.cast(Proxy.newProxyInstance(
+			T proxy = mbeanInterface.cast(Proxy.newProxyInstance(
 					mbeanInterface.getClassLoader(), new Class[] { mbeanInterface,
 							MBeanRegistration.class }, mbeanProxy));
 			mbeanProxy.proxy = proxy;
@@ -125,7 +125,7 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	 * @param mbeanInterface MBean interface to be exposed
 	 * @param object MBean instance to be exposed
 	 */
-	public static void register(ReferenceType refType, ObjectName name, Class<Object> mbeanInterface, Object object)  {
+	public static <T> void register(ReferenceType refType, ObjectName name, Class<T> mbeanInterface, T object)  {
 		try {
 			register(refType, JMXHelper.getHeliosMBeanServer(), name, mbeanInterface, object);
 		} catch (Exception ex) {

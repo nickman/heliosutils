@@ -19,7 +19,6 @@ under the License.
 package com.heliosapm.utils.classload;
 
 import java.io.File;
-import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.net.URL;
@@ -33,9 +32,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.heliosapm.utils.ref.ReferenceService;
+import javax.management.ObjectName;
 
 import jsr166e.LongAdder;
+
+import com.heliosapm.utils.jmx.JMXHelper;
+import com.heliosapm.utils.ref.MBeanProxy;
+import com.heliosapm.utils.ref.ReferenceService;
+import com.heliosapm.utils.ref.ReferenceService.ReferenceType;
 
 /**
  * <p>Title: HeliosURLClassLoader</p>
@@ -45,13 +49,15 @@ import jsr166e.LongAdder;
  * <p><code>com.heliosapm.utils.classload.HeliosURLClassLoader</code></p>
  */
 
-public class HeliosURLClassLoader extends URLClassLoader {
+public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLClassLoaderMBean {
 	/** The unique URL checker */
 	protected final Set<URL> urls = new CopyOnWriteArraySet<URL>();
 	/** The class loader name */
 	protected final String name;
 	/** The class loader serial number */
 	protected final long id;
+	/** The class loader's JMX ObjectName */
+	protected ObjectName objectName;
 	
 	
 	/** The number of cleared references */
@@ -60,9 +66,6 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	protected static final AtomicLong serial = new AtomicLong(0L);
 	/** All helios classloaders keyed by the name */
 	protected static final ConcurrentHashMap<String, WeakReference<HeliosURLClassLoader>> loaders = new ConcurrentHashMap<String, WeakReference<HeliosURLClassLoader>>(); 
-	/** The refrence queue */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	protected static final ReferenceQueue<? super HeliosURLClassLoader> refQueue = new ReferenceQueue(); 
 	
 	static {
 		HeliosURLClassLoaderService.getInstance();
@@ -75,8 +78,8 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 */
 	public HeliosURLClassLoader(final String name, final URL...urls) {
 		super(unique(URL.class, urls));
-		id = serial.incrementAndGet();
-		this.name = (name==null || name.trim().isEmpty()) ? ("HeliosURLClassLoader#" + id) : name.trim();
+		id = serial.incrementAndGet();		
+		this.name = (name==null || name.trim().isEmpty()) ? ("HeliosURLClassLoader#" + id) : name.trim();		
 		ref(this);
 	}
 	
@@ -87,10 +90,15 @@ public class HeliosURLClassLoader extends URLClassLoader {
 			synchronized(loaders) {
 				if(!loaders.containsKey(key)) {
 					final String name = loader.getName();
+					final ObjectName loaderObjectName = JMXHelper.objectName(OBJECT_NAME + loader.name);
+					loader.objectName = loaderObjectName;
+					MBeanProxy.register(ReferenceType.WEAK, loaderObjectName, HeliosURLClassLoaderMBean.class, loader);
 					loaders.put(key, ReferenceService.getInstance().newWeakReference(loader, new Runnable(){
+						@Override
 						public void run() {
+							try { JMXHelper.unregisterMBean(loaderObjectName); } catch (Exception ex) {/* No Op */}
 							loaders.remove(name);
-							cleared.increment();
+							cleared.increment();							
 							System.err.println("HeliosURLClassLoader[" + name + "] was garbage collected");
 						}
 					})); 
@@ -103,7 +111,35 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	}
 	
 	
-  public URL[] getURLs() {
+	/**
+	 * Unloads this classloader, hopefully making it elligible for GC.
+	 */
+	@Override
+	public void unload() {
+		final WeakReference<HeliosURLClassLoader> ref = loaders.remove(name);
+		urls.clear();
+		if(ref!=null) {
+			ref.enqueue();
+		}
+	}
+	
+	/**
+	 * Unloads the named classloader
+	 * @param name the name of the classloader to unload
+	 * @see HeliosURLClassLoader#unload()
+	 */
+	public static void unload(final String name) {
+		final WeakReference<HeliosURLClassLoader> ref = loaders.remove(name.trim());
+		if(ref!=null) {
+			final HeliosURLClassLoader cl = ref.get();
+			if(cl!=null) {
+				cl.unload();
+			}
+		}
+	}
+	
+  @Override
+	public URL[] getURLs() {
     URL[] urls = super.getURLs();
     if(urls.length==0) {
     	ClassLoader p = getParent();
@@ -144,7 +180,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	public HeliosURLClassLoader(final String name, final ClassLoader parent, final URLStreamHandlerFactory factory, final URL... urls) {
 		super(unique(URL.class, urls), parent, factory);
 		id = serial.incrementAndGet();
-		this.name = (name==null || name.trim().isEmpty()) ? ("HeliosURLClassLoader#" + id) : name.trim();
+		this.name = (name==null || name.trim().isEmpty()) ? ("HeliosURLClassLoader#" + id) : name.trim();		
 		ref(this);
 	}
 	
@@ -216,6 +252,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 * Returns this classloader's name
 	 * @return this classloader's name
 	 */
+	@Override
 	public String getName() {
 		return name;
 	}
@@ -224,6 +261,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 * Adds the passed URLs to this classloader
 	 * @param urls the URLs to add
 	 */
+	@Override
 	public void addURLs(final URL...urls) {
 		for(URL url: urls) {
 			if(this.urls.add(url)) {
@@ -236,6 +274,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 * Adds the passed URLs to this classloader
 	 * @param urls the URLs to add
 	 */
+	@Override
 	public void addURLs(final Collection<URL> urls) {
 		for(URL url: urls) {
 			if(url==null) continue;
@@ -245,6 +284,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 		}		
 	}
 	
+	@Override
 	public Class<?> loadClassOrNull(String name)  {
 		try {
 			return super.loadClass(name);
@@ -257,6 +297,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 * Adds the passed files as URLs to this classloader
 	 * @param files the files to add
 	 */
+	@Override
 	public void addURLs(final File... files) {
 		for(File file: files) {
 			if(file.canRead()) {
@@ -273,6 +314,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 * Adds the passed files as URLs to this classloader
 	 * @param urls the files to add
 	 */
+	@Override
 	public void addURLs(final String... urls) {
 		for(String url: urls) {
 			if(url==null || url.trim().isEmpty()) continue;
@@ -343,6 +385,7 @@ public class HeliosURLClassLoader extends URLClassLoader {
 	 * Returns the classloader id
 	 * @return the classloader id
 	 */
+	@Override
 	public long getId() {
 		return id;
 	}
@@ -360,6 +403,30 @@ public class HeliosURLClassLoader extends URLClassLoader {
 			}
 		}
 		return urls.toArray(new URL[urls.size()]);
+	}
+
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.classload.HeliosURLClassLoaderMBean#getParentName()
+	 */
+	@Override
+	public String getParentName() {
+		final ClassLoader c = getParent();
+		if(c==null) return null;
+		if(c instanceof HeliosURLClassLoader) return ((HeliosURLClassLoader)c).getName();
+		return c.toString();
+	}
+
+
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.classload.HeliosURLClassLoaderMBean#getObjectName()
+	 */
+	@Override
+	public ObjectName getObjectName() {
+		return objectName;
 	}
 
 }
