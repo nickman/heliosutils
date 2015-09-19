@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import com.heliosapm.utils.config.TokenAwareProperties;
 
@@ -68,6 +69,28 @@ public class URLHelper {
 	 */
 	public static String getTextFromURL(URL url) {
 		return getTextFromURL(url, defaultConnectTimeout(), defaultReadTimeout());
+	}
+	
+	/**
+	 * Reads all the text from the passed URL and returns it, minus any content in the text that matches the passed pattern
+	 * @param url The URL to read from
+	 * @param skip The optional pattern of the content to skip (nothing skipped if null)
+	 * @return the read and possibly filtered text
+	 */
+	public static String getTextFromURL(final URL url, final Pattern skip) {
+		final String text = getTextFromURL(url);
+		if(skip==null) return text;
+		return skip.matcher(text).replaceAll("");		
+	}
+	
+	/**
+	 * Reads all the text from the passed file and returns it, minus any content in the text that matches the passed pattern
+	 * @param file The file to read from
+	 * @param skip The optional pattern of the content to skip (nothing skipped if null)
+	 * @return the read and possibly filtered text
+	 */
+	public static String getTextFromFile(final File file, final Pattern skip) {
+		return getTextFromURL(toURL(file), skip);
 	}
 	
 	/**
