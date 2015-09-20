@@ -19,6 +19,7 @@ under the License.
 package com.heliosapm.utils.classload;
 
 import java.io.File;
+import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.net.URL;
@@ -28,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -36,10 +38,12 @@ import javax.management.ObjectName;
 
 import jsr166e.LongAdder;
 
+import com.heliosapm.shorthand.attach.vm.agent.LocalAgentInstaller;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.ref.MBeanProxy;
 import com.heliosapm.utils.ref.ReferenceService;
 import com.heliosapm.utils.ref.ReferenceService.ReferenceType;
+import com.heliosapm.utils.reflect.PrivateAccessor;
 
 /**
  * <p>Title: HeliosURLClassLoader</p>
@@ -58,6 +62,8 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 	protected final long id;
 	/** The class loader's JMX ObjectName */
 	protected ObjectName objectName;
+	/** The instrumentation instance */
+	protected static final Instrumentation instr;
 	
 	
 	/** The number of cleared references */
@@ -69,6 +75,13 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 	
 	static {
 		HeliosURLClassLoaderService.getInstance();
+		Instrumentation i = null;
+		try {
+			i = LocalAgentInstaller.getInstrumentation();
+		} catch (Throwable t) {
+			i = null;
+		}
+		instr = i;
 	}
 	
 	/**
@@ -76,6 +89,7 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 	 * @param name The optional class loader name
 	 * @param urls The URLs to initialize the class loader with
 	 */
+	@SuppressWarnings("unchecked")
 	public HeliosURLClassLoader(final String name, final URL...urls) {
 		super(unique(URL.class, urls));
 		id = serial.incrementAndGet();		
@@ -163,6 +177,7 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 	 * @param parent
 	 * @param urls
 	 */
+	@SuppressWarnings("unchecked")
 	public HeliosURLClassLoader(final String name, final ClassLoader parent, final URL...urls) {
 		super(unique(URL.class, urls), parent);
 		id = serial.incrementAndGet();
@@ -246,6 +261,24 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 	 */
 	public static HeliosURLClassLoader getOrCreateLoader(final String name, final URL... urls) {
 		return getOrCreateLoader(name, null, null, urls);
+	}
+	
+	public int getClassCount() {
+		if(instr==null) return -1;		
+		return instr.getInitiatedClasses(this).length;
+	}
+	public int getParentClassCount() {
+		if(instr==null || getParent()==null) return -1;		
+		return instr.getInitiatedClasses(getParent()).length;
+	}
+	public String[] printLoadedClasses() {
+		if(instr==null) return null;
+		final Class<?>[] clazzes = instr.getInitiatedClasses(this);
+		final String[] names = new String[clazzes.length];
+		for(int i = 0; i < clazzes.length; i++) {
+			names[i] = clazzes[i].getName();
+		}
+		return names;
 	}
 	
 	/**

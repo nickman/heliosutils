@@ -23,6 +23,7 @@ import java.beans.Introspector;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadInfo;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
@@ -1451,6 +1452,31 @@ public class JMXHelper {
 	public static long[] getMaxMems() {
 		return getMaxMems(getHeliosMBeanServer());
 	}
+	
+	/**
+	 * Returns the max size of all memory pools
+	 * @param mbs The MBeanServer to query from
+	 * @return a map of max mem sizes keyed by the pool name
+	 */
+	public static Map<String, Long> getPoolMaxMems(final MBeanServerConnection mbs) {
+		final Set<ObjectName> ons = getMemPoolMXBeans(mbs);
+		final HashMap<String, Long> map = new HashMap<String, Long>(ons.size());
+		for(ObjectName on: ons) {
+			final CompositeData cd = (CompositeData)getAttribute(on, mbs, "Usage");
+			final MemoryUsage m = MemoryUsage.from(cd);
+			map.put(on.getKeyProperty("name"), m.getMax());
+		}
+		return map;		
+	}
+	
+	/**
+	 * Returns the max size of all memory pools from the default MBeanServer
+	 * @return a map of max mem sizes keyed by the pool name
+	 */
+	public static Map<String, Long> getPoolMaxMems() {
+		return getPoolMaxMems(getHeliosMBeanServer());
+	}
+	
 	
 	private static final Object[] DUMP_THREAD_PARAM = new Object[]{false, false};
 	private static final String[] DUMP_THREAD_SIG = new String[]{"boolean", "boolean"};

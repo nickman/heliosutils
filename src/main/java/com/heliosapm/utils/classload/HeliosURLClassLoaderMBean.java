@@ -40,6 +40,23 @@ public interface HeliosURLClassLoaderMBean {
 	/** The object name prefix */
 	public static final String OBJECT_NAME = "com.heliosapm.classpath:service=HeliosURLClassLoader,name=";
 
+	/**
+	 * Returns the number of loaded classes
+	 * @return the number of loaded classes
+	 */
+	public int getClassCount();
+	
+	/**
+	 * Returns the number of loaded classes in the parent
+	 * @return the number of loaded classes in the parent
+	 */
+	public int getParentClassCount();	
+	
+	/**
+	 * Prints the loaded classes in this classloader
+	 * @return the loaded classes in this classloader
+	 */
+	public String[] printLoadedClasses();
 	
 	/**
 	 * Unloads this classloader, hopefully making it elligible for GC.
