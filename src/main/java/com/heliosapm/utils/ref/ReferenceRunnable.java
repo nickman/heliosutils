@@ -32,4 +32,10 @@ public interface ReferenceRunnable extends Runnable {
 	 * @return the reference's on clear runnable
 	 */
 	public Runnable getClearedRunnable();
+	
+	/**
+	 * Returns the class name of the referent
+	 * @return the class name of the referent
+	 */
+	public String getName();
 }

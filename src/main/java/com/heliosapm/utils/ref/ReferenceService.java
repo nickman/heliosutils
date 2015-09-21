@@ -69,12 +69,23 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	private final NonBlockingHashMap<String, ReferenceTypeCountMBean> countsByType = new NonBlockingHashMap<String, ReferenceTypeCountMBean>(); 
 	
 	/** Elapsed time stats in ms. to process a ref clear */
-	private ConcurrentLongSlidingWindow clearStats;
+	private final ConcurrentLongSlidingWindow clearStats = new ConcurrentLongSlidingWindow(1000);
 	/** A count of the number of cleared references */
-	private LongAdder clearedRefCount = new LongAdder();	
+	private final LongAdder clearedRefCount = new LongAdder();	
 	/** A count of the clearing thread errors */
-	private LongAdder clearingErrors = new LongAdder();
+	private final LongAdder clearingErrors = new LongAdder();
+	/** A count of presumably uncleared references */
+	private final LongAdder unClearedRefCount = new LongAdder();	
 	
+	/**
+	 * Returns the count of registered but uncleared references
+	 * @return the count of registered but uncleared references
+	 */
+	public long getUnClearedRefCount() {
+		return unClearedRefCount.longValue();
+	}
+
+
 	/** The task start time for each task execution thread */
 	private final ThreadLocal<long[]> taskStartTime = new ThreadLocal<long[]>() {
 		@Override
@@ -190,7 +201,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 			synchronized(lock) {
 				if(instance==null) {
 					instance = new ReferenceService();
-					instance.clearStats = new ConcurrentLongSlidingWindow(1000);
+					
 					instance.threadPool = new JMXManagedThreadPool(THREAD_POOL_OBJECT_NAME, "ReferenceService", 2, 10, 5000, 60000, 100, 99, false);
 					instance.threadPool.setRejectedExecutionHandler(new JMXManagedThreadPool.CallerRunsPolicy());					
 					JMXHelper.registerMBean(instance, OBJECT_NAME);
@@ -204,7 +215,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	/**
 	 * Creates a new ReferenceService
 	 */
-	private ReferenceService() {
+	private ReferenceService() {		
 		refQueueThread = new Thread(this, getClass().getSimpleName() + "RefQueueThread");
 		refQueueThread.setDaemon(true);
 		refQueueThread.start();		
@@ -293,10 +304,11 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 				final Object removed = refQueue.remove();
 				if(removed==null) continue;
 				clearedRefCount.increment();	
-				
-				updateTypeCount(removed.getClass().getName());
+								
 				if(removed instanceof ReferenceRunnable) {
 					final ReferenceRunnable rr = (ReferenceRunnable)removed;
+					updateTypeCount(rr.getName());
+					unClearedRefCount.decrement();
 //					System.out.println(">>>>>>> Dequeued [" + removed.getClass().getName() + "]");
 					if(rr.getClearedRunnable()!=null) {
 						threadPool.submit(new Runnable(){
@@ -442,6 +454,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	
     private class PhantomReferenceWrapper extends PhantomReference<Object> implements ReferenceRunnable {
     	private final Runnable runOnClear;
+    	private final String name;
     	public Runnable getClearedRunnable() {
     		return runOnClear;
     	}
@@ -458,11 +471,23 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 		public PhantomReferenceWrapper(final Object referent, final Runnable onEnqueueTask) {
 			super(referent, refQueue);
 			runOnClear = onEnqueueTask;
-		}    	
+			name = referent.getClass().getName();
+			unClearedRefCount.increment();
+		}   
+		
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.ref.ReferenceRunnable#getName()
+		 */
+		@Override
+		public String getName() {
+			return name;
+		}
     }
     
     private class WeakReferenceWrapper extends WeakReference<Object> implements ReferenceRunnable {
     	private final Runnable runOnClear;
+    	private final String name;
     	public Runnable getClearedRunnable() {
     		return runOnClear;
     	}
@@ -479,11 +504,23 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 		public WeakReferenceWrapper(final Object referent, final Runnable onEnqueueTask) {
 			super(referent, refQueue);
 			runOnClear = onEnqueueTask;
+			name = referent.getClass().getName();
+			unClearedRefCount.increment();
 		}    	
+		
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.ref.ReferenceRunnable#getName()
+		 */
+		@Override
+		public String getName() {
+			return name;
+		}
     }
     
     private class SoftReferenceWrapper extends SoftReference<Object> implements ReferenceRunnable {
     	private final Runnable runOnClear;
+    	private final String name;
     	public Runnable getClearedRunnable() {
     		return runOnClear;
     	}
@@ -500,7 +537,18 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 		public SoftReferenceWrapper(final Object referent, final Runnable onEnqueueTask) {
 			super(referent, refQueue);
 			runOnClear = onEnqueueTask;
+			name = referent.getClass().getName();
+			unClearedRefCount.increment();
 		}    	
+		
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.ref.ReferenceRunnable#getName()
+		 */
+		@Override
+		public String getName() {
+			return name;
+		}
     }
 
     /**

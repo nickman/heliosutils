@@ -51,11 +51,15 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	/** The ObjectName of the registered MBean */
 	private ObjectName name;
 	/** The proxy for the MBean */
-	private Object proxy = null; 
+	private Object proxy = null;
+	/** The class name of the referent */
+	private String rname;
+	
 	
 	
 	private MBeanProxy(ReferenceType refType, Object realObject) {
 		this.real = ReferenceService.getInstance().newReference(refType, realObject, this);
+		this.rname = realObject.getClass().getName();
 	}
 	
 	/**
@@ -249,6 +253,15 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	public void postDeregister() {
 		server = null;
 		name = null;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.ref.ReferenceRunnable#getName()
+	 */
+	@Override
+	public String getName() {
+		return rname;
 	}
 
 }

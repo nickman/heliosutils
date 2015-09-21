@@ -42,6 +42,12 @@ public interface ReferenceServiceMXBean {
 	public long getClearedRefCount();
 	
 	/**
+	 * Returns the count of registered but uncleared references
+	 * @return the count of registered but uncleared references
+	 */
+	public long getUnClearedRefCount();
+	
+	/**
 	 * Resets the service stats
 	 */
 	public void resetStats();
