@@ -26,7 +26,11 @@ import com.heliosapm.utils.config.TokenAwareProperties;
 public class URLHelper {
 
 	/** Text line separator */
-	public static final String EOL = System.getProperty("line.separator", "\n");
+	public static final String EOL = System.getProperty("line.separator", "\n");	
+	/** End of line splitter */
+	public static final Pattern EOLP = Pattern.compile("$");
+	/** pattern match for a shebang */
+	public static final Pattern SHEBANG = Pattern.compile("#!/.*$");
 	
 	/** The system property to retrieve the default client connect timeout in ms.  */
 	public static final String DEFAULT_CONNECT_TO = "sun.net.client.defaultConnectTimeout";
@@ -74,13 +78,20 @@ public class URLHelper {
 	/**
 	 * Reads all the text from the passed URL and returns it, minus any content in the text that matches the passed pattern
 	 * @param url The URL to read from
-	 * @param skip The optional pattern of the content to skip (nothing skipped if null)
+	 * @param skip The optional pattern of the content to skip applied to each line of text (nothing skipped if null)
 	 * @return the read and possibly filtered text
 	 */
 	public static String getTextFromURL(final URL url, final Pattern skip) {
-		final String text = getTextFromURL(url);
+		final String text = getTextFromURL(url);		
 		if(skip==null) return text;
-		return skip.matcher(text).replaceAll("");		
+		final String[] lines = EOLP.split(text);
+		final StringBuilder b = new StringBuilder(text.length());
+		for(String line: lines) {
+			if(!skip.matcher(line).matches()) {
+				b.append(line).append(EOL);
+			}
+		}
+		return b.toString();		
 	}
 	
 	/**
@@ -469,6 +480,19 @@ public class URLHelper {
 	public static String getFileExtension(File f, String defaultValue) {
 		if(f==null) throw new RuntimeException("The passed file was null", new Throwable());
 		return getExtension(toURL(f), defaultValue);		
+	}
+	
+	/**
+	 * Returns the simple file name (sans extension) for the passed file
+	 * @param f The file
+	 * @return the simple name
+	 */
+	public static String getFileSimpleName(final File f) {
+		if(f==null) throw new RuntimeException("The passed file was null", new Throwable());
+		final String name = f.getName();
+		final int index = name.indexOf('.');
+		if(index==-1) return name;
+		return name.substring(0, index);
 	}
 	
 	/**

@@ -54,6 +54,12 @@ public class StringHelper {
 	public static final Class<?> ABSTRACT_SB_CLAZZ = StringBuilder.class.getSuperclass();
 	/** Cleans a string value before conversion to an integral */
 	public static final Pattern CLEAN_INTEGRAL = Pattern.compile("\\..*|[\\D&&[^\\-]]");
+	/** Text line separator */
+	public static final String EOL = System.getProperty("line.separator", "\n");	
+	/** End of line splitter */
+	public static final Pattern EOLP = Pattern.compile("$");
+	/** pattern match for a shebang */
+	public static final Pattern SHEBANG = Pattern.compile("#!/.*$");
 	
 	
 	/** The ThreadMXBean */
@@ -71,7 +77,16 @@ public class StringHelper {
 		return CLEAN_INTEGRAL.matcher(number).replaceAll("");
 	}
 	
-	
+	public static String cleanLines(final CharSequence cs, final Pattern skip) {
+		final String[] lines = EOLP.split(cs);
+		final StringBuilder b = new StringBuilder(cs.length());
+		for(String line: lines) {
+			if(!skip.matcher(line).matches()) {
+				b.append(line).append(EOL);
+			}
+		}
+		return b.toString();
+	}
 	
 	/**
 	 * Generates a logging string as an indented banner
