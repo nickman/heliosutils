@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 
 import javax.management.MBeanServerDelegate;
@@ -62,6 +63,10 @@ public class LocalAgentInstaller  {
 	/** The shorthand agent class name */
 	public static final String SHORTHAND_AGENT_NAME = "com.heliosapm.shorthand.AgentMain";
 	
+	/** Static class logger */
+	private final static Logger log = Logger.getLogger(LocalAgentInstaller.class.getName()); 
+
+	
 	/**
 	 * Simple example of the install commands executed.
 	 * @param args None
@@ -72,7 +77,7 @@ public class LocalAgentInstaller  {
 		VirtualMachineBootstrap.getInstance();
 		VirtualMachine vm = VirtualMachine.attach(pid);
 		vm.loadAgent(fileName);
-		System.out.println("Instrumentation Deployed:" + ManagementFactory.getPlatformMBeanServer().isRegistered(AgentInstrumentation.AGENT_INSTR_ON));
+		log.info("Instrumentation Deployed:" + ManagementFactory.getPlatformMBeanServer().isRegistered(AgentInstrumentation.AGENT_INSTR_ON));
 	}
 	
 	/**
@@ -160,7 +165,7 @@ public class LocalAgentInstaller  {
 					JarOutputStream jos = null;
 					try {
 						File tmpFile = File.createTempFile(LocalAgentInstaller.class.getName(), ".jar");
-						System.out.println("Temp File:" + tmpFile.getAbsolutePath());
+						log.info("Temp File:" + tmpFile.getAbsolutePath());
 						tmpFile.deleteOnExit();		
 						StringBuilder manifest = new StringBuilder();
 						manifest.append("Manifest-Version: 1.0\nAgent-Class: " + AgentInstrumentation.class.getName() + "\n");

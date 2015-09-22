@@ -31,6 +31,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+
+import com.heliosapm.shorthand.attach.vm.agent.AgentInstrumentation;
 
 /**
  * <p>Title: AttachProvider</p>
@@ -42,6 +45,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AttachProvider extends BaseWrappedClass {
 	/** A map of attach provider delegates keyed by their system identity hash codes */
 	private static final Map<Integer, AttachProvider> apInstances = new ConcurrentHashMap<Integer, AttachProvider>();
+	/** Static class logger */
+	private final static Logger log = Logger.getLogger(AttachProvider.class.getName()); 
 	
 	/**
 	 * Returns a collection of all known attach providers
@@ -162,7 +167,7 @@ public class AttachProvider extends BaseWrappedClass {
 		VirtualMachineBootstrap.findAttachAPI();
 		try {
 			pushCl();			
-			log("Loading Attach Provider with [" + Thread.currentThread().getContextClassLoader() + "]");
+			log.info("Loading Attach Provider with [" + Thread.currentThread().getContextClassLoader() + "]");
 			Class<?> clazz = Thread.currentThread().getContextClassLoader().loadClass(VirtualMachineBootstrap.ATTACH_PROVIDER_CLASS);
 			Method m = clazz.getDeclaredMethod("providers");
 			m.setAccessible(true);

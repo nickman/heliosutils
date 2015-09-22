@@ -28,6 +28,10 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import com.heliosapm.shorthand.attach.vm.agent.AgentInstrumentation;
 
 /**
  * <p>Title: BaseWrappedClass</p>
@@ -50,7 +54,9 @@ public abstract class BaseWrappedClass {
 	/** Thread local to save (and restore) a calling thread's context classloader */
 	protected static final ThreadLocal<ClassLoader> savedState = new ThreadLocal<ClassLoader>();
 	
-	
+	/** Static class logger */
+	private final Logger log = Logger.getLogger(getClass().getName()); 
+
 	
 	/**
 	 * Saves the calling thread's context class loader and replaces it with the VM class loader if it's thread local saved state is null
@@ -203,8 +209,9 @@ public abstract class BaseWrappedClass {
 	 * @param fmt The format of the message
 	 * @param args The message arguments
 	 */
-	public static void log(String fmt, Object...args) {
-		System.out.println(String.format(fmt, args));
+	public void log(String fmt, Object...args) {
+//		System.out.println(String.format(fmt, args));
+		log.info(String.format(fmt, args));
 	}
 	
 	/**
@@ -212,8 +219,9 @@ public abstract class BaseWrappedClass {
 	 * @param fmt The format of the message
 	 * @param args The message arguments
 	 */
-	public static void loge(String fmt, Object...args) {
-		System.err.println(String.format(fmt, args));
+	public void loge(String fmt, Object...args) {
+		//System.err.println(String.format(fmt, args));
+		log.severe(String.format(fmt, args));
 	}
 	
 	/**
@@ -222,9 +230,10 @@ public abstract class BaseWrappedClass {
 	 * @param t The throwable to print stack trace for
 	 * @param args The message arguments
 	 */
-	public static void loge(String fmt, Throwable t, Object...args) {
-		System.err.println(String.format(fmt, args));
-		t.printStackTrace(System.err);
+	public void loge(String fmt, Throwable t, Object...args) {
+		log.log(Level.SEVERE, String.format(fmt, args), t);
+//		System.err.println(String.format(fmt, args));
+//		t.printStackTrace(System.err);
 	}
 	
 	

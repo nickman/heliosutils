@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
+
+import com.heliosapm.shorthand.attach.vm.agent.AgentInstrumentation;
 
 /**
  * <p>Title: VirtualMachineBootstrap</p>
@@ -49,6 +52,10 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 	protected static final Object lock = new Object();
 	/** The class loader used to find the Attach API Jar */
 	protected static final AtomicReference<ClassLoader> attachClassLoader = new AtomicReference<ClassLoader>(null);
+	/** Static class logger */
+	private final static Logger log = Logger.getLogger(VirtualMachineBootstrap.class.getName()); 
+
+	
 	
 	/** A cache of the reflectively loaded classes keyed by class name */
 	protected final Map<String, Class<?>> classCache = new HashMap<String, Class<?>>();
@@ -181,12 +188,12 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 		//if(inClassPath()) return;
 		try {
 			Class<?> clazz = Class.forName(VM_CLASS);
-			log("Found AttachAPI in Standard ClassPath [" + clazz.getClassLoader() + "]");
+			log.info("Found AttachAPI in Standard ClassPath [" + clazz.getClassLoader() + "]");
 			ClassLoader cl = clazz.getClassLoader();
 			if(cl==null) {
 				cl = ClassLoader.getSystemClassLoader();
 			}
-			log("Attach API ClassLoader:" + cl);
+			log.info("Attach API ClassLoader:" + cl);
 			attachClassLoader.set(cl);
 			BaseWrappedClass.savedState.set(null);
 			return;
@@ -201,12 +208,12 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 		for(String s: altLocs) {
 			try {
 				File toolsLoc = new File(s);
-				//log("Testing [" + toolsLoc + "]");
+				//log.info("Testing [" + toolsLoc + "]");
 				if(toolsLoc.exists()) {
 					URL url = toolsLoc.toURI().toURL();
 					URLClassLoader ucl = new URLClassLoader(new URL[]{url}, ClassLoader.getSystemClassLoader().getParent());
 					if(inClassPath(ucl)) {
-						//log("Attach API Found And Loaded [" + toolsLoc + "]");	
+						//log.info("Attach API Found And Loaded [" + toolsLoc + "]");	
 //						attachClassLoader.set(ucl);
 //						BaseWrappedClass.savedState.set(null);						
 						return;
@@ -226,50 +233,50 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 	 */
 	public static void main(String[] args) {
 		findAttachAPI();
-		log("VMBoot:" + inClassPath());
+		log.info("VMBoot:" + inClassPath());
 		getInstance();		
 //		for(VirtualMachineDescriptor vmd: VirtualMachine.list()) {
 //			try {
 //				VirtualMachine vm = VirtualMachine.attach(vmd);
-//				log("\tVM:" + vm.toString());
+//				log.info("\tVM:" + vm.toString());
 //			} catch (Exception e) {
-//				log("Unable to attach to VM [" + vmd.toString() + "]:" + e);
+//				log.info("Unable to attach to VM [" + vmd.toString() + "]:" + e);
 //			}
 //		}
 //		for(VirtualMachineDescriptor vmd: VirtualMachineDescriptor.getVirtualMachineDescriptors()) {
 //			try {
 //				VirtualMachine vm = VirtualMachine.attach(vmd);
-//				log("\tVM:" + vm.toString());
+//				log.info("\tVM:" + vm.toString());
 //			} catch (Exception e) {
-//				log("Unable to attach to VM [" + vmd.toString() + "]:" + e);
+//				log.info("Unable to attach to VM [" + vmd.toString() + "]:" + e);
 //			}
 //		}
 //		AttachProvider ap = AttachProvider.getAttachProviders().iterator().next();
 //		String id = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
 //		VirtualMachine vm = ap.attachVirtualMachine(id);
-//		log("This VM:" + vm.toString());
+//		log.info("This VM:" + vm.toString());
 		AttachProvider ap = AttachProvider.getAttachProviders().iterator().next();
 		String id = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
 		for(VirtualMachineDescriptor vmd: ap.listVirtualMachines()) {
-			log("Testing VMD (" + vmd.id() + ") [" + vmd.displayName() + "]   Name:" + vmd.provider().name() + "  Type:" + vmd.provider().type());
+			log.info("Testing VMD (" + vmd.id() + ") [" + vmd.displayName() + "]   Name:" + vmd.provider().name() + "  Type:" + vmd.provider().type());
 			if(id.equals(vmd.id())) {
 				VirtualMachine vm = ap.attachVirtualMachine(vmd);
-				log("This VM:" + vm.toString());	
+				log.info("This VM:" + vm.toString());	
 				Properties agentProps = vm.getAgentProperties();
 				for(Map.Entry<Object, Object> p: agentProps.entrySet()) {
-					log("\t\t" + p.getKey() + ":" + p.getValue());
+					log.info("\t\t" + p.getKey() + ":" + p.getValue());
 				}
 			}
 			if(vmd.id().equals("15684")) {
-//				log("==============  System Props  ==============");
+//				log.info("==============  System Props  ==============");
 //				Properties sysProps = ap.attachVirtualMachine(vmd).getSystemProperties();
 //				for(Map.Entry<Object, Object> p: sysProps.entrySet()) {
-//					log("\t\t" + p.getKey() + ":" + p.getValue());
+//					log.info("\t\t" + p.getKey() + ":" + p.getValue());
 //				}
-				log("==============  Agent Props  ==============");
+				log.info("==============  Agent Props  ==============");
 				Properties agentProps = ap.attachVirtualMachine(vmd).getAgentProperties();
 				for(Map.Entry<Object, Object> p: agentProps.entrySet()) {
-					log("\t\t" + p.getKey() + ":" + p.getValue());
+					log.info("\t\t" + p.getKey() + ":" + p.getValue());
 				}
 				
 			}				
@@ -278,7 +285,7 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 		
 //		BaseWrappedClass.getMethodMapping(vmb.classCache.get(VM_CLASS));
 //		for(VirtualMachineDescriptor vmd: VirtualMachine.list()) {
-//			log(vmd.toString());
+//			log.info(vmd.toString());
 //		}
 		
 	}
