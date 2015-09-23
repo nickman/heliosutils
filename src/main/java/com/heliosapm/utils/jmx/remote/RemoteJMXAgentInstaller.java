@@ -32,7 +32,7 @@ import javax.management.remote.jmxmp.JMXMPConnector;
 
 import com.heliosapm.shorthand.attach.vm.AttachProvider;
 import com.heliosapm.shorthand.attach.vm.agent.AgentBootstrap;
-import com.heliosapm.utils.classload.JarBuilder;
+import com.heliosapm.utils.jar.JarBuilder;
 
 /**
  * <p>Title: RemoteJMXAgentInstaller</p>

@@ -70,7 +70,7 @@ public class FileFilterBuilder {
 		return parent.setFilter(build());
 	}
 	public FileFilter build() {
-		if(enabledFilters.isEmpty()) throw new IllegalStateException("No filters defined");
+		//if(enabledFilters.isEmpty()) throw new IllegalStateException("No filters or directories defined");
 		final Set<FileFilter> filters = new LinkedHashSet<FileFilter>(enabledFilters.size());
 		for(Map.Entry<Filter, Object[]> entry: enabledFilters.entrySet()) {
 			if(Filter.CASE_FILTERS.contains(entry.getKey())) {

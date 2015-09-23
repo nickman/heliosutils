@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.classload;
+package com.heliosapm.utils.jar;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -35,28 +36,32 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import javax.management.remote.jmxmp.JMXMPConnector;
-
-import org.json.JSONObject;
-
 import com.heliosapm.utils.file.FileFilterBuilder;
 import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: JarBuilder</p>
- * <p>Description: </p> 
+ * <p>Description: Flient style on-the-fly jar builder</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.classload.JarBuilder</code></p>
+ * <p><code>com.heliosapm.utils.jar.JarBuilder</code></p>
  */
 
 public class JarBuilder {
 	/** The file we will write the jar to */
 	final File jarFile;
 	/** The content specifiers */
-	final Set<ResourceSpecifier> specifiers = new LinkedHashSet<ResourceSpecifier>();
+	final Set<ResourceFilter> specifiers = new LinkedHashSet<ResourceFilter>();
 	/** The resources that will be written to the jar */
 	final Map<URL, String> foundResources = new HashMap<URL, String>();
+	/** The resource names to track uniqueness */
+	final Set<String> resourceNames = new HashSet<String>();
+	/** Duplicate resources  */
+	final Set<URL> pathConflicts = new HashSet<URL>();
+	/** A set of resource mergers in the order in which they should be executed */
+	final Set<ResourceMerger> mergers = new LinkedHashSet<ResourceMerger>();
+	
+	
 	/** The manifest */
 	Manifest manifest = null;
 
@@ -86,12 +91,34 @@ public class JarBuilder {
 		}
 	}
 	
+	/**
+	 * Returns a new manifest builder
+	 * @return a new manifest builder
+	 */
 	public ManifestBuilder manifestBuilder() {
 		return new ManifestBuilder(this);
 	}
 	
-	void setMainifest(final Manifest manifest) {
+	/**
+	 * Sets the manifest
+	 * @param manifest a manifest for this jar
+	 * @return this jar builder
+	 */
+	public JarBuilder setMainifest(final Manifest manifest) {
+		if(manifest==null) throw new IllegalArgumentException("The passed Manifest was null");
 		this.manifest = manifest;
+		return this;
+	}
+	
+	/**
+	 * Adds a resource merger
+	 * @param merger the merger to add
+	 * @return this jar builder
+	 */
+	public JarBuilder addResourceMerger(final ResourceMerger merger) {
+		if(merger==null) throw new IllegalArgumentException("The passed ResourceMerger was null");
+		mergers.add(merger);
+		return this;
 	}
 	
 	/**
@@ -114,18 +141,32 @@ public class JarBuilder {
 		
 	}
 	
+	protected void queueResource(final URL url, final String name) {
+		if(!resourceNames.add(name)) {
+			pathConflicts.add(url);
+			log.warning("Duplicate Resource Conflict: [" + url + "]");
+		} else {
+			foundResources.put(url, name);
+		}
+	}
+
 	
 	public static void main(String[] args) {
 		
-		File f = new JarBuilder()
-			.res("javax.management.remote").classLoader(JMXMPConnector.class).apply()
-			.res("org.json").classLoader(JSONObject.class).apply()
+		File f = new JarBuilder(new File("/tmp/test.jar"), true)
+//			.res("").classLoader(ClassLoader.getSystemClassLoader().getParent()).apply()
+			.res("META-INF/services").classLoader(ClassLoader.getSystemClassLoader().getParent()).apply()
+			.res("META-INF/services").classLoader(ClassLoader.getSystemClassLoader()).apply()
+			.res("META-INF/services").apply()
+			.addResourceMerger(new ServiceDefinitionMerger())
+//			.res("javax.management.remote").classLoader(JMXMPConnector.class).apply()
+//			.res("org.json").classLoader(JSONObject.class).apply()
 			.build();
 		System.out.println(f);
 	}
 	
 	public File build() {
-		for(ResourceSpecifier rs: this.specifiers) {
+		for(ResourceFilter rs: this.specifiers) {
 			rs.find();
 		}
 		FileOutputStream fos = null;
@@ -161,8 +202,11 @@ public class JarBuilder {
 				//jos.putNextEntry(new ZipEntry(clazz.getName().replace('.', '/') + ".class"));
 			}
 			jos.flush();
+			for(ResourceMerger rm: mergers) {
+				rm.writeMerged(jos);
+			}
 			jos.close();
-  		fos.flush();
+			fos.flush();
 			fos.close();
 			if(log.isLoggable(Level.FINE)) log.fine(String.format("Jar Complete: [%s], Size: [%s] bytes", jarFile.getAbsolutePath(), jarFile.length()));
 			return jarFile;
@@ -176,7 +220,7 @@ public class JarBuilder {
 	}
 	
 	public static String binToRes(final String path) {
-		if(path==null || path.trim().isEmpty()) throw new IllegalArgumentException("The passed path was null");
+		if(path==null) throw new IllegalArgumentException("The passed path was null");
 		return path.trim().replace('.', '/');
 	}
 	
@@ -186,22 +230,29 @@ public class JarBuilder {
 	}
 	
 	
-	public ResourceSpecifier res(final String base) {
-		return new ResourceSpecifier(base);
+	public ResourceFilter res(final String base) {
+		return new ResourceFilter(base);
 	}
 	
-	public class ResourceSpecifier {
+	/**
+	 * <p>Title: ResourceFilter</p>
+	 * <p>Description: Finds an extracts all matching resources in the configured paths.</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.jar.JarBuilder.ResourceFilter</code></p>
+	 */
+	public class ResourceFilter {
 		final String base;
 		ClassLoader classLoader = null;
-		boolean recurse = false;
+		boolean recurse = true;
 		final Set<Pattern> patterns = new LinkedHashSet<Pattern>();
 
-		public ResourceSpecifier(final String base) {
-			if(base==null || base.trim().isEmpty()) throw new IllegalArgumentException("The passed base was null");
-			this.base = base;
+		public ResourceFilter(final String base) {
+			if(base==null) throw new IllegalArgumentException("The passed base was null");
+			this.base = base.trim();
 		}
 		
-		public ResourceSpecifier classLoader(final Class<?> clazz) {
+		public ResourceFilter classLoader(final Class<?> clazz) {
 			if(clazz==null) throw new IllegalArgumentException("The passed class was null");
 			final ClassLoader cl = clazz.getClassLoader();
 			if(cl==null) throw new IllegalArgumentException("The class [" + clazz.getName() + "] has a primordial classloader");
@@ -209,12 +260,19 @@ public class JarBuilder {
 			return this;
 		}
 		
-		public ResourceSpecifier recurse(final boolean recurse) {
+		public ResourceFilter classLoader(final ClassLoader classLoader) {
+			if(classLoader==null) throw new IllegalArgumentException("The passed class loader was null");
+			this.classLoader = classLoader;
+			return this;
+		}
+		
+		
+		public ResourceFilter recurse(final boolean recurse) {
 			this.recurse = recurse;
 			return this;
 		}
 		
- 		public ResourceSpecifier filterPath(final boolean caseSensitive, final String...patterns) {
+ 		public ResourceFilter filterPath(final boolean caseSensitive, final String...patterns) {
 			for(String p: patterns) {
 				this.patterns.add(Pattern.compile(p, caseSensitive ? Pattern.CASE_INSENSITIVE : 0));
 			}
@@ -245,44 +303,97 @@ public class JarBuilder {
 			
 		}
 		
-		void scanDirectory(final URL url, final String path) {
+		void scanDirectory(final URL url, final String path) {	
+			final boolean hasMergers;
+			if(!mergers.isEmpty()) {
+				boolean acceptDirs = false;
+				for(ResourceMerger rm: mergers) {
+					if(rm.worksOnFileScans()) {
+						acceptDirs = true;
+					}
+				}
+				hasMergers = acceptDirs;
+			} else {
+				hasMergers = false;
+			}
+			
 			final File f = new File(url.getFile());
 			if(f.isDirectory()) {
-				final String prefix = f.getAbsolutePath() + File.separator + path + File.separator;
+				final String prefix;
+				if(path.isEmpty()) {
+					prefix = f.getAbsolutePath() + File.separator;
+				} else {
+					prefix = f.getAbsolutePath() + File.separator + path + File.separator;
+				}
 				final String strip = url.toString();
 				File dir = new File(prefix);
 				if(dir.isDirectory()) {
-					for(File fo : FileFilterBuilder.newBuilder()
-						.caseInsensitive(true)
-						.shouldBeFile()						
+					final File[] fp = FileFilterBuilder.newBuilder()
+						.caseInsensitive(true)						
+//						.containsMatch(path)
+//						.shouldBeFile()						
 						.fileFinder()
 						.maxDepth(recurse ? Integer.MAX_VALUE : 1)
 						.addSearchDir(dir)
-						.find()) {						
+						.find();
+					for(File fo: fp) {
 						final String entryName = URLHelper.toURL(fo).toString().replace(strip, "");
-						//log("DirEntry: [%s]:[%s]", entryName, URLHelper.toURL(fo));
-						foundResources.put(URLHelper.toURL(fo), entryName);
-					}
+						if(hasMergers) {
+							boolean queue = true;
+							for(ResourceMerger rm: mergers) {
+								final boolean isDir = fo.isDirectory();
+								if((isDir && !rm.worksOnDirs()) || (!isDir && !rm.worksOnFiles())) continue; 
+								if(!rm.inspect(URLHelper.toURL(fo), entryName, fo.isFile())) {
+									queue = false;
+									break;
+								}
+							}
+							if(queue) queueResource(URLHelper.toURL(fo), entryName);
+						} else {
+							queueResource(URLHelper.toURL(fo), entryName);
+						}
+					}					
 				}
 			}
 		}
 		
-		void scanJar(final URL url, final String path) {			
+		void scanJar(final URL url, final String path) {	
+			final boolean hasMergers;
+			if(!mergers.isEmpty()) {
+				boolean acceptJars = false;
+				for(ResourceMerger rm: mergers) {
+					if(rm.worksOnUrlScans()) {
+						acceptJars = true;
+					}
+				}
+				hasMergers = acceptJars;
+			} else {
+				hasMergers = false;
+			}
+			
 			InputStream is = null;
 			JarInputStream jis = null;
 			try {
-				final String prefix = url.toString();
 				is = url.openStream();
 				jis = new JarInputStream(is);
 				JarEntry jarEntry = null;
-				while((jarEntry = jis.getNextJarEntry())!=null) {
-					if(jarEntry.isDirectory()) continue;
+				while((jarEntry = jis.getNextJarEntry())!=null) {					
 					final String name = jarEntry.getName();
 					if(name.indexOf(path)==0) {
 						final URL resourceUrl = URLHelper.toURL("jar:" + url + "!/" + name);
-						//log("JAR Entry: [%s]", URLHelper.toURL("jar:" + url + "!/" + name));
-						foundResources.put(URLHelper.toURL("jar:" + url + "!/" + name), name);
-					}
+						if(hasMergers) {
+							boolean queue = true;
+							for(ResourceMerger rm: mergers) {
+								if(!rm.inspect(resourceUrl, name, !jarEntry.isDirectory())) {
+									queue = false;
+									break;
+								}
+							}
+							if(queue) queueResource(resourceUrl, name);
+						} else {
+							queueResource(resourceUrl, name);
+						}
+					}					
 				}
 			} catch (Exception ex) {
 				throw new RuntimeException("Failed to scan Jar [" + url + "]", ex);
@@ -321,7 +432,7 @@ public class JarBuilder {
 				return false;
 			if (getClass() != obj.getClass())
 				return false;
-			ResourceSpecifier other = (ResourceSpecifier) obj;
+			ResourceFilter other = (ResourceFilter) obj;
 			if (!getOuterType().equals(other.getOuterType()))
 				return false;
 			if (base == null) {
@@ -348,4 +459,5 @@ public class JarBuilder {
 			return JarBuilder.this;
 		}
 	}
+	
 }
