@@ -18,7 +18,6 @@ under the License.
  */
 package com.heliosapm.utils.classload;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -32,14 +31,14 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
 
 import javax.management.remote.jmxmp.JMXMPConnector;
 
 import org.json.JSONObject;
 
-import com.heliosapm.shorthand.attach.vm.agent.AgentInstrumentation;
 import com.heliosapm.utils.file.FileFilterBuilder;
 import com.heliosapm.utils.url.URLHelper;
 
@@ -52,11 +51,18 @@ import com.heliosapm.utils.url.URLHelper;
  */
 
 public class JarBuilder {
+	/** The file we will write the jar to */
 	final File jarFile;
+	/** The content specifiers */
 	final Set<ResourceSpecifier> specifiers = new LinkedHashSet<ResourceSpecifier>();
+	/** The resources that will be written to the jar */
 	final Map<URL, String> foundResources = new HashMap<URL, String>();
+	/** The manifest */
+	Manifest manifest = null;
 
-	
+	/** Static class logger */
+	private final static Logger log = Logger.getLogger(JarBuilder.class.getName()); 
+
 	/**
 	 * Creates a new JarBuilder to write a jar to the passed file, overwriting if it already exists
 	 * @param jarFile the file tha archive will be written to
@@ -78,6 +84,14 @@ public class JarBuilder {
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to create temp file", ex);
 		}
+	}
+	
+	public ManifestBuilder manifestBuilder() {
+		return new ManifestBuilder(this);
+	}
+	
+	void setMainifest(final Manifest manifest) {
+		this.manifest = manifest;
 	}
 	
 	/**
@@ -102,29 +116,28 @@ public class JarBuilder {
 	
 	
 	public static void main(String[] args) {
-		log("JarBuilder Test");
-		new JarBuilder()
+		
+		File f = new JarBuilder()
 			.res("javax.management.remote").classLoader(JMXMPConnector.class).apply()
 			.res("org.json").classLoader(JSONObject.class).apply()
 			.build();
+		System.out.println(f);
 	}
 	
-	public void build() {
+	public File build() {
 		for(ResourceSpecifier rs: this.specifiers) {
 			rs.find();
 		}
 		FileOutputStream fos = null;
 		JarOutputStream jos = null;
 		try {
-			StringBuilder manifest = new StringBuilder();
-			manifest.append("Manifest-Version: 1.0\nAgent-Class: " + AgentInstrumentation.class.getName() + "\n");
-			manifest.append("Can-Redefine-Classes: true\n");
-			manifest.append("Can-Retransform-Classes: true\n");
-			manifest.append("Premain-Class: " + AgentInstrumentation.class.getName() + "\n");
-			ByteArrayInputStream bais = new ByteArrayInputStream(manifest.toString().getBytes());
-			Manifest mf = new Manifest(bais);
 			fos = new FileOutputStream(jarFile, false);
-			jos = new JarOutputStream(fos, mf);
+			if(manifest==null) {
+				manifest = new ManifestBuilder(this).autoCreatedBy().build();
+			}
+			jos = new JarOutputStream(fos, manifest);
+			jos.setLevel(9);
+			
 			final byte[] buf = new byte[8192];
 			int bytesRead = 0;
 			for(Map.Entry<URL, String> entry: foundResources.entrySet()) {
@@ -139,7 +152,7 @@ public class JarBuilder {
 					}
 					jos.flush();
 					jos.closeEntry();
-					log("Wrote entry [" + entry.getValue() + "]");
+					if(log.isLoggable(Level.FINE)) log.log(Level.FINE, "Wrote entry [" + entry.getValue() + "]"); 					
 				} catch (Exception ex) {
 					throw new RuntimeException("Failed to write entry [" + entry.getValue() + "]", ex);
 				} finally {
@@ -149,10 +162,12 @@ public class JarBuilder {
 			}
 			jos.flush();
 			jos.close();
-			fos.flush();
+  		fos.flush();
 			fos.close();
-			log("Jar Complete: [%s], Size: [%s] bytes", jarFile.getAbsolutePath(), jarFile.length());
+			if(log.isLoggable(Level.FINE)) log.fine(String.format("Jar Complete: [%s], Size: [%s] bytes", jarFile.getAbsolutePath(), jarFile.length()));
+			return jarFile;
 		} catch (Exception e) {
+			log.log(Level.SEVERE, "Failed to write Jar [" + jarFile + "]", e);
 			throw new RuntimeException("Failed to write Jar [" + jarFile + "]", e);
 		} finally {
 			if(fos!=null) try { fos.close(); } catch (Exception e) {}
@@ -332,16 +347,5 @@ public class JarBuilder {
 		private JarBuilder getOuterType() {
 			return JarBuilder.this;
 		}
-		
-		
-		
-		
-		
 	}
-	
-	
-	public static void log(final Object fmt, final Object...args) {
-		System.out.format(fmt + "\n", args);
-	}
-
 }

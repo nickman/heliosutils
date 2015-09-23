@@ -123,8 +123,32 @@ public class IsolatedClassLoader extends ClassLoader implements IsolatedClassLoa
 	
 	/**
 	 * Creates a new IsolatedClassLoader
-	 * @param objectName The JMX ObjectName to register the management interface with.
-	 * Ignored if null.
+	 * @param clazz The class to derive the source classloader URL from
+	 * @param objectName The JMX ObjectName to register the management interface with. Ignored if null.
+	 */
+	public IsolatedClassLoader(final Class<?> clazz, final String objectName) {
+		if(clazz==null) throw new IllegalArgumentException("The passed class was null");
+		final ProtectionDomain pd = clazz.getProtectionDomain();
+		if(pd==null) throw new IllegalArgumentException("The passed class [" + clazz.getName() + "] had a null ProtectionDomain");
+		final CodeSource cs = pd.getCodeSource();
+		if(cs==null) throw new IllegalArgumentException("The passed class [" + clazz.getName() + "] had a null CodeSource");
+		final URL url = cs.getLocation();
+		if(url==null) throw new IllegalArgumentException("The passed class [" + clazz.getName() + "] had a null code source location");
+		childClassLoader = new ChildURLClassLoader(new URL[]{url}, new FindClassClassLoader(this.getParent()) );
+		ObjectName tmp = null;
+		try {
+			if(objectName!=null && !objectName.trim().isEmpty()) {
+				tmp = new ObjectName(objectName.trim());
+			}
+		} catch (Exception ex) {
+			tmp = null;
+		}
+		this.objectName = tmp;
+	}
+	
+	/**
+	 * Creates a new IsolatedClassLoader
+	 * @param objectName The JMX ObjectName to register the management interface with. Ignored if null.
 	 * @param urls The classpath the loader will load from
 	 */
 	public IsolatedClassLoader(final ObjectName objectName, final URL[] urls) {

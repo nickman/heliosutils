@@ -170,8 +170,8 @@ public class SCPClient
 	 *
 	 * @param remoteFile
 	 * @param length The size of the file to send
-	 * @param remoteTargetDirectory
-	 * @param mode
+	 * @param remoteTargetDirectory The remote directory to write to. Defaults to <b><code>""</code></b> if null.
+	 * @param mode The file mode to write as. Defaults to <b><code>0600</code></b> if null.
 	 * @return
 	 * @throws IOException
 	 */

@@ -25,8 +25,16 @@
 package com.heliosapm.utils.ssh.terminal;
 
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,12 +47,15 @@ import ch.ethz.ssh2.ConnectionInfo;
 import ch.ethz.ssh2.ConnectionMonitor;
 import ch.ethz.ssh2.LocalPortForwarder;
 import ch.ethz.ssh2.LocalStreamForwarder;
+import ch.ethz.ssh2.SCPClient;
+import ch.ethz.ssh2.SCPOutputStream;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
 
 import com.heliosapm.utils.io.BroadcastingCloseable;
 import com.heliosapm.utils.io.BroadcastingCloseableImpl;
 import com.heliosapm.utils.io.CloseListener;
+import com.heliosapm.utils.io.NIOHelper;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 
 /**
@@ -287,6 +298,54 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	}
 	
 	/**
+	 * Returns a new SCPClient connected to the host this connection is connected to
+	 * @return an SCPClient
+	 */
+	public SCPClient scpClient() {
+		return new SCPClient(this.connection);
+	}
+	
+	public void putFile(final File file, final String remoteFileName, final String remoteDirName, final String mode) {
+		FileInputStream fis = null;
+		FileChannel fc = null;
+		MappedByteBuffer buff = null;
+		try {
+			final long fileSize = file.length();
+			fis = new FileInputStream(file);
+			fc = fis.getChannel();
+			buff = fc.map(MapMode.READ_ONLY, 0, fileSize);
+			buff.load();
+			putFile(buff, remoteFileName, remoteDirName, mode);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to write file [" + remoteDirName + "/" + remoteFileName + "] on [" + hostName + ":" + port + "]", ex);
+		} finally {
+			if(buff!=null) try { NIOHelper.clean(buff); } catch (Exception x) {/* No Op */}
+			if(fis!=null) try { fis.close(); } catch (Exception x) {/* No Op */}
+			if(fc!=null) try { fc.close(); } catch (Exception x) {/* No Op */}
+		}
+	}
+	
+	public void putFile(final ByteBuffer buffer, final String remoteFileName, final String remoteDirName, final String mode) {
+		SCPClient client = null;
+		SCPOutputStream os = null;
+		WritableByteChannel wbc = null;
+		try {
+			final long fileSize = buffer.limit()-buffer.position();
+			client = scpClient();
+			os = client.put(remoteFileName, fileSize, remoteDirName, mode);
+			wbc = Channels.newChannel(os);
+			wbc.write(buffer);
+			wbc.close();
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to write file [" + remoteDirName + "/" + remoteFileName + "] on [" + hostName + ":" + port + "]", ex);
+		} finally {
+			if(wbc!=null && wbc.isOpen()) try { wbc.close(); } catch (Exception x) {/* No Op */}
+			if(os!=null) try { os.close(); } catch (Exception x) {/* No Op */}			
+		}
+	}
+	
+	
+	/**
 	 * Acquires a local port forward to the connected host
 	 * @param portToTunnel The port to tunnel to
 	 * @return the local port forward reference
@@ -447,6 +506,29 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 		return new Connection(hostName, port);
 	}
 	
+	/**
+	 * Creates a new raw connection and attempts to authenticate
+	 * @param hostName The SSH server host name
+	 * @param port The SSH listening port
+	 * @param authInfo The authentication credentials 
+	 * @return a disconnected and not authenticated {@link WrappedConnection}
+	 */
+	public static final Connection createRaw(final String hostName, final int port, final ConnectInfo authInfo) {
+		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
+		final Connection conn = new Connection(hostName, port);
+		authInfo.authenticate(conn);
+		return conn;
+	}
+	
+	/**
+	 * Creates a dedicated (non-shared) wrapped connection
+	 * @param connection A raw connection
+	 * @param authInfo The authentication credentials
+	 * @return a dedicated wrapped connection
+	 */
+	public static WrappedConnection wrap(final Connection connection, final ConnectInfo authInfo) {
+		return new WrappedConnection(connection, authInfo);
+	}
 	
 	/**
 	 * Creates but does not attempt to connect a new connection on port 22
