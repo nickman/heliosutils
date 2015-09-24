@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters.alarm;
+package com.heliosapm.utils.events;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -24,15 +24,15 @@ import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
 /**
- * <p>Title: AbstractConsecutiveEventsTrigger</p>
+ * <p>Title: AbstractConsecutiveEventTrigger</p>
  * <p>Description: A trigger that fires on the receipt of a specified number of consecutive events</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.alarm.AbstractConsecutiveEventsTrigger</code></p>
+ * <p><code>com.heliosapm.utils.events.AbstractConsecutiveEventTrigger</code></p>
  * @param <E> The bit masked event type
  */
 
-public abstract class AbstractConsecutiveEventsTrigger<E extends Enum<E> & BitMasked> implements Trigger<Boolean, E> {
+public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMasked> implements Trigger<Boolean, E> {
 	/** The alarmable event counter */
 	protected final AtomicLong ctr = new AtomicLong();	
 	/** The threshold number of consecutive events that fires the trigger */
@@ -47,14 +47,14 @@ public abstract class AbstractConsecutiveEventsTrigger<E extends Enum<E> & BitMa
 	 * @param consec The threshold number of consecutive events that fires the trigger
 	 * @param states The states that increment the count of consecutives
 	 */
-	public AbstractConsecutiveEventsTrigger(final long consec, final E...states) {
+	public AbstractConsecutiveEventTrigger(final long consec, final E...states) {
 		this.consec = consec;
 		this.alertMask = BitMasked.StaticOps.maskFor(states);
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.counters.alarm.Trigger#event(com.heliosapm.utils.counters.alarm.AlarmState)
+	 * @see com.heliosapm.utils.events.Trigger#event(com.heliosapm.utils.counters.alarm.AlarmState)
 	 */
 	@Override
 	public Boolean event(final E state) {

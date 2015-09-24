@@ -16,32 +16,33 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters.alarm;
+package com.heliosapm.utils.events;
 
 import com.heliosapm.utils.enums.BitMasked;
 
 /**
- * <p>Title: ConsecutiveUntilResetEventsTrigger</p>
+ * <p>Title: SlidingConsecutiveEventTrigger</p>
  * <p>Description: Consecutive event trigger that does not wind down and alarms until the consecutive streak ends</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.alarm.ConsecutiveUntilResetEventsTrigger</code></p>
+ * <p><code>com.heliosapm.utils.events.SlidingConsecutiveEventTrigger</code></p>
+ * @param <E> The event type
  */
 
-public class ConsecutiveUntilResetEventsTrigger<E extends Enum<E> & BitMasked> extends AbstractConsecutiveEventsTrigger<E> {
+public class SlidingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> extends AbstractConsecutiveEventTrigger<E> {
 
 	/**
-	 * Creates a new ConsecutiveUntilResetEventsTrigger
+	 * Creates a new SlidingConsecutiveEventTrigger
 	 * @param consec The threshold number of consecutive events that fires the trigger
 	 * @param states The states that increment the count of consecutives
 	 */
-	public ConsecutiveUntilResetEventsTrigger(final long consec, final E... states) {
+	public SlidingConsecutiveEventTrigger(final long consec, final E... states) {
 		super(consec, states);
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.counters.alarm.Trigger#reset()
+	 * @see com.heliosapm.utils.events.Trigger#reset()
 	 */
 	@Override
 	public void reset() {
@@ -51,7 +52,7 @@ public class ConsecutiveUntilResetEventsTrigger<E extends Enum<E> & BitMasked> e
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.counters.alarm.AbstractConsecutiveEventsTrigger#windDown()
+	 * @see com.heliosapm.utils.events.AbstractConsecutiveEventTrigger#windDown()
 	 */
 	@Override
 	protected void windDown() {

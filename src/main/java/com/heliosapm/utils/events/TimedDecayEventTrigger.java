@@ -16,39 +16,45 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters.alarm;
+package com.heliosapm.utils.events;
 
-import java.lang.reflect.Array;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import com.heliosapm.utils.enums.BitMasked;
 
 /**
- * <p>Title: TriggerType</p>
- * <p>Description: Functional enumeration of the supported trigger types</p> 
+ * <p>Title: TimedDecayEventTrigger</p>
+ * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.alarm.TriggerType</code></p>
+ * <p><code>com.heliosapm.utils.events.TimedDecayEventTrigger</code></p>
  */
 
-public enum TriggerType implements TriggerFactory {
-	CONSECUNTILRESET,
-	RESETTINGCONCEC,
-	DECAY;
+public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> extends AbstractConsecutiveEventTrigger<E> {
 
-	
-	
-	private static class ConsecUntilResetTriggerFactory<R, E extends Enum<E> & BitMasked> implements TriggerFactory<R, E> {
+	public TimedDecayEventTrigger(long period, final TimeUnit unit,  E... states) {
+		super(System.currentTimeMillis(), states);
+	}
 
-		@Override
-		public Trigger<R, E> createTrigger(Class<R> returnType, Class<E> eventType, Object... params) {
-			final Long c = (Long)params[0];
-			final E[] states = (E[]) Array.newInstance(eventType, params.length-1);
-			System.array
-			return null;
-		}
+	protected volatile ScheduledFuture<?> handle = null;
+	
+	@Override
+	public Boolean event(final E state) {
+		// TODO Auto-generated method stub
+		return super.event(state);
+	}
+
+	@Override
+	public void reset() {
+		// TODO Auto-generated method stub
 		
 	}
-	
-	
-	
+
+	@Override
+	protected void windDown() {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

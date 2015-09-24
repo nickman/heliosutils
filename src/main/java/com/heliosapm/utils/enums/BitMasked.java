@@ -91,6 +91,9 @@ public interface BitMasked {
 			return set;
 		}
 		
+		public static <E extends Enum<E> & BitMasked> Class<E> classFor(final E e) {
+			return e.getDeclaringClass();
+		}
 		
 		public static <E extends Enum<E> & BitMasked> int maskFor(final E...members) {
 			int mask = 0;

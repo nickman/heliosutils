@@ -16,21 +16,12 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters.alarm;
-
-import com.heliosapm.utils.enums.BitMasked;
-
 /**
- * <p>Title: Trigger</p>
- * <p>Description: </p> 
+ * <p>Title: package-info</p>
+ * <p>Description: Some basic streaming event handlers</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.alarm.Trigger</code></p>
- * @param <R> The return type from the triggered event
- * @param <E> The event type
+ * <p><code>com.heliosapm.utils.events.package-info</code></p>
  */
 
-public interface Trigger<R, E extends Enum<E> & BitMasked> {
-	public R event(final E event);
-	public void reset();
-}
+package com.heliosapm.utils.events;

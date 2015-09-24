@@ -16,18 +16,21 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters.alarm;
+package com.heliosapm.utils.events;
 
-import com.heliosapm.utils.enums.BitMasked;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
- * <p>Title: TriggerFactory</p>
- * <p>Description: Defines a factory that creates a new trigger instance</p> 
+ * <p>Title: EventScheduler</p>
+ * <p>Description: Defines an event scheduler</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.alarm.TriggerFactory</code></p>
+ * <p><code>com.heliosapm.utils.events.EventScheduler</code></p>
  */
 
-public interface TriggerFactory<R, E extends Enum<E> & BitMasked> {
-	public Trigger<R, E> createTrigger(final Class<R> returnType, final Class<E> eventType, final Object...params);
+public interface EventScheduler {
+	public ScheduledFuture<?> schedule(Runnable task, long delay, TimeUnit unit);
+	public ScheduledFuture<?> schedule(Runnable task, long delaySecs);
+	
 }

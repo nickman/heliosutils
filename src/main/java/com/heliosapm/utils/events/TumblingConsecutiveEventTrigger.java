@@ -16,32 +16,32 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters.alarm;
+package com.heliosapm.utils.events;
 
 import com.heliosapm.utils.enums.BitMasked;
 
 /**
- * <p>Title: ResettingConsecutiveEventsTrigger</p>
+ * <p>Title: TumblingConsecutiveEventTrigger</p>
  * <p>Description: Consecutive event trigger that resets the counter once the configured number of consecutive events have been received.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.alarm.ResettingConsecutiveEventsTrigger</code></p>
+ * <p><code>com.heliosapm.utils.events.TumblingConsecutiveEventTrigger</code></p>
  */
 
-public class ResettingConsecutiveEventsTrigger<E extends Enum<E> & BitMasked> extends AbstractConsecutiveEventsTrigger<E> {
+public class TumblingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> extends AbstractConsecutiveEventTrigger<E> {
 
 	/**
-	 * Creates a new ResettingConsecutiveEventsTrigger
+	 * Creates a new TumblingConsecutiveEventTrigger
 	 * @param consec The threshold number of consecutive events that fires the trigger
 	 * @param states The states that increment the count of consecutives
 	 */
-	public ResettingConsecutiveEventsTrigger(final long consec, final E... states) {
+	public TumblingConsecutiveEventTrigger(final long consec, final E... states) {
 		super(consec, states);
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.counters.alarm.Trigger#reset()
+	 * @see com.heliosapm.utils.events.Trigger#reset()
 	 */
 	@Override
 	public void reset() {
@@ -51,7 +51,7 @@ public class ResettingConsecutiveEventsTrigger<E extends Enum<E> & BitMasked> ex
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.utils.counters.alarm.AbstractConsecutiveEventsTrigger#windDown()
+	 * @see com.heliosapm.utils.events.AbstractConsecutiveEventTrigger#windDown()
 	 */
 	@Override
 	protected void windDown() {
