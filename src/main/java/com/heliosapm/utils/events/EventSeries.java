@@ -16,13 +16,16 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.counters;
+package com.heliosapm.utils.events;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import com.heliosapm.utils.enums.BitMasked;
@@ -30,12 +33,12 @@ import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
 /**
  * <p>Title: EventSeries</p>
- * <p>Description: </p> 
+ * <p>Description: Maintains cardinality counts for a series of events</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.counters.EventSeries</code></p>
- * @param <E> The event type
+ * <p><code>com.heliosapm.utils.events.EventSeries</code></p>
  * @param <T> The sample value type
+ * @param <E> The event type
  */
 
 public class EventSeries<T, E extends Enum<E> & BitMasked> {
@@ -49,6 +52,8 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	protected int window;
 	/** The current sample series */
 	protected LinkedList<EventSample> series;
+	/** Indicates if we're keeping samples */
+	protected final boolean keepSamples;
 	
 	/** The event type */
 	protected final Class<E> eventType;
@@ -61,6 +66,8 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	protected final Map<E, Integer> emptyMap;
 	/** An all zero populated cardinality map */
 	protected final Map<E, Integer> zeroMap;
+	/** The ordinal of the last event type sampled */
+	protected int lastEventType = -1;
 
 	
 	/** Empty int array const */
@@ -73,12 +80,14 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	/**
 	 * Creates a new EventSeries
 	 * @param window The window size
+	 * @param keepSamples True to keep samples in a sliding window, false otherwise
 	 * @param eventType  The event type
 	 */
-	public EventSeries(final int window, final Class<E> eventType) {
+	public EventSeries(final int window, final boolean keepSamples, final Class<E> eventType) {
+		this.keepSamples = keepSamples;
 		this.eventType = eventType;
 		this.window = window;
-		series = new LinkedList<EventSample>();
+		series = keepSamples ? new LinkedList<EventSample>() : null;
 		eventTypes = eventType.getEnumConstants();
 		this.cardinality = new int[eventTypes.length];
 		emptyMap = Collections.unmodifiableMap(new EnumMap<E, Integer>(eventType));
@@ -145,19 +154,38 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	 * @param value The value of the sample
 	 */
 	public void sample(final E eventType, final long timestamp, final T value) {
-		final EventSample sample = new EventSample(eventType.ordinal(), timestamp, value);
-		try {
-			lock.xlock(true);
-			series.addFirst(sample);
-			if(count==window) {
-				final EventSample removed = series.removeLast();
-				cardinality[removed.eventType]--;
-			} else {
-				count++;
-				cardinality[eventType.ordinal()]++;
-			}
-		} finally {
-			lock.xunlock();
+		if(keepSamples) {
+			final EventSample sample = new EventSample(eventType, timestamp, value);
+			try {
+				lock.xlock(true);
+				series.addFirst(sample);
+				if(count==window) {
+					cardinality[eventType.ordinal()]++;
+					final EventSample removed = series.removeLast();
+					cardinality[removed.eventType.ordinal()]--;
+				} else {
+					count++;					
+				}
+			} finally {
+				lock.xunlock();
+			}			
+		} else {
+			final int ord = eventType.ordinal();
+			try {				
+				lock.xlock(true);						
+				if(lastEventType!=ord) {
+					if(count==window) {
+						cardinality[ord]++;
+						cardinality[lastEventType]--;
+					} else {
+						count++;
+						cardinality[ord]++;
+					}
+				}
+			} finally {
+				lastEventType = ord;
+				lock.xunlock();
+			}			
 		}
 	}
 	
@@ -169,6 +197,8 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	public void sample(final E eventType, final T value) {
 		sample(eventType, System.currentTimeMillis(), value);
 	}
+	
+	
 	
 
 	/**
@@ -189,6 +219,147 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	public void sample(final int eventType, final T value) {
 		sample(eventTypes[eventType], System.currentTimeMillis(), value);
 	}
+	
+	/**
+	 * Returns a collection of all the samples in this series that match the passed filter
+	 * @param filter The filter to include samples with
+	 * @return a [possibly empty] collection of matching samples
+	 */
+	public Collection<EventSample> filterIn(final EventSampleFilter<T, E> filter) {
+		return filter(true, filter);
+	}
+	
+	/**
+	 * Returns a collection of all the samples in this series that <b>do not</b> match the passed filter
+	 * @param filter The filter to include samples with
+	 * @return a [possibly empty] collection of non-matching samples
+	 */
+	public Collection<EventSample> filterOut(final EventSampleFilter<T, E> filter) {
+		return filter(false, filter);
+	}
+	
+	/**
+	 * Returns a cardinality array of all the samples in this series that match the passed filter
+	 * @param filter The filter to include samples with
+	 * @return a cardinality array
+	 */
+	public int[] cardinalityIn(final EventSampleFilter<T, E> filter) {
+		return cardinality(true, filter);
+	}
+	
+	/**
+	 * Returns a cardinality array of all the samples in this series that <b>do not</b> match the passed filter
+	 * @param filter The filter to include samples with
+	 * @return a cardinality array
+	 */
+	public int[] cardinalityEx(final EventSampleFilter<T, E> filter) {
+		return cardinality(false, filter);
+	}
+	
+	/**
+	 * Returns the number of samples in the series with a timestamp between the {@code startTime} (inclusive)
+	 * and the {@code endTime} (inclusive) and of one of the passed event types
+	 * @param startTime The start time of the time range in ms timestamp
+	 * @param endTime The end time of the time range in ms timestamp
+	 * @param eventTypes The event types we're looking for
+	 * @return the count of located samples
+	 */
+	public int countWithin(final long startTime, final long endTime, E...eventTypes) {
+		if(!keepSamples) throw new RuntimeException("Sample filtering not supported as this EventSeries does not keep samples");
+		if(count==0) return 0;
+		return filterIn(new FilterByEventTypeAndTime(startTime, endTime, eventTypes)).size();
+	}
+	
+	/**
+	 * Returns the number of samples in the series with a timestamp equal to or later than the {@code startTime}
+	 * @param startTime The start time of the time range in ms timestamp
+	 * @param eventTypes The event types we're looking for
+	 * @return the count of located samples
+	 */
+	public int countSince(final long startTime, E...eventTypes) {
+		if(!keepSamples) throw new RuntimeException("Sample filtering not supported as this EventSeries does not keep samples");
+		if(count==0) return 0;
+		return filterIn(new FilterByEventTypeAndTime(startTime, eventTypes)).size();
+	}
+	
+	protected int[] cardinality(final boolean inclusive, final EventSampleFilter<T, E> filter) {
+		if(!keepSamples) throw new RuntimeException("Sample filtering not supported as this EventSeries does not keep samples");
+		final int[] cards = new int[eventTypes.length];
+		for(EventSample sample: filter(inclusive, filter)) {
+			cards[sample.eventType.ordinal()]++;
+		}
+		return cards;
+	}
+	
+	protected Collection<EventSample> filter(final boolean inclusive, final EventSampleFilter<T, E> filter) {
+		if(!keepSamples) throw new RuntimeException("Sample filtering not supported as this EventSeries does not keep samples");
+		final List<EventSample> samples = new LinkedList<EventSample>();
+		if(count==0) return samples;
+		try {
+			lock.xlock();
+			samples.addAll(series);
+		} finally {
+			lock.xunlock();
+		}
+		Collections.sort(samples, asc);
+		for(final Iterator<EventSample> iter = samples.iterator(); iter.hasNext();) {			
+			if(filter.filter(iter.next())) {
+				if(inclusive) continue;
+				iter.remove();
+			}
+		}
+		return samples;
+	}
+	
+	
+	/**
+	 * <p>Title: EventSampleFilter</p>
+	 * <p>Description: Defines a filter that filters in matching event samples from an {@link EventSeries}</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.events.EventSeries.EventSampleFilter</code></p>
+	 */
+	public interface EventSampleFilter<T, E extends Enum<E> & BitMasked> {
+		/**
+		 * Examines the passed sample to determine if the sample matches the filter's criteria
+		 * @param sample The sample to examine
+		 * @return true if the sample matches the filter's criteria, false otherwise
+		 */
+		public boolean filter(EventSeries<T, E>.EventSample sample);
+	}
+	
+	public class FilterByEventTypeAndTime implements EventSampleFilter<T, E> {
+		final int eventTypeMask;
+		final long startTime;
+		final long endTime;
+		
+		
+
+		public FilterByEventTypeAndTime(final long startTime, final long endTime, final E...eventTypes) {
+			eventTypeMask = BitMasked.StaticOps.maskFor(eventTypes);
+			this.startTime = startTime;
+			this.endTime = endTime;
+		}
+
+		public FilterByEventTypeAndTime(final long startTime, final E...eventTypes) {
+			this(startTime, System.currentTimeMillis(), eventTypes);
+		}
+
+
+		@Override
+		public boolean filter(final EventSample sample) {			
+			return (
+				(eventTypeMask | sample.eventType.getMask()) == eventTypeMask &&
+				sample.timestamp >= startTime &&
+				sample.timestamp <= endTime
+			);
+		}
+		
+	}
+
+
+	
+	
 
 	
 	/**
@@ -196,11 +367,11 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 	 * <p>Description: Container for an event series sample instance</p> 
 	 * <p>Company: Helios Development Group LLC</p>
 	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
-	 * <p><code>com.heliosapm.utils.counters.EventSeries.EventSample</code></p>
+	 * <p><code>com.heliosapm.utils.events.EventSeries.EventSample</code></p>
 	 */
 	public class EventSample {
 		/** The event type ordinal */
-		final int eventType;
+		final E eventType;
 		/** The sample timestamp */
 		final long timestamp;
 		/** The sample value */
@@ -212,7 +383,7 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 		 * @param timestamp The timestamp for this sample
 		 * @param value The value of this sample
 		 */
-		private EventSample(final int eventType, final long timestamp, final T value) {
+		private EventSample(final E eventType, final long timestamp, final T value) {
 			this.eventType = eventType;
 			this.timestamp = timestamp;
 			this.value = value;
@@ -226,13 +397,12 @@ public class EventSeries<T, E extends Enum<E> & BitMasked> {
 		public String toString() {
 			return new StringBuilder("Event Sample (")
 				.append(value.getClass().getName())
-				.append(") [eventType:").append(eventTypes[eventType].name())
+				.append(") [eventType:").append(eventType.name())
 				.append(", ts:").append(new Date(timestamp))
 				.append(", value:").append(value)
 				.append("]")
 				.toString();
 		}
-		
 	}
 	
 	/**

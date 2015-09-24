@@ -18,7 +18,9 @@ under the License.
  */
 package com.heliosapm.utils.enums;
 
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -89,6 +91,29 @@ public interface BitMasked {
 				if(e.isEnabled(mask)) set.add(e);
 			}
 			return set;
+		}
+		
+		public static <E extends Enum<E> & BitMasked> Map<E, Integer> arrToMap(final Class<E> type, final int[] cards) {
+			final E[] types = type.getEnumConstants();
+			if(cards==null || cards.length!=types.length) throw new IllegalArgumentException("The length of the array was not equal to the number of enum elements for [" + type.getName() + "]");
+			final EnumMap<E, Integer> map = new EnumMap<E, Integer>(type);
+			for(int i = 0; i < types.length; i++) {
+				map.put(types[i], cards[i]);
+			}
+			return map;
+		}
+		
+		
+		
+		public static <E extends Enum<E> & BitMasked> int[] mapToArr(final Class<E> type, final Map<E, Integer> map) {
+			final E[] types = type.getEnumConstants();
+			final int[] arr = new int[types.length];
+			if(!map.isEmpty()) {
+				for(Map.Entry<E, Integer> entry: map.entrySet()) {
+					arr[entry.getKey().ordinal()] = entry.getValue();
+				}
+			}			
+			return arr;			
 		}
 		
 		public static <E extends Enum<E> & BitMasked> Class<E> classFor(final E e) {

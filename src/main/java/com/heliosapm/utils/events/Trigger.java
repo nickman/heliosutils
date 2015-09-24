@@ -34,3 +34,36 @@ public interface Trigger<R, E extends Enum<E> & BitMasked> {
 	public R event(final E event);
 	public void reset();
 }
+
+
+/*
+	SimpleValue
+	Sliding
+	Tumbling
+	Decay
+	Scripted
+	Composite
+*/
+
+/*
+	ThresholdEvals:
+	=================
+	JMX Query Based, compile into Java ?
+	
+	Config:
+	=======
+	AlarmStateMap:
+		state:  expression:  count
+		
+	See: tsdb-csf\csf-core\src\test\resources\configs\jmxcollect\querymanagertests.xml
+	And: tsdb-csf\csf-core\src\main\java\com\heliosapm\opentsdb\client\jvmjmx\customx\QueryDecode.java
+*/
+
+
+/*
+---metric--->  ThresholdEval --> if returns true --> (alarm state, metric) --> filter for most severe -->  Set Alert Status/Trace Alarm Status as a metric
+ObjectName based on metric FQN
+Determine if metric is registered for alarm using hashCode(fqn) first, then build object name
+Register MBeans in seperate  MBeanServer
+Broadcast notification on Alarm State Change
+*/
