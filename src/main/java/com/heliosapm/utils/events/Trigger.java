@@ -55,8 +55,8 @@ public interface Trigger<R, E extends Enum<E> & BitMasked> {
 	AlarmStateMap:
 		state:  expression:  count
 		
-	See: tsdb-csf\csf-core\src\test\resources\configs\jmxcollect\querymanagertests.xml
-	And: tsdb-csf\csf-core\src\main\java\com\heliosapm\opentsdb\client\jvmjmx\customx\QueryDecode.java
+	See: tsdb-csf/csf-core/src/test/resources/configs/jmxcollect/querymanagertests.xml
+	And: tsdb-csf/csf-core/src/main/java/com/heliosapm/opentsdb/client/jvmjmx/customx/QueryDecode.java
 */
 
 
