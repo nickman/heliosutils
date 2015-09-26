@@ -31,16 +31,24 @@ import com.heliosapm.utils.enums.BitMasked;
  */
 
 public enum AlarmState implements BitMasked  {
-	/** No data has been submitted to the alarm yet */
-	NODATA,
-	/** State is normal */
-	OK,
-	/** State is iffy */
-	WARN,
-	/** State is critical */
-	CRITICAL,
 	/** State is stale as no data has been received */
-	STALE;
+	STALE(false),	
+	/** No data has been submitted to the alarm yet */
+	NODATA(false),
+	/** State is normal */
+	OK(true),
+	/** State is iffy */
+	WARN(true),
+	/** State is critical */
+	CRITICAL(true);
+	
+	private AlarmState(final boolean evaluatable) {
+		this.evaluatable = evaluatable;
+	}
+	
+	
+	public final boolean evaluatable;
+	
 	
 	final int mask = StaticOps.ordinalBitMaskInt(this);
 	public int getMask(){ return mask; }

@@ -18,25 +18,27 @@ under the License.
  */
 package com.heliosapm.utils.events.eval;
 
-import java.util.EnumMap;
-
 import com.heliosapm.utils.enums.BitMasked;
 
 /**
- * <p>Title: ThresholdEval</p>
- * <p>Description: </p> 
+ * <p>Title: StatefulEval</p>
+ * <p>Description: Evaluates a condition against a stateful store of rules and returns en event outcome</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>org.helios.nash.alarms.threshold.ThresholdEval</code></p>
+ * <p><code>com.heliosapm.utils.events.eval.StatefulEval</code></p>
+ * @param <T> The type of the value being evaluated
+ * @param <E> The event type
  */
 
-public interface ThresholdEval<T, V, E extends Enum<E> & BitMasked> {
+public interface StatefulEval<T, E extends Enum<E> & BitMasked> {
+
 	/**
 	 * Executes an evaluation
 	 * @param t The object being evaluated
-	 * @param map A map of the values to be evaluated against keyed by the event type
 	 * @param def The default event type to return if no event types evaluate to true
-	 * @return the event type of the highest ordinal that evaluated to true, or the supplied default if all event types evaluated false. 
+	 * @return the event type of the lowest ordinal that evaluated to true, or the supplied default if all event types evaluated false. 
+	 * @throws OpenConditionEvaluationException thrown if the evaluation is not conclusive
 	 */
-	public E eval(T t, EnumMap<E, V> map, E def);
+	public E eval(T t, E def) throws OpenConditionEvaluationException;
+
 }

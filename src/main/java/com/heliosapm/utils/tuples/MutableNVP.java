@@ -16,36 +16,55 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.events;
-
-import java.util.Collection;
-
-import com.heliosapm.utils.enums.BitMasked;
-import com.heliosapm.utils.events.EventSeries.EventSampleFilter;
+package com.heliosapm.utils.tuples;
 
 /**
- * <p>Title: StatusFilter</p>
+ * <p>Title: MutableNVP</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.StatusFilter</code></p>
- * @param <T> The sample value type
- * @param <E> The event type
+ * <p><code>com.heliosapm.utils.tuples.MutableNVP</code></p>
+ * @param <K> The key type
+ * @param <V> The key value
  */
 
-public class StatusFilter<T, E extends Enum<E> & BitMasked> implements EventSampleFilter<T, E> {
-	protected final E eventType;
+public class MutableNVP<K, V> extends NVP<K, V> {
+
 	/**
-	 * Creates a new StatusFilter
+	 * Creates a new MutableNVP
+	 * @param key The NVP key
+	 * @param value The NVP value
 	 */
-	public StatusFilter(final E eventType) {
-		this.eventType = eventType;
+	public MutableNVP(final K key, final V value) {
+		super(key, value);		
 	}
-	@Override
-	public boolean filter(EventSeries<T, E>.EventSample sample) {
-		// TODO Auto-generated method stub
-		return false;
+	
+	
+	/**
+	 * Sets a new key
+	 * @param newKey The new key
+	 */
+	public void setKey(final K newKey) {
+		this.key = newKey;
 	}
-
-
+	
+	/**
+	 * Sets a new value
+	 * @param newValue The new value
+	 */
+	public void setValue(final V newValue) {
+		this.value = newValue;
+	}
+	
+	/**
+	 * Sets both a new key and a new value
+	 * @param newKey The new key
+	 * @param newValue The new value
+	 */
+	public void set(final K newKey, final V newValue) {
+		this.key = newKey;
+		this.value = newValue;
+	}
+	
+	
 }

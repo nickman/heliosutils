@@ -33,6 +33,12 @@ import com.heliosapm.utils.enums.BitMasked;
 public interface Trigger<R, E extends Enum<E> & BitMasked> {
 	public R event(final E event);
 	public void reset();
+	
+	public enum Rollup {
+		ABSOLUTE,
+		ROLLUP,
+		ROLLDOWN;
+	}
 }
 
 
