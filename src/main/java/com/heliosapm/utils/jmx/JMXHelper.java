@@ -49,6 +49,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -791,16 +792,16 @@ public class JMXHelper {
 		}		
 	}
 	
-	public static ObjectName objectName(final String domain, final Map<String, String> props) {
-		if(domain==null || domain.trim().isEmpty()) throw new IllegalArgumentException("The passed domain was null or empty");
-		if(props==null || props.isEmpty()) throw new IllegalArgumentException("The passed property map was null or empty");
-		final StringBuilder b = new StringBuilder(domain.trim()).append(":");
-		for(Map.Entry<String, String> p: props.entrySet()) {
-			b.append(p.getKey().trim()).append("=").append(p.getValue().trim()).append(",");
-		}
-		b.deleteCharAt(b.length()-1);
-		return objectName(b);
-	}
+//	public static ObjectName objectName(final String domain, final Map<String, String> props) {
+//		if(domain==null || domain.trim().isEmpty()) throw new IllegalArgumentException("The passed domain was null or empty");
+//		if(props==null || props.isEmpty()) throw new IllegalArgumentException("The passed property map was null or empty");
+//		final StringBuilder b = new StringBuilder(domain.trim()).append(":");
+//		for(Map.Entry<String, String> p: props.entrySet()) {
+//			b.append(p.getKey().trim()).append("=").append(p.getValue().trim()).append(",");
+//		}
+//		b.deleteCharAt(b.length()-1);
+//		return objectName(b);
+//	}
 	
 	
 	/**
@@ -964,6 +965,23 @@ public class JMXHelper {
 		}
 	}
 	
+	/**
+	 * Creates a new JMX object name.
+	 * @param domain A string type representing the ObjectName domain
+	 * @param properties The Object name's properties
+	 * @return an ObjectName the created ObjectName
+	 */
+	public static ObjectName objectName(CharSequence domain, final Properties properties) {
+		try {
+			final Hashtable<String, String> props = new Hashtable<String, String>();
+			for(String key: properties.stringPropertyNames()) {
+				props.put(key, properties.getProperty(key));
+			}
+			return new ObjectName(domain.toString(), new Hashtable<String, String>(props));
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to create Object Name", e);
+		}
+	}
 
 //	/**
 //	 * Creates a new JMX object name.

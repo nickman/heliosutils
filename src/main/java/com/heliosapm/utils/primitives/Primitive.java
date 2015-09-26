@@ -31,11 +31,11 @@ public enum Primitive {
 	BYTE(byte.class, Byte.class, (byte)1),
 	BOOLEAN(boolean.class, Boolean.class, (byte)1),
 	CHAR(char.class, Character.class, (byte)2),
-	SHORT(short.class, Short.class, (byte)),
+	SHORT(short.class, Short.class, (byte)2),
 	INT(int.class, Integer.class, (byte)4),
-	FLOAT(float.class, Float.class),
-	LONG,
-	DOUBLE;
+	FLOAT(float.class, Float.class, (byte)4),
+	LONG(long.class, Long.class, (byte)8),
+	DOUBLE(double.class, Double.class, (byte)8);
 	
 	
 	
