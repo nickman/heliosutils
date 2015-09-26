@@ -38,7 +38,9 @@ public enum AlarmState implements BitMasked  {
 	/** State is iffy */
 	WARN,
 	/** State is critical */
-	CRITICAL;
+	CRITICAL,
+	/** State is stale as no data has been received */
+	STALE;
 	
 	final int mask = StaticOps.ordinalBitMaskInt(this);
 	public int getMask(){ return mask; }
