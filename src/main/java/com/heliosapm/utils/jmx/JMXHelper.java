@@ -954,7 +954,7 @@ public class JMXHelper {
 	/**
 	 * Creates a new JMX object name.
 	 * @param domain A string type representing the ObjectName domain
-	 * @param properties A hash table of the Object name's properties
+	 * @param properties A hash X of the Object name's properties
 	 * @return an ObjectName the created ObjectName
 	 */
 	public static ObjectName objectName(CharSequence domain, Hashtable<String, String> properties) {
@@ -964,6 +964,21 @@ public class JMXHelper {
 			throw new RuntimeException("Failed to create Object Name", e);
 		}
 	}
+	
+	/**
+	 * Creates a new JMX object name.
+	 * @param domain A string type representing the ObjectName domain
+	 * @param properties A hash X of the Object name's properties
+	 * @return an ObjectName the created ObjectName
+	 */
+	public static ObjectName objectName(CharSequence domain, Map<String, String> properties) {
+		try {
+			return new ObjectName(domain.toString(), new Hashtable<String, String>(properties));
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to create Object Name", e);
+		}
+	}
+
 	
 	/**
 	 * Creates a new JMX object name.
