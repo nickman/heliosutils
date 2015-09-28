@@ -43,13 +43,17 @@ import com.heliosapm.utils.jmx.notifcations.DelegateNotificationBroadcaster;
  * <p><code>com.heliosapm.utils.events.EventSink</code></p>
  */
 
-public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E>, DelegateNotificationBroadcaster {
+public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E>, Sink<E>, DelegateNotificationBroadcaster {
 	/** The event type tracked by this sink */
 	protected final Class<E> eventType;
 	/** The current state of this sink */
 	protected final AtomicReference<E> state = new AtomicReference<E>(null);
 	/** The effective timestamp of the current state */
 	protected final AtomicLong timestamp = new AtomicLong();
+	/** The initial state when created and when resuming from Off */
+	protected final E initialState;
+	/** The state set to when sink is turned off */
+	protected final E offState;
 	/** The started indicator */
 	protected final AtomicBoolean started = new AtomicBoolean(false);
 	/** The pipeline context of the context that this trigger is installed into */
@@ -79,14 +83,18 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 		if(jsonConfig==null) throw new IllegalArgumentException("The passed JSON was null");
 		final Class<E> eventType;
 		final E initialState;
+		final E offState;
 		final String eventTypeName = jsonConfig.optString("eventType");
 		if(eventTypeName==null) throw new IllegalArgumentException("The passed JSON did not contain an eventType");
 		final String initialStateName = jsonConfig.optString("initialState");
+		final String offStateName = jsonConfig.optString("offState");
 		if(initialStateName==null) throw new IllegalArgumentException("The passed JSON did not contain an initial state");
+		if(offStateName==null) throw new IllegalArgumentException("The passed JSON did not contain an off state");
 		try {
 			eventType = (Class<E>)Class.forName(eventTypeName.trim(), true, Thread.currentThread().getContextClassLoader());
 			initialState = Enum.valueOf(eventType, initialStateName.trim().toUpperCase());
-			return new EventSink<E>(eventType, initialState);
+			offState = Enum.valueOf(eventType, offStateName.trim().toUpperCase());
+			return new EventSink<E>(eventType, initialState, offState);
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to create EventSink", ex);
 		}
@@ -95,8 +103,10 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	/**
 	 * Creates a new EventSink
 	 */
-	public EventSink(final Class<E> eventType, final E initialState) {		
+	public EventSink(final Class<E> eventType, final E initialState, final E offState) {		
 		this.eventType = eventType;
+		this.initialState = initialState;
+		this.offState = offState;
 		infos = buildInfos(this.eventType);
 		state.set(initialState);
 		timestamp.set(System.currentTimeMillis());
@@ -196,7 +206,7 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	@Override
 	public void start() {		
 		if(started.compareAndSet(false, true)) {
-			
+			in(initialState);
 		}
 	}
 	
@@ -207,7 +217,7 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	@Override
 	public void stop() {
 		if(started.compareAndSet(true, false)) {
-			
+			in(offState);
 		}				
 	}
 
@@ -296,6 +306,15 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 		this.objectName = objectName;
 		this.notifSerial = notifSerial;
 		
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Sink#getState()
+	 */
+	@Override
+	public E getState() {
+		return state.get();
 	}
 
 }

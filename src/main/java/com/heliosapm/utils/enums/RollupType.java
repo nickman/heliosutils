@@ -16,24 +16,24 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.events;
+package com.heliosapm.utils.enums;
 
-import java.util.concurrent.ExecutorService;
-
-import javax.management.ObjectName;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * <p>Title: PipelineContext</p>
- * <p>Description: </p> 
+ * <p>Title: RollupType</p>
+ * <p>Description: Annotates a bitmasked enum to indicate if it's severity should roll down, or up or none.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.PipelineContext</code></p>
+ * <p><code>com.heliosapm.utils.enums.RollupType</code></p>
  */
-
-public interface PipelineContext<E> {
-	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId);
-	public ObjectName getObjectName();
-	public E getState();
-	
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface RollupType {
+	public Rollup value() default Rollup.DOWN;
 }

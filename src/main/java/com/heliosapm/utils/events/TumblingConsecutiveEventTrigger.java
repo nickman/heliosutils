@@ -40,11 +40,10 @@ public class TumblingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exte
 	 * Creates a new TumblingConsecutiveEventTrigger
 	 * @param eventType The event type class
 	 * @param thresholds A map of the triggering consecutive thresholds for each triggering event type
-	 * @param rollup Indicates if the event type rolls up, down or is absolute
 	 * @param acceptedEvents The events accepted by this trigger. If length is zero, will assume all event types
 	 */
-	public TumblingConsecutiveEventTrigger(final Class<E> eventType, final EnumMap<E, Integer> thresholds, final Rollup rollup, final E... acceptedEvents) {
-		super(eventType, thresholds, rollup, acceptedEvents);
+	public TumblingConsecutiveEventTrigger(final Class<E> eventType, final EnumMap<E, Integer> thresholds, final E... acceptedEvents) {
+		super(eventType, thresholds, acceptedEvents);
 	}
 
 	/**
@@ -56,15 +55,12 @@ public class TumblingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exte
 	public static <E extends Enum<E> & BitMasked> TumblingConsecutiveEventTrigger<E> fromJSON(final JSONObject jsonDef) {
 		if(jsonDef==null) throw new IllegalArgumentException("The passed JSON was null");
 		final Class<E> eventType;
-		final EnumMap<E, Integer> thresholds;
-		final Rollup rollup;
+		final EnumMap<E, Integer> thresholds;		
 		final E[] acceptedEvents;
 		final String eventTypeName = jsonDef.optString("eventType");
 		if(eventTypeName==null) throw new IllegalArgumentException("The passed JSON did not contain an eventType");
 		final JSONObject thresholdJsonMap = jsonDef.optJSONObject("thresholds");
 		if(thresholdJsonMap==null) throw new IllegalArgumentException("The passed JSON did not contain a thresholds map");
-		String rollupType = jsonDef.optString("rollup");
-		if(rollupType==null) rollupType=Rollup.DOWN.name();
 		JSONArray acceptedEventArr = jsonDef.optJSONArray("acceptedEvents");
 		if(acceptedEventArr==null) acceptedEventArr = new JSONArray();
 		try {
@@ -76,7 +72,6 @@ public class TumblingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exte
 				final int t = thresholdJsonMap.getInt(sKey);
 				thresholds.put(event, t);
 			}
-			rollup = Rollup.valueOf(rollupType.trim().toUpperCase());
 			final int ecnt = acceptedEventArr.length(); 
 			if(ecnt==0) {
 				acceptedEvents = eventType.getEnumConstants();
@@ -86,7 +81,7 @@ public class TumblingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exte
 					acceptedEvents[i] = Enum.valueOf(eventType, acceptedEventArr.getString(i).trim().toUpperCase());
 				}
 			}
-			return new TumblingConsecutiveEventTrigger<E>(eventType, thresholds, rollup, acceptedEvents);
+			return new TumblingConsecutiveEventTrigger<E>(eventType, thresholds, acceptedEvents);
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to build TumblingConsecutiveEventTrigger from JSON", ex);
 		}

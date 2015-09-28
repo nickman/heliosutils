@@ -18,22 +18,14 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.util.concurrent.ExecutorService;
-
-import javax.management.ObjectName;
-
 /**
- * <p>Title: PipelineContext</p>
+ * <p>Title: Sink</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.PipelineContext</code></p>
+ * <p><code>com.heliosapm.utils.events.Sink</code></p>
  */
 
-public interface PipelineContext<E> {
-	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId);
-	public ObjectName getObjectName();
+public interface Sink<E> {
 	public E getState();
-	
 }

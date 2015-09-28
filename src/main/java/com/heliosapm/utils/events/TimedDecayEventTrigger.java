@@ -45,7 +45,10 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	/** The decay period unit */
 	protected final TimeUnit unit;
 	/** The decayed state */
-	protected final E stateToSet;
+	protected final E decayedState;
+	/** The initial state */
+	protected final E initialState;
+	
 	/** The current state */
 	protected final AtomicReference<E> state = new AtomicReference<E>();
 	/** The decay timer */
@@ -76,24 +79,31 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	public static <E extends Enum<E> & BitMasked> TimedDecayEventTrigger<E> fromJSON(final JSONObject jsonConfig) {
 		if(jsonConfig==null) throw new IllegalArgumentException("The passed JSON was null");
 		final Class<E> eventType;
-		final E stateToSet;
+		final E decayedState;
+		final E initialState;
 		final long period;
 		final TimeUnit unit;
 		
 		final String eventTypeName = jsonConfig.optString("eventType");
 		if(eventTypeName==null) throw new IllegalArgumentException("The passed JSON did not contain an eventType");
+		final String decayStateName = jsonConfig.optString("decayState");
+		if(decayStateName==null) throw new IllegalArgumentException("The passed JSON did not contain a decay state");
+		final String initialStateName = jsonConfig.optString("decayState");
+		
+		
 		final String stateToSetName = jsonConfig.optString("decayState");
 		if(stateToSetName==null) throw new IllegalArgumentException("The passed JSON did not contain a decay state");
-		period = jsonConfig.optLong("decayPeriod", -1L);
-		if(period==-1L) throw new IllegalArgumentException("The passed JSON did not contain a decay period");
+		
+		period = jsonConfig.optLong("decayPeriod", 15);		
 		String unitName = jsonConfig.optString("decayUnit");
 		if(unitName==null) unitName = TimeUnit.SECONDS.name();
 		try {
 			
 			eventType = (Class<E>)Class.forName(eventTypeName.trim(), true, Thread.currentThread().getContextClassLoader());
-			stateToSet = Enum.valueOf(eventType, stateToSetName.trim().toUpperCase());
+			decayedState = Enum.valueOf(eventType, stateToSetName.trim().toUpperCase());
+			initialState = initialStateName==null ? null : Enum.valueOf(eventType, initialStateName.trim().toUpperCase());
 			unit = TimeUnit.valueOf(unitName.trim().toUpperCase());
-			return new TimedDecayEventTrigger<E>(eventType, period, unit, stateToSet);
+			return new TimedDecayEventTrigger<E>(eventType, period, unit, initialState, decayedState);
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to create TimedDecayEventTrigger", ex);
 		}
@@ -107,13 +117,14 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	 * @param unit The unit of the period
 	 * @param stateToSet The event to forward if this trigger decays
 	 */
-	public TimedDecayEventTrigger(final Class<E> eventType, final long period, final TimeUnit unit,  final E stateToSet) {
+	public TimedDecayEventTrigger(final Class<E> eventType, final long period, final TimeUnit unit,  final E initialState, final E decayedState) {
 		this.eventType = eventType;
 		scheduler = DefaultEventScheduler.getInstance();
 		this.period = period;
 		this.unit = unit;
-		this.stateToSet = stateToSet;
-		state.set(stateToSet);		
+		this.decayedState = decayedState;
+		this.initialState = initialState;
+		state.set(this.initialState);		
 	}
 
 	@Override
@@ -136,14 +147,24 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	@Override
 	public E in(final E event) {
 		if(event==null || !started.get()) return null;
-		state.set(event);
-		reset();
-		return event;
+		final E prior = state.getAndSet(decayedState);
+		if(prior!=null && prior!=decayedState && event==decayedState) {
+			out(decayedState);
+			return decayedState;
+		} else {
+			reset();
+			context.eventSunk(pipelineId);
+			return null;
+		}
 	}
 	
 	public void run() {
-		state.set(stateToSet);
-		reset();
+		final E prior = state.get();
+		if(prior!=null && prior!=decayedState) {
+			in(decayedState);
+		} else {
+			reset();
+		}
 	}
 
 	@Override

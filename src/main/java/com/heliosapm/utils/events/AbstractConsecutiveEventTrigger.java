@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.enums.Rollup;
+import com.heliosapm.utils.enums.RollupType;
 import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
 /**
@@ -78,14 +79,19 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	 * Creates a new AbstractConsecutiveEventTrigger
 	 * @param eventType The event type class
 	 * @param thresholds A map of the triggering consecutive thresholds for each triggering event type
-	 * @param rollup Indicates if the event type rolls up, down or is absolute
 	 * @param acceptedEvents The events accepted by this trigger. If length is zero, will assume all event types
 	 */
-	public AbstractConsecutiveEventTrigger(final Class<E> eventType, final EnumMap<E, Integer> thresholds, final Rollup rollup, final E...acceptedEvents) {
+	public AbstractConsecutiveEventTrigger(final Class<E> eventType, final EnumMap<E, Integer> thresholds, final E...acceptedEvents) {
 		if(eventType==null) throw new IllegalArgumentException("The passed event type was null");
 		if(thresholds==null || thresholds.isEmpty()) throw new IllegalArgumentException("The passed threshold map was null or empty");
-		if(rollup==null) throw new IllegalArgumentException("The passed rollup was null");		
+				
 		this.eventType = eventType;
+		final RollupType rtype = this.eventType.getAnnotation(RollupType.class);
+		if(rtype==null) {
+			this.rollup = Rollup.DOWN;
+		} else {
+			this.rollup = rtype.value();
+		}
 		accepted = acceptedEvents.length==0 ? eventType.getEnumConstants() : acceptedEvents;
 		acceptMask = BitMasked.StaticOps.maskFor(accepted);
 		Arrays.sort(accepted);		
@@ -96,8 +102,7 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 		counters = new EnumMap<E, int[]>(eventType);
 		for(Map.Entry<E, Integer> entry: thresholds.entrySet()) {
 			this.counters.put(entry.getKey(), new int[]{entry.getValue()});
-		}
-		this.rollup = rollup;
+		}		
 		this.alertMask = BitMasked.StaticOps.maskFor(this.thresholds.keySet());
 		// pre-calculate and cache the rollup sets
 		rollupSets = new EnumMap<E, E[]>(eventType);
@@ -215,11 +220,12 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 			if(mostSevere!=null) {
 				windDown(mostSevere);		
 				out(mostSevere);
-			}			
+			} else {
+				context.eventSunk(pipelineId);
+			}
 			return mostSevere;
 		} finally {
-			lock.xunlock();
-			context.eventSunk(pipelineId);
+			lock.xunlock();			
 		}
 	}
 	

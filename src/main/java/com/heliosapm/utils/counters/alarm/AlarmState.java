@@ -21,6 +21,8 @@ package com.heliosapm.utils.counters.alarm;
 import java.util.Set;
 
 import com.heliosapm.utils.enums.BitMasked;
+import com.heliosapm.utils.enums.Rollup;
+import com.heliosapm.utils.enums.RollupType;
 
 /**
  * <p>Title: AlarmState</p>
@@ -29,12 +31,14 @@ import com.heliosapm.utils.enums.BitMasked;
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.counters.alarm.AlarmState</code></p>
  */
-
+@RollupType(Rollup.DOWN)
 public enum AlarmState implements BitMasked  {
+	/** The alarm has been disabled */
+	OFF(false),		
+	/** No data has been submitted to the alarm yet */
+	NODATA(false),	
 	/** State is stale as no data has been received */
 	STALE(false),	
-	/** No data has been submitted to the alarm yet */
-	NODATA(false),
 	/** State is normal */
 	OK(true),
 	/** State is iffy */
@@ -46,8 +50,17 @@ public enum AlarmState implements BitMasked  {
 		this.evaluatable = evaluatable;
 	}
 	
+	private static final AlarmState[] EVAL = new AlarmState[]{OK, WARN, CRITICAL};
 	
 	public final boolean evaluatable;
+	
+	/**
+	 * Returns an array of the evaluatable alarm states
+	 * @return an array of the evaluatable alarm states
+	 */
+	public static AlarmState[] evaluatable() {
+		return EVAL.clone();
+	}
 	
 	
 	final int mask = StaticOps.ordinalBitMaskInt(this);

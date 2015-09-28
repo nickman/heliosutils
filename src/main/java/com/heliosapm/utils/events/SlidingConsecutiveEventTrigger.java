@@ -41,11 +41,10 @@ public class SlidingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exten
 	 * Creates a new SlidingConsecutiveEventTrigger
 	 * @param eventType The event type class
 	 * @param thresholds A map of the triggering consecutive thresholds for each triggering event type
-	 * @param rollup Indicates if the event type rolls up, down or is absolute
 	 * @param acceptedEvents The events accepted by this trigger. If length is zero, will assume all event types
 	 */
-	public SlidingConsecutiveEventTrigger(final Class<E> eventType, final EnumMap<E, Integer> thresholds, final Rollup rollup, final E... acceptedEvents) {
-		super(eventType, thresholds, rollup, acceptedEvents);
+	public SlidingConsecutiveEventTrigger(final Class<E> eventType, final EnumMap<E, Integer> thresholds, final E... acceptedEvents) {
+		super(eventType, thresholds, acceptedEvents);
 	}
 	
 	/**
@@ -58,14 +57,11 @@ public class SlidingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exten
 		if(jsonDef==null) throw new IllegalArgumentException("The passed JSON was null");
 		final Class<E> eventType;
 		final EnumMap<E, Integer> thresholds;
-		final Rollup rollup;
 		final E[] acceptedEvents;
 		final String eventTypeName = jsonDef.optString("eventType");
 		if(eventTypeName==null) throw new IllegalArgumentException("The passed JSON did not contain an eventType");
 		final JSONObject thresholdJsonMap = jsonDef.optJSONObject("thresholds");
 		if(thresholdJsonMap==null) throw new IllegalArgumentException("The passed JSON did not contain a thresholds map");
-		String rollupType = jsonDef.optString("rollup");
-		if(rollupType==null) rollupType=Rollup.DOWN.name();
 		JSONArray acceptedEventArr = jsonDef.optJSONArray("acceptedEvents");
 		if(acceptedEventArr==null) acceptedEventArr = new JSONArray();
 		try {
@@ -77,7 +73,6 @@ public class SlidingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exten
 				final int t = thresholdJsonMap.getInt(sKey);
 				thresholds.put(event, t);
 			}
-			rollup = Rollup.valueOf(rollupType.trim().toUpperCase());
 			final int ecnt = acceptedEventArr.length(); 
 			if(ecnt==0) {
 				acceptedEvents = eventType.getEnumConstants();
@@ -87,7 +82,7 @@ public class SlidingConsecutiveEventTrigger<E extends Enum<E> & BitMasked> exten
 					acceptedEvents[i] = Enum.valueOf(eventType, acceptedEventArr.getString(i).trim().toUpperCase());
 				}
 			}
-			return new SlidingConsecutiveEventTrigger<E>(eventType, thresholds, rollup, acceptedEvents);
+			return new SlidingConsecutiveEventTrigger<E>(eventType, thresholds, acceptedEvents);
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to build SlidingConsecutiveEventTrigger from JSON", ex);
 		}

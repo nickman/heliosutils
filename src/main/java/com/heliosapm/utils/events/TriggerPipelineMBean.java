@@ -18,22 +18,23 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.util.concurrent.ExecutorService;
-
 import javax.management.ObjectName;
 
 /**
- * <p>Title: PipelineContext</p>
- * <p>Description: </p> 
+ * <p>Title: TriggerPipelineMBean</p>
+ * <p>Description: JMX MBean interface for {@link TriggerPipeline} instances </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.PipelineContext</code></p>
+ * <p><code>com.heliosapm.utils.events.TriggerPipelineMBean</code></p>
  */
 
-public interface PipelineContext<E> {
-	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId);
+public interface TriggerPipelineMBean {
+	public boolean isStarted();
+	public void start();
+	public void stop();
+	public void unregister();
+	public String getStateName();
 	public ObjectName getObjectName();
-	public E getState();
+	public String getFlow();
 	
 }
