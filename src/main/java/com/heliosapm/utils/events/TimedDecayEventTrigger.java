@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.json.JSONObject;
+
 import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
@@ -53,33 +55,81 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	/** The next trigger */
 	protected Trigger<?, E> nextTrigger = null;
 	
+	/** The type of the event to be forwarded */
+	protected final Class<E> eventType;
+	
+	/** The pipeline assigned trigger id */
+	protected int pipelineId = -1;
+	
 	/** Spin lock around the counter */
 	protected final UnsafeAdapter.SpinLock lock = UnsafeAdapter.allocateSpinLock();
 	/** The pipeline context */
 	protected PipelineContext context = null;
 	
-	public TimedDecayEventTrigger(final long period, final TimeUnit unit,  final E stateToSet, final boolean autoStart) {
-		scheduler =DefaultEventScheduler.getInstance();
+	
+	/**
+	 * Creates a new TimedDecayEventTrigger from the passed JSON definition
+	 * @param jsonDef The json trigger definition
+	 * @return the TimedDecayEventTrigger
+	 */	
+	@SuppressWarnings("unchecked")
+	public static <E extends Enum<E> & BitMasked> TimedDecayEventTrigger<E> fromJSON(final JSONObject jsonConfig) {
+		if(jsonConfig==null) throw new IllegalArgumentException("The passed JSON was null");
+		final Class<E> eventType;
+		final E stateToSet;
+		final long period;
+		final TimeUnit unit;
+		
+		final String eventTypeName = jsonConfig.optString("eventType");
+		if(eventTypeName==null) throw new IllegalArgumentException("The passed JSON did not contain an eventType");
+		final String stateToSetName = jsonConfig.optString("decayState");
+		if(stateToSetName==null) throw new IllegalArgumentException("The passed JSON did not contain a decay state");
+		period = jsonConfig.optLong("decayPeriod", -1L);
+		if(period==-1L) throw new IllegalArgumentException("The passed JSON did not contain a decay period");
+		String unitName = jsonConfig.optString("decayUnit");
+		if(unitName==null) unitName = TimeUnit.SECONDS.name();
+		try {
+			
+			eventType = (Class<E>)Class.forName(eventTypeName.trim(), true, Thread.currentThread().getContextClassLoader());
+			stateToSet = Enum.valueOf(eventType, stateToSetName.trim().toUpperCase());
+			unit = TimeUnit.valueOf(unitName.trim().toUpperCase());
+			return new TimedDecayEventTrigger<E>(eventType, period, unit, stateToSet);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to create TimedDecayEventTrigger", ex);
+		}
+	}
+	
+	
+	/**
+	 * Creates a new TimedDecayEventTrigger
+	 * @param eventType The type of the event being decayed
+	 * @param period The decay period, i.e. if no events are received within this period of time, the state will change to {@code stateToSet}
+	 * @param unit The unit of the period
+	 * @param stateToSet The event to forward if this trigger decays
+	 */
+	public TimedDecayEventTrigger(final Class<E> eventType, final long period, final TimeUnit unit,  final E stateToSet) {
+		this.eventType = eventType;
+		scheduler = DefaultEventScheduler.getInstance();
 		this.period = period;
 		this.unit = unit;
 		this.stateToSet = stateToSet;
-		state.set(stateToSet);
-		if(autoStart) start();
+		state.set(stateToSet);		
 	}
 
 	@Override
 	public Class<E> getInputType() {		
-		return stateToSet.getDeclaringClass();
+		return eventType;
 	}
 	
 	@Override
 	public Class<E> getReturnType() {
-		return stateToSet.getDeclaringClass();
+		return eventType;
 	}
 	
 	@Override
-	public void setPipelineContext(final PipelineContext context) {
+	public void setPipelineContext(final PipelineContext context, final int pipelineId) {
 		this.context = context;		
+		this.pipelineId = pipelineId;
 	}
 	
 

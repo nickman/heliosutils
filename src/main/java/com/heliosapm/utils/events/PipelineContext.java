@@ -30,4 +30,5 @@ import java.util.concurrent.ExecutorService;
 
 public interface PipelineContext {
 	public ExecutorService getPipelineExecutor();
+	public void eventSunk(final int triggerId);
 }

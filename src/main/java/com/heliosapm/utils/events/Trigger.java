@@ -18,8 +18,6 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import com.heliosapm.utils.enums.BitMasked;
-
 /**
  * <p>Title: Trigger</p>
  * <p>Description: </p> 
@@ -42,7 +40,7 @@ public interface Trigger<R, E> {
 	public Trigger<?, R> nextTrigger();
 	public Class<R> getReturnType();
 	public Class<E> getInputType();
-	public void setPipelineContext(final PipelineContext context);
+	public void setPipelineContext(final PipelineContext context, final int myId);
 	
 
 }

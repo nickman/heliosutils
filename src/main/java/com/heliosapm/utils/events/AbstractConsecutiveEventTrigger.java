@@ -56,6 +56,9 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	/** The bit mask of accepted event types */
 	protected final int acceptMask;	
 	
+	/** The pipeline provided id for this trigger */
+	protected int pipelineId = -1;
+	
 	/** The started indicator */
 	protected final AtomicBoolean started = new AtomicBoolean(false);
 	
@@ -113,9 +116,14 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 		resetMask = x;
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#setPipelineContext(com.heliosapm.utils.events.PipelineContext, int)
+	 */
 	@Override
-	public void setPipelineContext(final PipelineContext context) {
+	public void setPipelineContext(final PipelineContext context, final int pipelineId) {
 		this.context = context;
+		this.pipelineId = pipelineId;
 		executor = this.context.getPipelineExecutor();
 	}
 	
@@ -189,6 +197,7 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 				return null;
 			} finally {
 				lock.xunlock();
+				context.eventSunk(pipelineId);
 			}
 		} else if(!isTriggering(state)) {
 			// ????  Should not happen
@@ -206,10 +215,11 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 			if(mostSevere!=null) {
 				windDown(mostSevere);		
 				out(mostSevere);
-			}
+			}			
 			return mostSevere;
 		} finally {
 			lock.xunlock();
+			context.eventSunk(pipelineId);
 		}
 	}
 	

@@ -55,6 +55,12 @@ public class TriggerPipeline<E> implements PipelineContext {
 		return pipelineExecutor;
 	}
 	
+	@Override
+	public void eventSunk(final int triggerId) {
+		// TODO Auto-generated method stub
+		
+	}
+	
 	public void in(final E e) {
 		starter.in(e);
 	}
