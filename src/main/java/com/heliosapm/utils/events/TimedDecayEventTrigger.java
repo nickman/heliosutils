@@ -20,8 +20,11 @@ package com.heliosapm.utils.events;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.heliosapm.utils.enums.BitMasked;
+import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
 /**
  * <p>Title: TimedDecayEventTrigger</p>
@@ -31,30 +34,116 @@ import com.heliosapm.utils.enums.BitMasked;
  * <p><code>com.heliosapm.utils.events.TimedDecayEventTrigger</code></p>
  */
 
-public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> extends AbstractConsecutiveEventTrigger<E> {
-
-	public TimedDecayEventTrigger(long period, final TimeUnit unit,  E... states) {
-		super(System.currentTimeMillis(), states);
+public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Trigger<E, E>, Runnable {
+	
+	/** The shared event scheduler */
+	protected final EventScheduler scheduler;
+	/** The decay period */
+	protected final long period;
+	/** The decay period unit */
+	protected final TimeUnit unit;
+	/** The decayed state */
+	protected final E stateToSet;
+	/** The current state */
+	protected final AtomicReference<E> state = new AtomicReference<E>();
+	/** The decay timer */
+	protected volatile ScheduledFuture<?> handle = null;
+	/** The started indicator */
+	protected final AtomicBoolean started = new AtomicBoolean(false);
+	/** The next trigger */
+	protected Trigger<?, E> nextTrigger = null;
+	
+	/** Spin lock around the counter */
+	protected final UnsafeAdapter.SpinLock lock = UnsafeAdapter.allocateSpinLock();
+	/** The pipeline context */
+	protected PipelineContext context = null;
+	
+	public TimedDecayEventTrigger(final long period, final TimeUnit unit,  final E stateToSet, final boolean autoStart) {
+		scheduler =DefaultEventScheduler.getInstance();
+		this.period = period;
+		this.unit = unit;
+		this.stateToSet = stateToSet;
+		state.set(stateToSet);
+		if(autoStart) start();
 	}
 
-	protected volatile ScheduledFuture<?> handle = null;
+	@Override
+	public Class<E> getInputType() {		
+		return stateToSet.getDeclaringClass();
+	}
 	
 	@Override
-	public Boolean event(final E state) {
-		// TODO Auto-generated method stub
-		return super.event(state);
+	public Class<E> getReturnType() {
+		return stateToSet.getDeclaringClass();
+	}
+	
+	@Override
+	public void setPipelineContext(final PipelineContext context) {
+		this.context = context;		
+	}
+	
+
+	@Override
+	public E in(final E event) {
+		if(event==null || !started.get()) return null;
+		state.set(event);
+		reset();
+		return event;
+	}
+	
+	public void run() {
+		state.set(stateToSet);
+		reset();
 	}
 
 	@Override
 	public void reset() {
-		// TODO Auto-generated method stub
-		
+		if(handle!=null) {
+			handle.cancel(false);
+		}
+		handle = scheduler.schedule(this, period, unit);		
 	}
 
 	@Override
-	protected void windDown() {
-		// TODO Auto-generated method stub
-		
+	public void windDown(final E event) {
+		/* No Op */
 	}
+	
+	@Override
+	public Trigger<?, E> nextTrigger() {
+		return nextTrigger;
+	}
+	
+	@Override
+	public void setNextTrigger(final Trigger<?, E> nextTrigger) {
+		this.nextTrigger = nextTrigger;	
+	}
+	
+	@Override
+	public void out(final E result) {
+		if(nextTrigger!=null) nextTrigger.in(result);		
+	}
+	
+	@Override
+	public boolean isStarted() {
+		return started.get();
+	}
+	
+	public void start() {
+		if(started.compareAndSet(false, true)) {
+			reset();
+		}
+	}
+	
+	public void stop() {
+		if(started.compareAndSet(true, false)) {
+			if(handle!=null) {
+				handle.cancel(false);
+			}			
+		}
+	}
+
+	
+	
 
 }

@@ -18,41 +18,16 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.lang.reflect.Array;
+import java.util.concurrent.ExecutorService;
 
 /**
- * <p>Title: EventRollup</p>
+ * <p>Title: PipelineContext</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.EventRollup</code></p>
+ * <p><code>com.heliosapm.utils.events.PipelineContext</code></p>
  */
 
-public enum EventRollup {
-	/** Only the submitted event is counted */
-	NONE,
-	/** The submitted event and all of the ordinals above it are incremented */
-	UP, 
-	/** The submitted event and all of the ordinals below it are incremented */
-	DOWN;
-	
-	public static class RollNone<E extends Enum<E>> implements EnumRollup<E> {		
-		@Override
-		public E[] rollup(Class<E> etype, final E e) {
-			final E[] arr = (E[])Array.newInstance(etype, 1);
-			arr[0] = e; 
-			return arr;
-		}		
-	}
-	
-	public static class Rollup<E extends Enum<E>> implements EnumRollup<E> {		
-		@Override
-		public E[] rollup(Class<E> etype, final E e) {
-			
-			final E[] arr = (E[])Array.newInstance(etype, e.getDeclaringClass().getEnumConstants().length - e.ordinal());
-			arr[0] = e; 
-			return arr;
-		}		
-	}
-	
+public interface PipelineContext {
+	public ExecutorService getPipelineExecutor();
 }

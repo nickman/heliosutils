@@ -21,10 +21,11 @@ package com.heliosapm.utils.events;
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
+import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedScheduler;
-import com.heliosapm.utils.ssh.terminal.SSHService;
 
 /**
  * <p>Title: DefaultEventScheduler</p>
@@ -36,22 +37,36 @@ import com.heliosapm.utils.ssh.terminal.SSHService;
 
 public class DefaultEventScheduler implements EventScheduler {
 	/** The singleton instance */
-	private static volatile DefaultEventScheduler instance = null;
+	private static volatile EventScheduler instance = null;
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
 	
 	/** The event task scheduler */
 	protected final JMXManagedScheduler scheduler;
+	/** Instance logger */
+	protected static final Logger log = Logger.getLogger(DefaultEventScheduler.class.getName());
+	
+	
 	
 	/**
 	 * Acquires and returns the DefaultEventScheduler singleton
 	 * @return the DefaultEventScheduler singleton
 	 */
-	public static DefaultEventScheduler getInstance() {
+	public static EventScheduler getInstance() {
 		if(instance==null) {
 			synchronized(lock) {
 				if(instance==null) {
-					instance = new DefaultEventScheduler();
+					final String preferredScheduler = ConfigurationHelper.getSystemThenEnvProperty(PROP_PREFERRED_SCHEDULER, null);
+					if(preferredScheduler!=null) {
+						try { 
+							instance = (EventScheduler)Class.forName(preferredScheduler, true, Thread.currentThread().getContextClassLoader()).newInstance();							
+						}catch (Exception ex) {
+							log.warning("Failed to load preferred event scheduler [" + preferredScheduler + "]. Defaulting to DefaultEventScheduler");
+						}
+					}
+					if(instance==null) {
+						instance = new DefaultEventScheduler();
+					}
 				}
 			}
 		}

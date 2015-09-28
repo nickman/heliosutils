@@ -16,23 +16,22 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.utils.events;
+package com.heliosapm.utils.enums;
 
 /**
- * <p>Title: EnumRollup</p>
- * <p>Description: </p> 
+ * <p>Title: Rollup</p>
+ * <p>Description: Defines options for rolling up enum sets</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.EnumRollup</code></p>
- * @param <E> The enum type
+ * <p><code>com.heliosapm.utils.enums.Rollup</code></p>
  */
 
-public interface EnumRollup<E extends Enum<E>> {
-	/**
-	 * Computes the rollup for the passed enum member
-	 * @param etype The type being rolled up
-	 * @param e The enum member to rollup
-	 * @return the rolled up members
-	 */
-	public E[] rollup(Class<E> etype, E e);
+public enum Rollup {
+	/** Only the specified member */
+	NONE,
+	/** The specified member and the ones above it */
+	UP, 
+	/** The specified member and the ones below it */
+	DOWN;		
+
 }

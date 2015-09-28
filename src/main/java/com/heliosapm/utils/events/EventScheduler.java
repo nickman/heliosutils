@@ -30,6 +30,9 @@ import java.util.concurrent.TimeUnit;
  */
 
 public interface EventScheduler {
+	/** The configuration propterty specifying the fully qualified class name of the preferred event scheduler */
+	public static final String PROP_PREFERRED_SCHEDULER = "nash.event.scheduler";
+	
 	public ScheduledFuture<?> schedule(Runnable task, long delay, TimeUnit unit);
 	public ScheduledFuture<?> schedule(Runnable task, long delaySecs);
 	

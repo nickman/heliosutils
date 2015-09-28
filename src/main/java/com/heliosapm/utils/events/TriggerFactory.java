@@ -18,7 +18,6 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import com.heliosapm.utils.enums.BitMasked;
 
 /**
  * <p>Title: TriggerFactory</p>
@@ -28,6 +27,6 @@ import com.heliosapm.utils.enums.BitMasked;
  * <p><code>com.heliosapm.utils.events.TriggerFactory</code></p>
  */
 
-public interface TriggerFactory<R, E extends Enum<E> & BitMasked> {
+public interface TriggerFactory<R, E> {
 	public Trigger<R, E> createTrigger(final Class<R> returnType, final Class<E> eventType, final Object...params);
 }

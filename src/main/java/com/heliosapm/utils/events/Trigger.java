@@ -27,18 +27,24 @@ import com.heliosapm.utils.enums.BitMasked;
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.events.Trigger</code></p>
  * @param <R> The return type from the triggered event
- * @param <E> The event type
+ * @param <E> The input type
  */
 
-public interface Trigger<R, E extends Enum<E> & BitMasked> {
-	public R event(final E event);
+public interface Trigger<R, E> {
+	public R in(final E event);
+	public void out(final R result);
 	public void reset();
+	public void windDown(final E event);
+	public void start();	
+	public void stop(); 
+	public boolean isStarted();
+	public void setNextTrigger(Trigger<?, R> nextTrigger);
+	public Trigger<?, R> nextTrigger();
+	public Class<R> getReturnType();
+	public Class<E> getInputType();
+	public void setPipelineContext(final PipelineContext context);
 	
-	public enum Rollup {
-		ABSOLUTE,
-		ROLLUP,
-		ROLLDOWN;
-	}
+
 }
 
 
