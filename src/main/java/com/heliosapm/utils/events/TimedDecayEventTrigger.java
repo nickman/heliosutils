@@ -28,6 +28,8 @@ import org.json.JSONObject;
 import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
+import jsr166e.LongAdder;
+
 /**
  * <p>Title: TimedDecayEventTrigger</p>
  * <p>Description: </p> 
@@ -36,7 +38,7 @@ import com.heliosapm.utils.unsafe.UnsafeAdapter;
  * <p><code>com.heliosapm.utils.events.TimedDecayEventTrigger</code></p>
  */
 
-public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Trigger<E, E>, Runnable {
+public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements DecayTrigger<E, E>, Runnable {
 	
 	/** The shared event scheduler */
 	protected final EventScheduler scheduler;
@@ -69,6 +71,15 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	protected final UnsafeAdapter.SpinLock lock = UnsafeAdapter.allocateSpinLock();
 	/** The pipeline context */
 	protected PipelineContext context = null;
+	
+	/** A count of event forwards to the next trigger in the pipeline */
+	protected final LongAdder forwards = new LongAdder();
+	/** The number of sunk stale events */
+	protected final LongAdder sinks = new LongAdder();
+	
+
+	
+
 	
 	
 	/**
@@ -174,6 +185,7 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 		final E prior = state.get();
 		if(prior!=decayedState) {
 			sink.in(decayedState);
+			sinks.increment();
 		} else {
 			reset();
 		}
@@ -182,7 +194,7 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	@Override
 	public void reset() {
 		if(handle!=null) {
-			handle.cancel(false);
+			handle.cancel(true);
 		}
 		handle = scheduler.schedule(this, period, unit);		
 	}
@@ -204,7 +216,10 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	
 	@Override
 	public void out(final E result) {
-		if(nextTrigger!=null) nextTrigger.in(result);		
+		if(nextTrigger!=null) {			
+			nextTrigger.in(result);
+			forwards.increment();
+		}
 	}
 	
 	@Override
@@ -226,7 +241,79 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#dumpState()
+	 */
+	@Override
+	public String dumpState() {
+		final JSONObject json = new JSONObject();
+		json.put("type", getClass().getSimpleName());
+		json.put("eventtype", eventType.getSimpleName());
+		json.put("started", started.get());		
+		json.put("forwards", forwards.longValue());
+		json.put("sinks", sinks.longValue());		
+		json.put("pipelineid", pipelineId);
+		json.put("decay", period);
+		json.put("decayunit", unit.name());
+		json.put("decaystate", decayedState.name());
+		json.put("initialstate", decayedState.name());
+		json.put("sink", sink.getClass().getSimpleName());
+		json.put("nexttrigger", nextTrigger.getClass().getSimpleName());
+		E st = state.get();
+		json.put("state", st==null ? "" : st.name());
+		json.put("scheduled", handle==null ? -1 : handle.getDelay(unit));		
+		return json.toString(1);
+	}
+
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.DecayTrigger#getDecaySlope()
+	 */
+	@Override
+	public long getDecaySlope() {
+		return handle==null ? -1L : handle.getDelay(unit);
+	}
+
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.DecayTrigger#getDecay()
+	 */
+	@Override
+	public long getDecay() {
+		return period;
+	}
+
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.DecayTrigger#getDecayUnit()
+	 */
+	@Override
+	public String getDecayUnit() {
+		return unit.name();
+	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#getForwards()
+	 */
+	@Override
+	public long getForwards() {		
+		return forwards.longValue();
+	}
+	
+	/**
+	 * <p>The number of sunk stale events</p>
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#getSinks()
+	 */
+	@Override
+	public long getSinks() {		
+		return sinks.longValue();
+	}
 	
 
 }

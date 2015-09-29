@@ -20,6 +20,7 @@ package com.heliosapm.utils.events;
 
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -34,11 +35,13 @@ import java.util.logging.Logger;
 import javax.management.ListenerNotFoundException;
 import javax.management.MBeanNotificationInfo;
 import javax.management.Notification;
-import javax.management.NotificationBroadcaster;
 import javax.management.NotificationBroadcasterSupport;
+import javax.management.NotificationEmitter;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
+
+import org.json.JSONObject;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
@@ -54,7 +57,7 @@ import com.heliosapm.utils.jmx.notifcations.DelegateNotificationBroadcaster;
  * @param <R> The pipeline sink type
  */
 
-public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroadcaster, TriggerPipelineMBean {
+public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitter, TriggerPipelineMBean {
 	
 	/** The list of triggers in the pipeline */
 	protected final LinkedList<Trigger<R,E>> pipeline;
@@ -64,7 +67,10 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	/** The starter trigger */
 	protected final Trigger<?, E> starter;
 	/** The sink trigger */
-	protected final Trigger<Void, R> sink;
+	protected final Sink<?> sink;
+	/** The decay trigger */
+	protected final DecayTrigger<R,E> decayTrigger;
+	
 	/** The JMX object name for this pipeline */
 	protected final ObjectName objectName;
 	/** The JMX notification serial number factory */
@@ -73,8 +79,6 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	protected final ExecutorService pipelineExecutor;
 	/** Flag to indicate if this pipeline is started */
 	protected final AtomicBoolean started = new AtomicBoolean(false);
-	/** The sink state source */
-	protected Sink<?> stateSink;
 	/** Mini graphic displaying the flow of the pipeline */
 	protected final String flow;
 	/** The last advisory message */
@@ -107,8 +111,8 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 		this.objectName = objectName;
 		this.pipelineExecutor = pipelineExecutor;
 		starter = pipeline.getFirst();
-		sink = (Trigger<Void, R>) pipeline.getLast();
-		stateSink = (Sink<?>)sink;
+		sink = (Sink<?>) pipeline.getLast();	
+		
 		final Iterator<Trigger<R,E>> ascIter = this.pipeline.iterator();
 		int index = 0;
 		Trigger<R,E> priorTrigger = null;
@@ -116,8 +120,12 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 		Collections.addAll(notifInfos, NOTIF_INFOS);
 		final Set<DelegateNotificationBroadcaster> notifDelegates = new HashSet<DelegateNotificationBroadcaster>();
 		final StringBuilder b = new StringBuilder();
+		DecayTrigger<R, E> dt = null;
 		while(ascIter.hasNext()) {
 			Trigger<R,E> trigger = ascIter.next();
+			if(trigger instanceof DecayTrigger) {
+				dt = (DecayTrigger<R, E>) trigger;
+			}
 			b.append(trigger.getClass().getSimpleName()).append("-->");
 			trigger.setPipelineContext(this, index);
 			if(trigger instanceof DelegateNotificationBroadcaster) {
@@ -136,6 +144,7 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 		
 		b.deleteCharAt(b.length()-1); b.deleteCharAt(b.length()-1); b.deleteCharAt(b.length()-1);		
 		flow = b.toString();
+		decayTrigger = dt;
 		JMXHelper.registerMBean(this, this.objectName);
 		
 	}
@@ -150,7 +159,7 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	}
 	
 	public Trigger<Void, R> getSink() {
-		return sink;
+		return (Trigger<Void, R>) sink;
 	}
 	
 	/**
@@ -262,12 +271,12 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	}
 
 	public E getState() {
-		final E e = (E) stateSink.getState();
+		final E e = (E) sink.getState();
 		return e;
 	}
 	
 	public String getStateName() {
-		final E e = (E) stateSink.getState();
+		final E e = (E) sink.getState();
 		return e==null ? null : e.toString();
 	}
 	
@@ -276,11 +285,11 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	}
 
 	public E getPriorState(){
-		return (E) stateSink.getPriorState();
+		return (E) sink.getPriorState();
 	}
 
 	public String getPriorStateName(){
-		final E e = (E) stateSink.getPriorState();
+		final E e = (E) sink.getPriorState();
 		return e==null ? null : e.toString();
 	}
 
@@ -289,13 +298,99 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	 * @see com.heliosapm.utils.events.Sink#getLastStatusChange()
 	 */
 	public long getLastStatusChange() {
-		return stateSink.getLastStatusChange();
+		return sink.getLastStatusChange();
 	}
 	
 	public Date getLastStatusChangeDate() {
-		final long t = stateSink.getLastStatusChange();
+		final long t = sink.getLastStatusChange();
 		if(t==0L) return null;
-		return new Date(stateSink.getLastStatusChange());
+		return new Date(sink.getLastStatusChange());
+	}
+	
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#getDecayUnit()
+	 */
+	@Override
+	public String getDecayUnit() {
+		return decayTrigger.getDecayUnit();
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#getDecay()
+	 */
+	@Override
+	public long getDecay() {		
+		return decayTrigger.getDecay();
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#getDecaySlope()
+	 */
+	@Override
+	public long getDecaySlope() {
+		return decayTrigger.getDecaySlope();
+	};
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#dumpState()
+	 */
+	@Override
+	public String dumpState() {
+		final JSONObject state = new JSONObject();
+		state.put("objectName", objectName.toString());
+		state.put("lastadvisory", advisory.get());
+		final JSONObject triggers = new JSONObject();
+		for(Trigger<R,E> t: pipeline) {
+			triggers.put(t.getClass().getSimpleName(), new JSONObject(t.dumpState()));
+		}
+		state.put("triggers", triggers);		
+		return state.toString(1);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.NotificationEmitter#removeNotificationListener(javax.management.NotificationListener, javax.management.NotificationFilter, java.lang.Object)
+f */
+	@Override
+	public void removeNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws ListenerNotFoundException {
+		notificationBroadcaster.removeNotificationListener(listener, filter, handback);				
+	}
+	
+	public void forceState(final String state) {
+		sink.forceState(state);
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#getForwards()
+	 */
+	@Override
+	public HashMap<String, Long> getForwards() {
+		final HashMap<String, Long> map = new HashMap<String, Long>(pipeline.size());
+		for(Trigger t: pipeline) {
+			map.put(t.getClass().getSimpleName(), t.getForwards());
+		}
+		return map;
+	}
+	
+	
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#getSinks()
+	 */
+	@Override
+	public HashMap<String, Long> getSinks() {
+		final HashMap<String, Long> map = new HashMap<String, Long>(pipeline.size());
+		for(Trigger t: pipeline) {
+			map.put(t.getClass().getSimpleName(), t.getSinks());
+		}
+		return map;
 	}
 	
 }

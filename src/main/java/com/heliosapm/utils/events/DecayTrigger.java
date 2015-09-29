@@ -18,37 +18,32 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import com.heliosapm.utils.enums.BitMasked;
-
 /**
- * <p>Title: Sink</p>
+ * <p>Title: DecayTrigger</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.Sink</code></p>
+ * <p><code>com.heliosapm.utils.events.DecayTrigger</code></p>
  */
 
-public interface Sink<E extends Enum<E> & BitMasked> extends Trigger<Void, E> {
+public interface DecayTrigger<R, E> extends Trigger<R, E> {
 	/**
-	 * Returns the current state
-	 * @return the current state
+	 * Returns the the countdown to decay.
+	 * i.e. if no events are received before this period of time,
+	 * the trigger will go into decay state 
+	 * @return the decay count down
 	 */
-	public E getState();
+	public long getDecaySlope();
 	/**
-	 * Returns the prior state
-	 * @return the prior state
+	 * Returns the configured decay period
+	 * @return the configured decay period
 	 */
-	public E getPriorState();
+	public long getDecay();
 	/**
-	 * Returns the timestamp in ms. of the last status change
-	 * @return the timestamp in ms. of the last status change
+	 * Returns the configured decay period unit
+	 * @return the configured decay period unit
 	 */
-	public long getLastStatusChange();
+	public String getDecayUnit();
 	
-	/**
-	 * Forces a state change in the sink
-	 * @param state the name of the state to force to
-	 */
-	public void forceState(final String state);
 	
 }

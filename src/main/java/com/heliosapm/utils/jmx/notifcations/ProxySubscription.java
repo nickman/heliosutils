@@ -56,6 +56,8 @@ public class ProxySubscription {
 
 	/** The subscription listener's underlying ObjectName if an ObjectName listener*/
 	protected final ObjectName objectNameListener;
+	
+	
 
 	/**
 	 * Creates a new ProxySubscription
@@ -80,6 +82,7 @@ public class ProxySubscription {
 		this.filter = filter;
 		this.handback = handback;
 	}
+	
 	
 	/**
 	 * Creates a new ProxySubscription

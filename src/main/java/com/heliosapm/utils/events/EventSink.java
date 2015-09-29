@@ -19,8 +19,9 @@ under the License.
 package com.heliosapm.utils.events;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.EnumMap;
-import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -38,6 +39,8 @@ import org.json.JSONObject;
 
 import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.jmx.notifcations.DelegateNotificationBroadcaster;
+
+import jsr166e.LongAdder;
 
 /**
  * <p>Title: EventSink</p>
@@ -83,6 +86,44 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Sink<E>, Delega
 	public static final String NOTIF_PREFIX = "event.sink.statuschange";
 	/** The JMX repeating notification type prefix */
 	public static final String NOTIF_REPEATING_PREFIX = "event.sink.repeating";
+	
+	/** A count of event sinks without forwarding to the next trigger in the pipeline */
+	protected final LongAdder sinks = new LongAdder();
+	/** A count of broadcast notifications */
+	protected final LongAdder forwards = new LongAdder();
+	
+
+	
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#dumpState()
+	 */
+	@Override
+	public String dumpState() {
+		final JSONObject json = new JSONObject();
+		json.put("type", getClass().getSimpleName());
+		json.put("eventtype", eventType.getSimpleName());
+		json.put("started", started.get());
+		json.put("forwards", forwards.longValue());
+		json.put("sinks", sinks.longValue());		
+		E e = state.get();
+		json.put("state", e==null ? "" : e.name());
+		json.put("timestamp", timestamp.get());
+		json.put("date", new Date(timestamp.get()).toString());
+		e = priorState.get();
+		json.put("priorstate", e==null ? "" : e.name());				
+		json.put("pipelineid", pipelineId);
+		json.put("initialstate", initialState.name());
+		json.put("offstate", offState==null ? "" : offState.name());
+		final JSONObject reps = new JSONObject();
+		for(Map.Entry<E, int[]> entry: repeatingEvents.entrySet()) {			
+			reps.put(entry.getKey().name(), entry.getValue()[0]);			
+		}
+		json.put("repeatingevents", reps);
+		return json.toString(1);
+	}
+	
 	
 	
 	/**
@@ -137,16 +178,26 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Sink<E>, Delega
 		final MBeanNotificationInfo[] infos = new MBeanNotificationInfo[eventTypes.length + 1 + repeating.size()];
 		infos[0] = new MBeanNotificationInfo(new String[]{NOTIF_PREFIX}, Notification.class.getName(), "Broadcasts any state change for event types of " + eventType.getName());
 		int i = 1;
-		for(; i < eventTypes.length; i++) {
+		for(; i <= eventTypes.length; i++) {
 			final E eType = eventTypes[i-1];
 			infos[i] = new MBeanNotificationInfo(new String[]{NOTIF_PREFIX + "." + eType.name()}, Notification.class.getName(), "Broadcasts state changes to " + eType.name());
 		}		
-		i++;
+		//i++;
 		for(E rep : repeating) {			
 			infos[i] = new MBeanNotificationInfo(new String[]{NOTIF_REPEATING_PREFIX + "." + rep.name()}, Notification.class.getName(), "Repeating status notification " + rep.name());
 			i++;
 		}
 		return infos;
+	}
+	
+	protected static String renderArr(final MBeanNotificationInfo[] infos) {
+		final StringBuilder b = new StringBuilder("[");
+		for(int i = 0; i < infos.length; i++) {
+			if(infos[i]==null) b.append(0);
+			else b.append(1);
+			b.append(",");
+		}
+		return b.deleteCharAt(b.length()-1).append("]").toString();
 	}
 	
 	@Override
@@ -171,14 +222,28 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Sink<E>, Delega
 				timestamp.set(System.currentTimeMillis());
 				context.onStateChange(this, event);
 				sendStateChangeNotification(prior, event);
+				forwards.increment();
 			} else if(repeatingEvents.containsKey(event)) {
 				timestamp.set(System.currentTimeMillis());
-				sendRepeatingStateNotification(event, getRepeatCount(event));				
+				sendRepeatingStateNotification(event, getRepeatCount(event));
+				forwards.increment();
 			}
 			
 			context.eventSunk(pipelineId, event);
+			sinks.increment();
 		}		
 		return null;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Sink#forceState(java.lang.String)
+	 */
+	@Override
+	public void forceState(final String state) {
+		final E forcedState = Enum.valueOf(eventType, state.trim().toUpperCase());
+		in(forcedState);
+		context.setAdvisory("Forced state to [" + forcedState + "]");		
 	}
 	
 	/**
@@ -420,5 +485,24 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Sink<E>, Delega
 	public long getLastStatusChange() {
 		return this.timestamp.get();
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#getForwards()
+	 */
+	@Override
+	public long getForwards() {		
+		return forwards.longValue();
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#getSinks()
+	 */
+	@Override
+	public long getSinks() {		
+		return sinks.longValue();
+	}
+	
 
 }

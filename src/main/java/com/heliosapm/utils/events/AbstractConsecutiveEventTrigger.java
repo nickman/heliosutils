@@ -26,10 +26,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.enums.Rollup;
 import com.heliosapm.utils.enums.RollupType;
 import com.heliosapm.utils.unsafe.UnsafeAdapter;
+
+import jsr166e.LongAdder;
 
 /**
  * <p>Title: AbstractConsecutiveEventTrigger</p>
@@ -77,7 +82,15 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	protected ExecutorService executor = null;
 	
 	/** The last state we sent out */
-	protected final AtomicReference<E> lastStateSent = new AtomicReference<E>(null); 
+	protected final AtomicReference<E> lastStateSent = new AtomicReference<E>(null);
+	
+	/** A count of event forwards to the next trigger in the pipeline */
+	protected final LongAdder forwards = new LongAdder();
+	/** A count of event sinks without forwarding to the next trigger in the pipeline */
+	protected final LongAdder sinks = new LongAdder();
+	
+	
+
 	
 	/**
 	 * Creates a new AbstractConsecutiveEventTrigger
@@ -193,16 +206,38 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	}
 	
 	protected boolean evalForOut(final E state) {
+		if(isResetting(state)) {
+			return evalResettingForOut(state);
+		}
 		final E prior = lastStateSent.get(); 
 		if(prior==null) {
 			out(state);
+			forwards.increment();
 			return true;
 		}
 		return false;
 	}
 	
+	protected boolean evalResettingForOut(final E state) {
+		final E prior = lastStateSent.get(); 
+		
+		if(prior==null || state.compareTo(prior) < 0) {
+			out(state);
+			forwards.increment();
+			return true;
+		}
+		return false;
+	}
+
+	
 	public void onUpstreamStateChange(final E state) {
 		final E currentState = lastStateSent.get();
+		//=================================
+		// This is a hack: FIXME
+		if("STALE".equals(state.name()) || "OFF".equals(state.name())) {
+			reset();
+		}
+		//=================================
 		if(currentState!=null) {
 			if(Rollup.DOWN==rollup) {
 				if(state.compareTo(currentState)<0) {
@@ -236,6 +271,7 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 		} else if(!isTriggering(state)) {
 			context.eventSunk(pipelineId, state);
 			context.setAdvisory("[" + getClass().getSimpleName() + "] Open Ended with state [" + state.name() + "]");
+			sinks.increment();
 			return null;
 		}
 		try {
@@ -250,9 +286,12 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 			if(mostSevere!=null) {
 				windDown(mostSevere);		
 				out(mostSevere);
+				forwards.increment();
 			} else {
 				if(!evalForOut(accepted[0])) {   // fix me: check rollup
 					context.eventSunk(pipelineId, accepted[0]);
+				} else {
+					sinks.increment();
 				}
 			}
 			return mostSevere;
@@ -309,5 +348,69 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 		}				
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#dumpState()
+	 */
+	@Override
+	public String dumpState() {
+		final JSONObject json = new JSONObject();
+		json.put("type", getClass().getSimpleName());
+		json.put("eventtype", eventType.getSimpleName());
+		json.put("started", started.get());
+		json.put("forwards", forwards.longValue());
+		json.put("sinks", sinks.longValue());
+		E e = lastStateSent.get();
+		json.put("laststatesent", e==null ? "" : e.name());		
+		json.put("pipelineid", pipelineId);
+		json.put("nextTrigger", nextTrigger==null ? "" : nextTrigger.getClass().getName());
+		json.put("rollup", rollup.name());
+		json.put("accepting", toJSONArray(BitMasked.StaticOps.membersFor(eventType, acceptMask).toArray()));
+		json.put("triggering", toJSONArray(BitMasked.StaticOps.membersFor(eventType, alertMask).toArray()));
+		json.put("resetting", toJSONArray(BitMasked.StaticOps.membersFor(eventType, resetMask).toArray()));
+		final JSONObject ctrs = new JSONObject();
+		for(Map.Entry<E, int[]> entry: counters.entrySet()) {			
+			ctrs.put(entry.getKey().name(), entry.getValue()[0]);			
+		}
+		json.put("counters", ctrs);
+		final JSONObject thr = new JSONObject();
+		for(Map.Entry<E, int[]> entry: thresholds.entrySet()) {			
+			thr.put(entry.getKey().name(), entry.getValue()[0]);
+		}
+		json.put("thresholds", thr);
+		final JSONObject rl = new JSONObject();
+		for(Map.Entry<E, E[]> entry: rollupSets.entrySet()) {			
+			rl.put(entry.getKey().name(), Arrays.toString(entry.getValue()));			
+		}
+		json.put("rollupsets", rl);
+		return json.toString(1);
+	}
+	
+	protected JSONArray toJSONArray(Object...oarr) {
+		final JSONArray arr = new JSONArray();
+		for(Object o: oarr) {
+			arr.put(o.toString());
+		}
+		return arr;
+	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#getForwards()
+	 */
+	@Override
+	public long getForwards() {		
+		return forwards.longValue();
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#getSinks()
+	 */
+	@Override
+	public long getSinks() {		
+		return sinks.longValue();
+	}
+	
+	
 }
