@@ -98,6 +98,7 @@ public interface BitMasked {
 		
 		public static <E extends Enum<E> & BitMasked> E[] toArray(final Class<E> type, final Collection<E> collection) {
 			final EnumSet<E> set = EnumSet.noneOf(type);
+			set.addAll(collection);
 			if(set.isEmpty()) return makeArr(type, 0);
 			final int size = set.size();
 			final E[] arr = makeArr(type, size);

@@ -22,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * <p>Title: StdInCommandHandler</p>
@@ -41,6 +42,9 @@ public class StdInCommandHandler implements Runnable {
 	private final Map<String, Runnable> commands = new ConcurrentHashMap<String, Runnable>();
 	/** The std in polling thread */
 	private final Thread stdInThread;
+	
+	private final AtomicReference<Runnable> unhandled = new AtomicReference<Runnable>(null);
+	private static final ThreadLocal<String> unhandledCommandName = new ThreadLocal<String>(); 
 	
 	/**
 	 * Acquires and returns the singleton StdInCommandHandler instance
@@ -126,7 +130,17 @@ public class StdInCommandHandler implements Runnable {
 					if(command==null || command.trim().isEmpty()) continue;
 					Runnable r = commands.get(command.trim().toLowerCase());
 					if(r==null) {
-						System.err.println("[StdInCommandHandler]: Unrecognized command: [" + command + "]");						
+						final Runnable unhandled = this.unhandled.get();
+						if(unhandled==null) {
+							System.err.println("[StdInCommandHandler]: Unrecognized command: [" + command + "]");
+						} else {
+							try {
+								unhandledCommandName.set(command.trim().toLowerCase());
+								unhandled.run();
+							} finally {
+								unhandledCommandName.remove();
+							}
+						}
 					} else {
 						r.run();
 					}
@@ -149,7 +163,14 @@ public class StdInCommandHandler implements Runnable {
 		}
 	}
 	
-	
+	/**
+	 * Returns the unhandled command name.
+	 * Only valid while the unhandled command callback is being run
+	 * @return the unhandled command name.
+	 */
+	public String getUnhandledCommandName() {
+		return unhandledCommandName.get();
+	}
 	/**
 	 * Installs a new command
 	 * @param command The command name
@@ -172,5 +193,14 @@ public class StdInCommandHandler implements Runnable {
 			throw new IllegalStateException("Failed to install command [" + command + "]. Command already installed");
 		}
 	}
+	
+	/**
+	 * Installs a no key command executed when the key is not found in the commands map
+	 * @param runnable The command to execute
+	 */
+	public void registerNoKeyCommand(final Runnable runnable) {
+		unhandled.set(runnable);
+	}
+	
 
 }

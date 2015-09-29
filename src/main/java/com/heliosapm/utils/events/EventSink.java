@@ -18,6 +18,10 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,15 +45,19 @@ import com.heliosapm.utils.jmx.notifcations.DelegateNotificationBroadcaster;
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.events.EventSink</code></p>
+ * @param <E> Th event type
  */
 
-public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E>, Sink<E>, DelegateNotificationBroadcaster {
+public class EventSink<E extends Enum<E> & BitMasked> implements Sink<E>, DelegateNotificationBroadcaster {
 	/** The event type tracked by this sink */
 	protected final Class<E> eventType;
 	/** The current state of this sink */
 	protected final AtomicReference<E> state = new AtomicReference<E>(null);
+	/** The prior state of this sink */
+	protected final AtomicReference<E> priorState = new AtomicReference<E>(null);
+	
 	/** The effective timestamp of the current state */
-	protected final AtomicLong timestamp = new AtomicLong();
+	protected final AtomicLong timestamp = new AtomicLong(0L);
 	/** The initial state when created and when resuming from Off */
 	protected final E initialState;
 	/** The state set to when sink is turned off */
@@ -58,6 +66,8 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	protected final AtomicBoolean started = new AtomicBoolean(false);
 	/** The pipeline context of the context that this trigger is installed into */
 	protected PipelineContext context = null;
+	/** The events that are allowed to repeat, meaning they will send a broadcast every time a matching event is received */
+	protected final EnumMap<E, int[]> repeatingEvents;
 	/** The parent notification broadcaster, injected by the pipeline */
 	protected NotificationBroadcasterSupport parentBroadcaster = null;
 	/** The sink's MBean notification descriptors */
@@ -71,11 +81,13 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	protected int pipelineId = -1;
 	/** The JMX notification type prefix */
 	public static final String NOTIF_PREFIX = "event.sink.statuschange";
+	/** The JMX repeating notification type prefix */
+	public static final String NOTIF_REPEATING_PREFIX = "event.sink.repeating";
 	
 	
 	/**
 	 * Creates a new EventSink from the passed JSON definition
-	 * @param jsonDef The json trigger definition
+	 * @param jsonConfig The json trigger definition
 	 * @return the EventSink
 	 */	
 	@SuppressWarnings("unchecked")
@@ -102,25 +114,45 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	
 	/**
 	 * Creates a new EventSink
+	 * @param eventType The event type
+	 * @param initialState The sink's initial state
+	 * @param offState The sink's off state
+	 * @param repeatingEvents An array of event types that support repeating broadcasts on a matching in
 	 */
-	public EventSink(final Class<E> eventType, final E initialState, final E offState) {		
+	public EventSink(final Class<E> eventType, final E initialState, final E offState, final E...repeatingEvents) {		
 		this.eventType = eventType;
 		this.initialState = initialState;
 		this.offState = offState;
-		infos = buildInfos(this.eventType);
+		this.repeatingEvents = new EnumMap<E, int[]>(eventType); 
+		for(E rep: repeatingEvents) {
+			this.repeatingEvents.put(rep, new int[1]);
+		}
+		infos = buildInfos(this.eventType, this.repeatingEvents.keySet());
 		state.set(initialState);
 		timestamp.set(System.currentTimeMillis());
 	}
 	
-	private static <E extends Enum<E> & BitMasked> MBeanNotificationInfo[] buildInfos(final Class<E> eventType) {
+	private static <E extends Enum<E> & BitMasked> MBeanNotificationInfo[] buildInfos(final Class<E> eventType, final Set<E> repeating) {
 		final E[] eventTypes = eventType.getEnumConstants();
-		final MBeanNotificationInfo[] infos = new MBeanNotificationInfo[eventTypes.length + 1];
+		final MBeanNotificationInfo[] infos = new MBeanNotificationInfo[eventTypes.length + 1 + repeating.size()];
 		infos[0] = new MBeanNotificationInfo(new String[]{NOTIF_PREFIX}, Notification.class.getName(), "Broadcasts any state change for event types of " + eventType.getName());
-		for(int i = 1; i < infos.length; i++) {
+		int i = 1;
+		for(; i < eventTypes.length; i++) {
 			final E eType = eventTypes[i-1];
 			infos[i] = new MBeanNotificationInfo(new String[]{NOTIF_PREFIX + "." + eType.name()}, Notification.class.getName(), "Broadcasts state changes to " + eType.name());
 		}		
+		i++;
+		for(E rep : repeating) {			
+			infos[i] = new MBeanNotificationInfo(new String[]{NOTIF_REPEATING_PREFIX + "." + rep.name()}, Notification.class.getName(), "Repeating status notification " + rep.name());
+			i++;
+		}
 		return infos;
+	}
+	
+	@Override
+	public void onUpstreamStateChange(final E state) {
+		/* I'm a sink. No one is upstream from me */
+		
 	}
 
 	/**
@@ -131,13 +163,48 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	public Void in(final E event) {
 		if(event!=null) {
 			final E prior = state.getAndSet(event);
+			priorState.set(prior);
 			if(prior!=event) {
+				if(repeatingEvents.containsKey(prior)) {
+					resetRepeatCounts();
+				}
 				timestamp.set(System.currentTimeMillis());
+				context.onStateChange(this, event);
 				sendStateChangeNotification(prior, event);
+			} else if(repeatingEvents.containsKey(event)) {
+				timestamp.set(System.currentTimeMillis());
+				sendRepeatingStateNotification(event, getRepeatCount(event));				
 			}
-			context.eventSunk(pipelineId);
+			
+			context.eventSunk(pipelineId, event);
 		}		
 		return null;
+	}
+	
+	/**
+	 * Returns the repeat count for the passed event, not including the first.
+	 * Resets all other event's repeat count to zero
+	 * @param repeating The repeating event
+	 * @return the number of repeats (1 if this is the first repeat)
+	 */
+	protected int getRepeatCount(final E repeating) {
+		final int[] count = repeatingEvents.get(repeating);
+		count[0]++;
+		for(E nonrep : repeatingEvents.keySet()) {
+			if(nonrep!=repeating) {
+				repeatingEvents.get(nonrep)[0] = 0;
+			}
+		}
+		return count[0];
+	}
+	
+	/**
+	 * Resets all repeating counts
+	 */
+	protected void resetRepeatCounts() {
+		for(E nonrep : repeatingEvents.keySet()) {
+			repeatingEvents.get(nonrep)[0] = 0;
+		}
 	}
 	
 	/**
@@ -161,6 +228,25 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 		n = new Notification(NOTIF_PREFIX + "." + to.name(), objectName, notifSerial.incrementAndGet(), t, msg);
 		n.setUserData(userMsg);
 		this.parentBroadcaster.sendNotification(n);
+	}
+	
+	/**
+	 * Sends a repeating event notification
+	 * @param event The repeated event
+	 * @param repeatCount The number of times the event has been repeated (not including the first)
+	 */
+	protected void sendRepeatingStateNotification(final E event, final int repeatCount) {
+		final long t = System.currentTimeMillis();
+		final String msg = "Repeating state change for [" + event + "]:" + repeatCount;
+		final JSONObject repeat = new JSONObject();
+		final JSONObject body = new JSONObject();
+		repeat.put("event", event.name());
+		repeat.put("time", System.currentTimeMillis());
+		body.put("repeatstate", repeat);
+		final String userMsg = body.toString();
+		Notification n = new Notification(NOTIF_REPEATING_PREFIX + "." + event.name(), objectName, notifSerial.incrementAndGet(), t, msg);
+		n.setUserData(userMsg);
+		this.parentBroadcaster.sendNotification(n);		
 	}
 
 	/**
@@ -315,6 +401,24 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Trigger<Void, E
 	@Override
 	public E getState() {
 		return state.get();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Sink#getPriorState()
+	 */
+	@Override
+	public E getPriorState() {
+		return priorState.get();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Sink#getLastStatusChange()
+	 */
+	@Override
+	public long getLastStatusChange() {
+		return this.timestamp.get();
 	}
 
 }

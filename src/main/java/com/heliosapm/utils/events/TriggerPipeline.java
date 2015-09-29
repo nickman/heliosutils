@@ -19,6 +19,7 @@ under the License.
 package com.heliosapm.utils.events;
 
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -27,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import javax.management.ListenerNotFoundException;
@@ -38,7 +40,6 @@ import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
 
-import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 import com.heliosapm.utils.jmx.notifcations.DelegateNotificationBroadcaster;
@@ -73,9 +74,11 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	/** Flag to indicate if this pipeline is started */
 	protected final AtomicBoolean started = new AtomicBoolean(false);
 	/** The sink state source */
-	protected Sink<E> stateSink;
+	protected Sink<?> stateSink;
 	/** Mini graphic displaying the flow of the pipeline */
 	protected final String flow;
+	/** The last advisory message */
+	protected final AtomicReference<String> advisory = new AtomicReference<String>("None");
 	
 	/** Instance logger */
 	protected final Logger log = Logger.getLogger(getClass().getName());
@@ -85,11 +88,14 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	public static final String NOTIF_STARTED = NOTIF_PREFIX + ".started";
 	/** The JMX notification type for pipeline stopped */
 	public static final String NOTIF_STOPPED = NOTIF_PREFIX + ".stopped";
+	/** The JMX notification type for a pipeline advisory message */
+	public static final String NOTIF_ADVISORY = NOTIF_PREFIX + ".advisory";
 	
 	
 	private static final MBeanNotificationInfo[] NOTIF_INFOS = new MBeanNotificationInfo[]{
 		new MBeanNotificationInfo(new String[]{NOTIF_STARTED}, Notification.class.getName(), "Notification issued when the pipeline starts"),
-		new MBeanNotificationInfo(new String[]{NOTIF_STOPPED}, Notification.class.getName(), "Notification issued when the pipeline stops")
+		new MBeanNotificationInfo(new String[]{NOTIF_STOPPED}, Notification.class.getName(), "Notification issued when the pipeline stops"),
+		new MBeanNotificationInfo(new String[]{NOTIF_ADVISORY}, Notification.class.getName(), "Notification issued for a pipeline advisory")
 	};
 	
 	/**
@@ -102,7 +108,7 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 		this.pipelineExecutor = pipelineExecutor;
 		starter = pipeline.getFirst();
 		sink = (Trigger<Void, R>) pipeline.getLast();
-		stateSink = (Sink<E>)sink;
+		stateSink = (Sink<?>)sink;
 		final Iterator<Trigger<R,E>> ascIter = this.pipeline.iterator();
 		int index = 0;
 		Trigger<R,E> priorTrigger = null;
@@ -132,6 +138,31 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 		flow = b.toString();
 		JMXHelper.registerMBean(this, this.objectName);
 		
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.TriggerPipelineMBean#getAdvisory()
+	 */
+	@Override
+	public String getAdvisory() {
+		return this.advisory.get();
+	}
+	
+	public Trigger<Void, R> getSink() {
+		return sink;
+	}
+	
+	/**
+	 * Sets an advisory message
+	 * @param message an advisory message
+	 */
+	public void setAdvisory(final String message) {
+		if(message==null || message.trim().isEmpty()) throw new IllegalArgumentException("The passed message was empty or null");
+		final String prior = advisory.getAndSet(message.trim());
+		if(!message.equals(prior)) {
+			notificationBroadcaster.sendNotification(new Notification(NOTIF_ADVISORY, objectName, notifSerial.incrementAndGet(), System.currentTimeMillis(), message));
+		}
 	}
 	
 	/**
@@ -184,14 +215,30 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	}
 	
 	@Override
-	public void eventSunk(final int triggerId) {
-		log.info("Event Sunk by [" + triggerId + "]");		
+	public void eventSunk(final int triggerId, final Object event) {
+		log.info("Event Sunk by [" + triggerId + "] --> [" + event + "]");		
 	}
 	
 	public void in(final E e) {
 		starter.in(e);
 	}
-
+	
+	@Override
+	public void onStateChange(final Trigger sender, final Object e) {
+		if(sender==sink) {
+			for(Iterator<Trigger<R,E>> iter = pipeline.descendingIterator(); iter.hasNext();) {
+				final Trigger<R,E> t = iter.next();
+				if(t!=sink) {
+					try {
+						t.onUpstreamStateChange((E) e);
+					} catch (Exception x) {
+						/* No Op */
+					}
+				}
+			}
+		}		
+	}
+	
 	@Override
 	public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {
 		notificationBroadcaster.addNotificationListener(listener, filter, handback);
@@ -215,16 +262,40 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationBroad
 	}
 
 	public E getState() {
-		final E e = stateSink.getState();
+		final E e = (E) stateSink.getState();
 		return e;
 	}
 	
 	public String getStateName() {
-		final E e = stateSink.getState();
+		final E e = (E) stateSink.getState();
 		return e==null ? null : e.toString();
 	}
 	
 	public ObjectName getObjectName() {
 		return objectName;
 	}
+
+	public E getPriorState(){
+		return (E) stateSink.getPriorState();
+	}
+
+	public String getPriorStateName(){
+		final E e = (E) stateSink.getPriorState();
+		return e==null ? null : e.toString();
+	}
+
+	/**
+	 * @return
+	 * @see com.heliosapm.utils.events.Sink#getLastStatusChange()
+	 */
+	public long getLastStatusChange() {
+		return stateSink.getLastStatusChange();
+	}
+	
+	public Date getLastStatusChangeDate() {
+		final long t = stateSink.getLastStatusChange();
+		if(t==0L) return null;
+		return new Date(stateSink.getLastStatusChange());
+	}
+	
 }

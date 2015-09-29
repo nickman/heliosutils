@@ -32,8 +32,14 @@ import javax.management.ObjectName;
 
 public interface PipelineContext<E> {
 	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId);
+	public void eventSunk(final int triggerId, final Object event);
 	public ObjectName getObjectName();
 	public E getState();
-	
+	/**
+	 * Sets an advisory message
+	 * @param an advisory message
+	 */
+	public void setAdvisory(final String message);
+	public void onStateChange(final Trigger<?,E> sender, final E e);
+	public Trigger<Void, E> getSink();
 }

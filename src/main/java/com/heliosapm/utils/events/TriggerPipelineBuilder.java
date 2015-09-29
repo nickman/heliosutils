@@ -23,8 +23,6 @@ import java.util.LinkedList;
 
 import javax.management.ObjectName;
 
-import org.json.JSONObject;
-
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
 
@@ -55,6 +53,7 @@ public class TriggerPipelineBuilder<R, E> {
 	/** Indicates the pipeline builder has a sink */
 	protected boolean hasSink = false;
 	
+	/** The pipeline's ObjectName */
 	protected final ObjectName objectName;
 	
 	

@@ -41,6 +41,7 @@ public interface Trigger<R, E> {
 	public Class<R> getReturnType();
 	public Class<E> getInputType();
 	public void setPipelineContext(final PipelineContext context, final int myId);
+	public void onUpstreamStateChange(final E state);
 	
 
 }

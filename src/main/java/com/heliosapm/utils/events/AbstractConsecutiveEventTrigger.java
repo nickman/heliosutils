@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.enums.Rollup;
@@ -74,6 +75,9 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	protected PipelineContext context = null;
 	/** The pipeline thread pool for async triggers */
 	protected ExecutorService executor = null;
+	
+	/** The last state we sent out */
+	protected final AtomicReference<E> lastStateSent = new AtomicReference<E>(null); 
 	
 	/**
 	 * Creates a new AbstractConsecutiveEventTrigger
@@ -156,6 +160,7 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	
 	@Override
 	public void out(final E result) {
+		final E prior = lastStateSent.getAndSet(result);
 		if(nextTrigger != null) {
 			nextTrigger.in(result);
 		}		
@@ -186,6 +191,30 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 		if(triggered.isEmpty()) return null;
 		return rollup==Rollup.UP ? triggered.first() : triggered.last();
 	}
+	
+	protected boolean evalForOut(final E state) {
+		final E prior = lastStateSent.get(); 
+		if(prior==null) {
+			out(state);
+			return true;
+		}
+		return false;
+	}
+	
+	public void onUpstreamStateChange(final E state) {
+		final E currentState = lastStateSent.get();
+		if(currentState!=null) {
+			if(Rollup.DOWN==rollup) {
+				if(state.compareTo(currentState)<0) {
+					lastStateSent.set(null);
+				}
+			} else {
+				if(state.compareTo(currentState)>0) {
+					lastStateSent.set(null);
+				}				
+			}						
+		}
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -199,13 +228,14 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 			try {
 				lock.xlock(true);
 				reset();
-				return null;
+				evalForOut(state);
+				return state;
 			} finally {
-				lock.xunlock();
-				context.eventSunk(pipelineId);
+				lock.xunlock();				
 			}
 		} else if(!isTriggering(state)) {
-			// ????  Should not happen
+			context.eventSunk(pipelineId, state);
+			context.setAdvisory("[" + getClass().getSimpleName() + "] Open Ended with state [" + state.name() + "]");
 			return null;
 		}
 		try {
@@ -221,7 +251,9 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 				windDown(mostSevere);		
 				out(mostSevere);
 			} else {
-				context.eventSunk(pipelineId);
+				if(!evalForOut(accepted[0])) {   // fix me: check rollup
+					context.eventSunk(pipelineId, accepted[0]);
+				}
 			}
 			return mostSevere;
 		} finally {

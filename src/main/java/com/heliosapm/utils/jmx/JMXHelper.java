@@ -55,6 +55,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -110,6 +111,8 @@ public class JMXHelper {
 	public static final String JMX_DOMAIN_DEFAULT = System.getProperty(JMX_DOMAIN_PROPERTY, ManagementFactory.getPlatformMBeanServer().getDefaultDomain());
 	/** Regex WildCard Support Pattern for ObjectName key values */
 	public static final Pattern OBJECT_NAME_KP_WILDCARD = Pattern.compile("[:|,](\\S+?)~=\\[(\\S+?)\\]");
+	/** Static class logger */
+	private static final Logger log = Logger.getLogger(JMXHelper.class.getName());
 	
 	/** The MBeanInfo changed notification type */
 	public static final String MBEAN_INFO_CHANGED = "jmx.mbean.info.changed";
@@ -2399,6 +2402,31 @@ while(m.find()) {
 			throw new RuntimeException("Failed to start JMXServer on [" + serviceURL + "]", e);
 		}
 	}
+	
+	/**
+	 * Creates and starts a JMXMP ConnectorServer
+	 * @param bindInterface The interface to bind to
+	 * @param port The JMXMP listening port
+	 * @param server The MBeanServer to expose
+	 */
+	public static void fireUpJMXMPServer(final String bindInterface, final int port, final MBeanServer server) {
+		try {
+			final JMXServiceURL surl = new JMXServiceURL("jmxmp", bindInterface, port);
+			final JMXConnectorServer jmxServer = JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
+			final Thread t = new Thread("JMXMPServerStarter[" + surl + "]") {
+				public void run() {
+					try { jmxServer.start(); log.info("Started JMXMPServer on [" + surl + "]"); } catch (Exception ex) {
+						ex.printStackTrace(System.err);
+					}
+				}
+			};
+			t.setDaemon(true);
+			t.start();
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to start JMXServer on [" + bindInterface + ":" + port + "]", e);
+		}
+	}
+	
 	
 	
 	/**

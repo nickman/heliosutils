@@ -48,7 +48,8 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	protected final E decayedState;
 	/** The initial state */
 	protected final E initialState;
-	
+	/** The pipeline sink */
+	protected Trigger<Void, E> sink = null;
 	/** The current state */
 	protected final AtomicReference<E> state = new AtomicReference<E>();
 	/** The decay timer */
@@ -115,7 +116,8 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	 * @param eventType The type of the event being decayed
 	 * @param period The decay period, i.e. if no events are received within this period of time, the state will change to {@code stateToSet}
 	 * @param unit The unit of the period
-	 * @param stateToSet The event to forward if this trigger decays
+	 * @param initialState The initial state of the trigger
+	 * @param decayedState The state to set on a decay event
 	 */
 	public TimedDecayEventTrigger(final Class<E> eventType, final long period, final TimeUnit unit,  final E initialState, final E decayedState) {
 		this.eventType = eventType;
@@ -141,27 +143,37 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements Tr
 	public void setPipelineContext(final PipelineContext context, final int pipelineId) {
 		this.context = context;		
 		this.pipelineId = pipelineId;
+		this.sink = context.getSink();
 	}
 	
-
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#onUpstreamStateChange(java.lang.Object)
+	 */
+	@Override
+	public void onUpstreamStateChange(final E state) {
+		/* No Op */
+	}
+	
+	/**
+	 * <p>ALWAYS forwards</p>
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.Trigger#in(java.lang.Object)
+	 */
 	@Override
 	public E in(final E event) {
 		if(event==null || !started.get()) return null;
-		final E prior = state.getAndSet(decayedState);
-		if(prior!=null && prior!=decayedState && event==decayedState) {
-			out(decayedState);
-			return decayedState;
-		} else {
+		if(event!=decayedState) {
 			reset();
-			context.eventSunk(pipelineId);
-			return null;
 		}
+		out(event);
+		return event;
 	}
 	
 	public void run() {
 		final E prior = state.get();
-		if(prior!=null && prior!=decayedState) {
-			in(decayedState);
+		if(prior!=decayedState) {
+			sink.in(decayedState);
 		} else {
 			reset();
 		}

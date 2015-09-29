@@ -18,6 +18,8 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
+import com.heliosapm.utils.enums.BitMasked;
+
 /**
  * <p>Title: Sink</p>
  * <p>Description: </p> 
@@ -26,6 +28,21 @@ package com.heliosapm.utils.events;
  * <p><code>com.heliosapm.utils.events.Sink</code></p>
  */
 
-public interface Sink<E> {
+public interface Sink<E extends Enum<E> & BitMasked> extends Trigger<Void, E> {
+	/**
+	 * Returns the current state
+	 * @return the current state
+	 */
 	public E getState();
+	/**
+	 * Returns the prior state
+	 * @return the prior state
+	 */
+	public E getPriorState();
+	/**
+	 * Returns the timestamp in ms. of the last status change
+	 * @return the timestamp in ms. of the last status change
+	 */
+	public long getLastStatusChange();
+	
 }

@@ -18,30 +18,26 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.util.Date;
-
-import javax.management.ObjectName;
+import com.heliosapm.utils.enums.BitMasked;
 
 /**
- * <p>Title: TriggerPipelineMBean</p>
- * <p>Description: JMX MBean interface for {@link TriggerPipeline} instances </p> 
+ * <p>Title: LastStateTimestamped</p>
+ * <p>Description: Defines a trigger that provides the prior state and the timestamp of the last status change. Usually for sinks.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.TriggerPipelineMBean</code></p>
+ * <p><code>com.heliosapm.utils.events.LastStateTimestamped</code></p>
+ * @param <E> The event type
  */
 
-public interface TriggerPipelineMBean {
-	public boolean isStarted();
-	public void start();
-	public void stop();
-	public void unregister();
-	public String getStateName();
-	public ObjectName getObjectName();
-	public String getFlow();
-	public String getAdvisory();
-	public String getPriorStateName();
-	public long getLastStatusChange();	
-	public Date getLastStatusChangeDate();
-	
-	
+public interface LastStateTimestamped<E extends Enum<E> & BitMasked> extends Trigger<Void, E> {
+	/**
+	 * Returns the prior state
+	 * @return the prior state
+	 */
+	public E getPriorState();
+	/**
+	 * Returns the timestamp in ms. of the last status change
+	 * @return the timestamp in ms. of the last status change
+	 */
+	public long getLastStatusChange();
 }
