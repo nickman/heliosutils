@@ -37,8 +37,10 @@ public class TokenAwareProperties extends Properties {
 	/**  */
 	private static final long serialVersionUID = 3007418806375074091L;
 	
+	/** The prefix for a token */
 	public static final String S_PREF = "${";
-	public static final Pattern P_PREF = Pattern.compile("\\$\\{(.*?)\\}");
+	/** The regex pattern to match a token */
+	public static final Pattern P_PREF = Pattern.compile("\\$\\{(.*?)(?::(.*?))?\\}");
 	
 	/**
 	 * Creates a new TokenAwareProperties
@@ -64,14 +66,32 @@ public class TokenAwareProperties extends Properties {
 	}
 	
 	public static String token(final String v) {
+		return token(v, true);
+	}
+	
+	/**
+	 * Replaces <b><code>${}</code></b> tokens in the passed string, replacing them with the named
+	 * system property, otherwise environmental variable with <b><code>.</code></b> (dots) replaced
+	 * with <b><code>_</code></b> (underscores) and uppercased. Otherwise, the embedded default is used if present.
+	 * @param v The string to detokenize
+	 * @param blankOnUnResolved If true, unresolved tokens are replaced with a blank string
+	 * @return the detokenized string
+	 */
+	public static String token(final String v, final boolean blankOnUnResolved) {
 		if(v==null) return v;
 		if(v.indexOf(S_PREF)!=-1) {
 			final StringBuffer b = new StringBuffer();
 			final Matcher m = P_PREF.matcher(v.trim());
 			while(m.find()) {
 				final String token = m.group(1).trim();
-				final String tokenValue = ConfigurationHelper.getSystemThenEnvProperty(token, "");
-				m.appendReplacement(b, tokenValue);
+				String def = m.group(2);
+				if(def!=null) def = def.trim();
+				final String tokenValue = ConfigurationHelper.getSystemThenEnvProperty(token, def);
+				if(tokenValue!=null) {
+					m.appendReplacement(b, tokenValue);
+				} else if(blankOnUnResolved) {
+					m.appendReplacement(b, "");
+				}
 			}
 			m.appendTail(b);
 			return b.toString();
@@ -79,10 +99,6 @@ public class TokenAwareProperties extends Properties {
 		return v;		
 	}
 	
-	@Override
-	public String getProperty(final String key) {
-		return getProperty(key, null);
-	}
 	
   public synchronized String toString() {
     int max = size() - 1;
