@@ -352,6 +352,8 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 		return (ReferenceQueue<T>) refQueue;
 	}
 	
+	
+	
 	/**
 	 * Creates a new reference of the type defined in the passed refType
 	 * @param refType The type of reference to create

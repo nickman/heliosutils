@@ -79,12 +79,7 @@ public class NVP<K,V> {
 	}
 	
 	
-	/**
-	 * {@inheritDoc}
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
+	public String dump() {
 		final StringBuilder b = new StringBuilder(getClass().getSimpleName()).append(" [");
 		b.append(" key: ");
 		if(key!=null) {
@@ -102,4 +97,29 @@ public class NVP<K,V> {
 		return b.toString();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		final StringBuilder b = new StringBuilder(" [key:(");
+		if(key!=null) {
+			b.append(key).append("), ");
+		}else {
+			b.append("null), ");
+		}
+		
+		b.append("value:(");
+		if(value!=null) {
+			b.append(value).append(")");
+		}
+		else {
+			b.append("null)");
+		}
+		b.append("]");
+		return b.toString();
+	}
+	
+	
 }
