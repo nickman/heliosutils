@@ -35,6 +35,8 @@ public interface ReferenceServiceMXBean {
 	 */
 	public long getQueueDepth();
 	
+	public int getMappedRefCount();
+	
 	/**
 	 * Returns the total number of cleared reference executions since the last reset
 	 * @return the total number of cleared reference executions

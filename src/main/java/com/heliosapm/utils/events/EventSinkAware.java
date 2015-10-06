@@ -18,33 +18,23 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.util.concurrent.ExecutorService;
-
 import javax.management.ObjectName;
 
+import com.heliosapm.utils.enums.BitMasked;
+
 /**
- * <p>Title: PipelineContext</p>
- * <p>Description: </p> 
+ * <p>Title: EventSinkAware</p>
+ * <p>Description: Marks a class as a target for being notified of sunk events in the sink</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.PipelineContext</code></p>
+ * <p><code>com.heliosapm.utils.events.EventSinkAware</code></p>
  */
 
-public interface PipelineContext<E> {
-	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId, final Object event);
-	public ObjectName getObjectName();
-	public E getState();
+public interface EventSinkAware<E extends Enum<E> & BitMasked> {
 	/**
-	 * Sets an advisory message
-	 * @param an advisory message
+	 * Passes a sunk event
+	 * @param objectName The object name of the pipeline
+	 * @param event The sunk event
 	 */
-	public void setAdvisory(final String message);
-	public void onStateChange(final Trigger<?,E> sender, final E e);
-	public Trigger<Void, E> getSink();
-	
-	/**
-	 * Allows a context caller to start the pipeline if it's not started when it receives the first input
-	 */
-	public void start();
+	public void onSunkEvent(final ObjectName objectName, final E event);
 }

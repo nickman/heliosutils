@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.management.ListenerNotFoundException;
@@ -225,7 +226,7 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitt
 	
 	@Override
 	public void eventSunk(final int triggerId, final Object event) {
-		log.info("Event Sunk by [" + triggerId + "] --> [" + event + "]");		
+		if(log.isLoggable(Level.FINE)) log.log(Level.FINE, "Event Sunk by [" + triggerId + "] --> [" + event + "]");		
 	}
 	
 	public void in(final E e) {

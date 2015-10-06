@@ -18,7 +18,6 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.Map;

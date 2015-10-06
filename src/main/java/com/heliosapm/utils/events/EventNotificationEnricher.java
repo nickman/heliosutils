@@ -18,33 +18,27 @@ under the License.
  */
 package com.heliosapm.utils.events;
 
-import java.util.concurrent.ExecutorService;
-
 import javax.management.ObjectName;
 
+import org.json.JSONObject;
+
+import com.heliosapm.utils.enums.BitMasked;
+
 /**
- * <p>Title: PipelineContext</p>
- * <p>Description: </p> 
+ * <p>Title: EventNotificationEnricher</p>
+ * <p>Description: Defines a class that can enrich the JSON emitted on a sunk event notification</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.events.PipelineContext</code></p>
+ * <p><code>com.heliosapm.utils.events.EventNotificationEnricher</code></p>
  */
 
-public interface PipelineContext<E> {
-	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId, final Object event);
-	public ObjectName getObjectName();
-	public E getState();
+public interface EventNotificationEnricher<E extends Enum<E> & BitMasked> {
 	/**
-	 * Sets an advisory message
-	 * @param an advisory message
+	 * Passes a sunk event and the current notification JSON
+	 * @param objectName The object name of the pipeline
+	 * @param event The sunk event
+	 * @param notification The notification JSON to enrich
 	 */
-	public void setAdvisory(final String message);
-	public void onStateChange(final Trigger<?,E> sender, final E e);
-	public Trigger<Void, E> getSink();
-	
-	/**
-	 * Allows a context caller to start the pipeline if it's not started when it receives the first input
-	 */
-	public void start();
+	public void onSunkEvent(final ObjectName objectName, final E event, final JSONObject notification);
+
 }

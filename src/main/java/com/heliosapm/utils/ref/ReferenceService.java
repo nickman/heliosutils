@@ -27,7 +27,7 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeType;
@@ -35,13 +35,13 @@ import javax.management.openmbean.OpenType;
 import javax.management.openmbean.SimpleType;
 import javax.management.openmbean.TabularType;
 
-import jsr166e.LongAdder;
-
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
 import com.heliosapm.utils.unsafe.collections.ConcurrentLongSlidingWindow;
+
+import jsr166e.LongAdder;
 
 /**
  * <p>Title: ReferenceService</p>
@@ -56,6 +56,9 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	private static volatile ReferenceService instance = null;
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
+	
+	
+	private final ConcurrentHashMap<Integer, Reference<?>> refs = new ConcurrentHashMap<Integer, Reference<?>>(); 
 	
 	/** The ref queue cleaner thread */
 	private final Thread refQueueThread;
@@ -384,8 +387,17 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 * @return the reference
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> WeakReference<T> newWeakReference(T referent, Runnable onEnqueueTask) {
-		return (WeakReference<T>) new WeakReferenceWrapper(referent, onEnqueueTask);
+	public <T> WeakReference<T> newWeakReference(final T referent, final Runnable onEnqueueTask) {
+		final int sysId = System.identityHashCode(referent);
+		final WeakReference<T> wref = (WeakReference<T>)new WeakReferenceWrapper(referent, new Runnable(){
+			public void run() {
+				refs.remove(sysId);
+				onEnqueueTask.run();
+			}
+		});
+		refs.put(sysId, wref);
+		//refs
+		return wref;
 	}
 	
 	/**
@@ -569,6 +581,10 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
     @Override
     public long getCount() {
     	return clearedRefCount.longValue();
+    }
+    
+    public int getMappedRefCount() {
+    	return refs.size();
     }
 
     /**
