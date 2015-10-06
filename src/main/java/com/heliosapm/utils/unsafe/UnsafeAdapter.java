@@ -39,6 +39,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.lang.StringHelper;
@@ -56,8 +57,10 @@ import sun.misc.Unsafe;
  */
 
 public class UnsafeAdapter {
+	/** Static class logger */
+	private static final Logger log = Logger.getLogger(UnsafeAdapter.class.getName());
   /** The unsafe instance */    
-public static final Unsafe UNSAFE;
+	public static final Unsafe UNSAFE;
   /** The address size */
   public static final int ADDRESS_SIZE;
   /** Byte array offset */
@@ -147,7 +150,7 @@ private static final AtomicLong totalAlignmentOverhead;
  * @param args The message arguments
  */
 public static void log(String fmt, Object...args) {
-	System.out.println("[UnsafeAdapter]" + String.format(fmt, args));
+	log.finer(String.format(fmt, args));	
 }
   
   private UnsafeAdapter() {

@@ -164,6 +164,21 @@ public interface BitMasked {
 			return arr;
 		}
 		
+		public static <E extends Enum<E>> E[] makeArr(final Class<E> type, final String...memberNames) {
+			if(memberNames.length==0) return makeArr(type, 0);
+			final E[] arr = makeArr(type, memberNames.length);
+			for(int i = 0; i < memberNames.length; i++) {				
+				arr[i] = Enum.valueOf(type, memberNames[i].trim().toUpperCase());				
+			}
+			Arrays.sort(arr);
+			return arr;
+		}
+		
+		public static <E extends Enum<E>> E[] makeArr(final Class<E> type, final Collection<String> memberNames) {
+			return makeArr(type, memberNames.toArray(new String[memberNames.size()]));
+		}
+		
+		
 		public static <E extends Enum<E>> E[] makeArr(final Class<E> type, final int length) {
 			return (E[]) Array.newInstance(type, length);
 		}
