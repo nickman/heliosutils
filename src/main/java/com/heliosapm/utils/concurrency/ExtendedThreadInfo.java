@@ -18,10 +18,18 @@ under the License.
  */
 package com.heliosapm.utils.concurrency;
 
+import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.lang.Thread.State;
 import java.lang.management.LockInfo;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
+
+import javax.management.openmbean.CompositeData;
+import javax.management.openmbean.OpenType;
+
+import com.sun.jmx.mbeanserver.MXBeanMapping;
+import com.sun.jmx.mbeanserver.MXBeanMappingFactory;
 
 /**
  * <p>Title: ExtendedThreadInfo</p>
@@ -31,7 +39,7 @@ import java.lang.management.ThreadInfo;
  * <p><code>com.heliosapm.utils.concurrency.ExtendedThreadInfo</code></p>
  */
 
-public class ExtendedThreadInfo implements ExtendedThreadInfoMBean {
+public class ExtendedThreadInfo implements ExtendedThreadInfoMBean, Serializable {
 	/** The wrapped thread info */
 	private final ThreadInfo delegate;
 	
@@ -40,12 +48,47 @@ public class ExtendedThreadInfo implements ExtendedThreadInfoMBean {
 	 * @param infos The array of {@link ThreadInfo}s to wrap
 	 * @return an array of ExtendedThreadInfos
 	 */
-	public static ExtendedThreadInfo[] wrapThreadInfos(ThreadInfo...infos) {
-		ExtendedThreadInfo[] xinfos = new ExtendedThreadInfo[infos.length];
-		for(int i = 0; i < infos.length; i++) {
-			xinfos[i] = new ExtendedThreadInfo(infos[i]);
+	public static CompositeData[] wrapThreadInfos(ThreadInfo...infos) {
+		try {
+			CompositeData[] xinfos = new CompositeData[infos.length];
+			for(int i = 0; i < infos.length; i++) {
+				xinfos[i] = (CompositeData) mapping.toOpenValue(new ExtendedThreadInfo(infos[i]));
+			}
+			return xinfos;
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
 		}
-		return xinfos;
+	}
+	
+	
+	private static final com.sun.jmx.mbeanserver.MXBeanMappingFactory factory = MXBeanMappingFactory.DEFAULT;
+	private static final OpenType ot;
+	private static final MXBeanMapping mapping;
+	
+	static {
+		OpenType o = null;
+		MXBeanMapping m = null;
+		
+		try {
+			m = factory.mappingForType(ExtendedThreadInfo.class, factory);
+			o = m.getOpenType();
+		 } catch (Exception ex) {
+			 ex.printStackTrace(System.err);
+			 m = null;
+			 o = null;
+		 }
+		ot = o;
+		mapping = m;
+	}
+	
+	Object writeReplace() throws ObjectStreamException {
+		try {
+			return mapping.toOpenValue(this);
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
+		
+		
 	}
 	
 	/**

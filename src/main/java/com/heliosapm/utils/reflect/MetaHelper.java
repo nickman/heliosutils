@@ -19,7 +19,7 @@ under the License.
 package com.heliosapm.utils.reflect;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Member;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,6 +64,57 @@ public class MetaHelper {
 		}
 		return matchingMethods.values().toArray(new Method[matchingMethods.size()]);
 	}
+	
+	private static final Method[] EMPTY_METHOD_ARR = {};
+	private static final Class<?>[] EMPTY_CLASS_ARR = {};
+	
+	/**
+	 * Finds the named method on the target class
+	 * @param target The class to find the method on
+	 * @param methodName The method name
+	 * @param signature The method signature
+	 * @param modifiers Modifiers which must all evaluate true
+	 * @return the located method or null
+	 */
+	public static Method findNamedMethod(final Class<?> target, final String methodName, final Class<?>[] signature, final SModifier...modifiers) {
+		if(target==null) throw new IllegalArgumentException("The passed target was null");
+		if(methodName==null || methodName.trim().isEmpty()) throw new IllegalArgumentException("The passed method name was null or empty");
+		final String mname = methodName.trim();
+		final Class<?>[] classArr = signature==null ? EMPTY_CLASS_ARR : signature;		
+		try {
+			Method x = target.getDeclaredMethod(mname, classArr);
+			if(x!=null && SModifier.isEnabledForAll(x, modifiers)) return x;
+		} catch (NoSuchMethodException e) {
+			try {
+				Method x = target.getMethod(mname, classArr);
+				if(x!=null && SModifier.isEnabledForAll(x, modifiers)) return x;
+			} catch (NoSuchMethodException e2) {/* No Op */}
+		}
+		return null;
+	}
+	
+	/**
+	 * Finds the named constructor on the target class
+	 * @param target The class to find the method on
+	 * @param signature The ctor signature
+	 * @param modifiers Modifiers which must all evaluate true
+	 * @return the located ctor or null
+	 */
+	public static <T> Constructor<T> findConstructor(final Class<T> target, final Class<?>[] signature, final SModifier...modifiers) {
+		if(target==null) throw new IllegalArgumentException("The passed target was null");
+		final Class<?>[] classArr = signature==null ? EMPTY_CLASS_ARR : signature;		
+		try {
+			Constructor<T> x = target.getDeclaredConstructor(classArr);
+			if(x!=null && SModifier.isEnabledForAll(x, modifiers)) return x;
+		} catch (NoSuchMethodException e) {
+			try {
+				Constructor<T> x = target.getConstructor(classArr);
+				if(x!=null && SModifier.isEnabledForAll(x, modifiers)) return x;
+			} catch (NoSuchMethodException e2) {/* No Op */}
+		}
+		return null;
+	}
+	
 	
 	
 	public MetaHelper() {}

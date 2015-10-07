@@ -107,15 +107,7 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 					final ObjectName loaderObjectName = JMXHelper.objectName(OBJECT_NAME + loader.name);
 					loader.objectName = loaderObjectName;
 					MBeanProxy.register(ReferenceType.WEAK, loaderObjectName, HeliosURLClassLoaderMBean.class, loader);
-					loaders.put(key, ReferenceService.getInstance().newWeakReference(loader, new Runnable(){
-						@Override
-						public void run() {
-							try { JMXHelper.unregisterMBean(loaderObjectName); } catch (Exception ex) {/* No Op */}
-							loaders.remove(name);
-							cleared.increment();							
-							System.err.println("HeliosURLClassLoader[" + name + "] was garbage collected");
-						}
-					})); 
+					loaders.put(key, ReferenceService.getInstance().newWeakReference(loader, weakRefTask(loaderObjectName, name)));
 							//new HeliosURLClassLoaderWeakReference(loader.getName(), loader));
 					return;
 				}
@@ -124,6 +116,18 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 		throw new IllegalArgumentException("The name [" + key + "] is already registered");
 	}
 	
+	
+	private static final Runnable weakRefTask(final ObjectName loaderObjectName, final String name) {
+		return new Runnable() {
+			@Override
+			public void run() {
+				try { JMXHelper.unregisterMBean(loaderObjectName); } catch (Exception ex) {/* No Op */}
+				loaders.remove(name);
+				cleared.increment();							
+				System.err.println("HeliosURLClassLoader[" + name + "] was garbage collected");
+			}			
+		};
+	}
 	
 	/**
 	 * Unloads this classloader, hopefully making it elligible for GC.

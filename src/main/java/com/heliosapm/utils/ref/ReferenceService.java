@@ -24,13 +24,13 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import javax.management.ObjectName;
@@ -39,8 +39,6 @@ import javax.management.openmbean.OpenType;
 import javax.management.openmbean.SimpleType;
 import javax.management.openmbean.TabularType;
 
-import jsr166e.LongAdder;
-
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
@@ -48,6 +46,8 @@ import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
 import com.heliosapm.utils.time.SystemClock;
 import com.heliosapm.utils.unsafe.collections.ConcurrentLongSlidingWindow;
+
+import jsr166e.LongAdder;
 
 /**
  * <p>Title: ReferenceService</p>
@@ -73,7 +73,13 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	private final NonBlockingHashMapLong<WeakReference<?>> weakRefs = new NonBlockingHashMapLong<WeakReference<?>>();
 	/** Registered phantom references keyed by the system identity hash code of the referent */
 	private final NonBlockingHashMapLong<PhantomReference<?>> phantomRefs = new NonBlockingHashMapLong<PhantomReference<?>>();
-	
+	/** Id serial generator for soft references */
+	private static final AtomicLong softRefIdSerial = new AtomicLong(0);
+	/** Id serial generator for weak references */
+	private static final AtomicLong weakRefIdSerial = new AtomicLong(0);
+	/** Id serial generator for phantom references */
+	private static final AtomicLong phantomRefIdSerial = new AtomicLong(0);
+
 	/** The ref queue cleaner thread */
 	private final Thread refQueueThread;
 	/** A thread pool to run the ref cleaner runnables */
@@ -234,32 +240,46 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	}
 	
 	static class Foo {
-		Foo() {
-			getInstance().newPhantomReference(this, new Runnable(){
-				public void run() {
-					System.out.println("He's gone");
-				}
-			});
+		Foo(final boolean ext) {
+			if(ext) {
+				getInstance().newPhantomReference(this, task(System.identityHashCode(this)));
+			} else {
+				getInstance().newPhantomReference(this, new Runnable(){
+					public void run() {
+						System.out.println("He's gone [Internal]");
+					}
+				});				
+			}
 		}
+		private static Runnable task(final int i) {
+			return new Runnable() {
+				public void run() {
+					System.out.println("He's gone [External2]:" + i);
+				}
+			};
+		}
+		private static final Runnable r = new Runnable() {
+			public void run() {
+				System.out.println("He's gone [External]");
+			}
+		};
 	}
 	
 	public static void main(String[] args) {
 		getInstance();
-		Foo foo = new Foo();
-		instance.newPhantomReference(foo, new Runnable(){
-			public void run() {
-				System.out.println("He's gone");
-			}
-		});
-		
-		log("Registered");
-		foo = null;
-		SystemClock.sleep(1000);
-		log("GC");
-		System.gc();
-		SystemClock.sleep(1000);
-		log("GC");
-		System.gc();
+		for(int i = 0; i < 10; i++) {
+			Foo foo = new Foo(true);
+			Foo foo2 = new Foo(false);
+//			log("Registered");
+			foo = null;
+			foo2 = null;
+			SystemClock.sleep(1000);
+//			log("GC");
+			System.gc();
+			SystemClock.sleep(1000);
+//			log("GC");
+			System.gc();
+		}
 		SystemClock.sleep(100000000);
 	}
 	
@@ -425,7 +445,11 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> PhantomReference<T> newPhantomReference(final T referent, final Runnable onEnqueueTask) {
-		final int sysId = System.identityHashCode(referent);
+		if(referent==null) throw new IllegalArgumentException("The passed referent was null");
+		if(onEnqueueTask!=null) {
+			checkForLink(referent, onEnqueueTask);
+		}
+		final long sysId = phantomRefIdSerial.incrementAndGet();
 		final PhantomReference<T> pref = (PhantomReference<T>)new PhantomReferenceWrapper(referent, new Runnable(){
 			@Override
 			public void run() {
@@ -446,7 +470,11 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> WeakReference<T> newWeakReference(final T referent, final Runnable onEnqueueTask) {
-		final int sysId = System.identityHashCode(referent);		
+		if(referent==null) throw new IllegalArgumentException("The passed referent was null");
+		if(onEnqueueTask!=null) {
+			checkForLink(referent, onEnqueueTask);
+		}
+		final long sysId = weakRefIdSerial.incrementAndGet();		
 		final WeakReference<T> wref = (WeakReference<T>)new WeakReferenceWrapper(referent, new Runnable(){
 			@Override
 			public void run() {
@@ -458,29 +486,25 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 		return wref;
 	}
 	
-	private static void checkForLink(final Object ref, final Runnable r) {
+	private void checkForLink(final Object ref, final Runnable r) {
+		final Class<?> refClazz = ref.getClass();
+		if(countsByType.containsKey(refClazz.getName())) return;
 		final Class<?> rclazz = r.getClass();
-		final boolean staticRunnable = Modifier.isStatic(rclazz.getModifiers());
-		final Set<Class<?>> nestedClasses = new HashSet<Class<?>>(Arrays.asList(ref.getClass().getClasses()));
-		
+		final Constructor<?> ector = rclazz.getEnclosingConstructor();
+		final Method emethod = rclazz.getEnclosingMethod();
+		if(
+			(ector!=null && refClazz.equals(ector.getDeclaringClass())) ||
+			(emethod!=null && !Modifier.isStatic(emethod.getModifiers()) && refClazz.equals(emethod.getDeclaringClass()))
+				) {
+			System.err.println("POSSIBLE REF-SERVICE ERROR: The passed runnable [" + r.getClass().getName() + "] appears to\n" + 
+				"be a nested class of the referent [" + ref.getClass().getName() + "] meaning that the runnable may be holding\n" + 
+				"a reference to the referent which will prevent the referent from being enqueued automatically.\n" + 
+				"This message will not repeat for the referent class unless stats are reset.\n" + 
+				"Stack trace follows:");
+			new Exception().printStackTrace(System.err);
+		}
 	}
 	
-//	private static void checkForLink(final Object ref, final Runnable r) {
-//		final Class<?> rclazz = r.getClass();
-//		if(!Modifier.isStatic(rclazz.getModifiers())) {
-//			rclazz.getE
-//			final Class<?>[] clazzes = ref.getClass().getClasses();
-//		}
-//		
-//	}//	private static void checkForLink(final Object ref, final Runnable r) {
-//final Class<?> rclazz = r.getClass();
-//if(!Modifier.isStatic(rclazz.getModifiers())) {
-//	rclazz.getE
-//	final Class<?>[] clazzes = ref.getClass().getClasses();
-//}
-//
-//}
-
 	
 	/**
 	 * Creates a new soft reference
@@ -490,7 +514,8 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> SoftReference<T> newSoftReference(final T referent, final Runnable onEnqueueTask) {
-		final int sysId = System.identityHashCode(referent);		
+		if(referent==null) throw new IllegalArgumentException("The passed referent was null");
+		final long sysId = softRefIdSerial.incrementAndGet();		
 		final SoftReference<T> wref = (SoftReference<T>)new SoftReferenceWrapper(referent, new Runnable(){
 			@Override
 			public void run() {

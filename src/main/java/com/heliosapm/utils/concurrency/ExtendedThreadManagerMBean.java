@@ -21,6 +21,7 @@ package com.heliosapm.utils.concurrency;
 import java.lang.management.ThreadMXBean;
 
 import javax.management.MXBean;
+import javax.management.openmbean.CompositeData;
 
 /**
  * <p>Title: ExtendedThreadManagerMXBean</p>
@@ -47,7 +48,7 @@ public interface ExtendedThreadManagerMBean extends ThreadMXBean {
 	 * Returns an array ExtendedThreadInfos for all threads in the VM
 	 * @return an array ExtendedThreadInfos for all threads in the VM
 	 */
-	public ExtendedThreadInfo[] getThreadInfo();
+	public CompositeData[] getThreadInfo();
 	
 	/**
 	 * Returns the number of non-daemon threads

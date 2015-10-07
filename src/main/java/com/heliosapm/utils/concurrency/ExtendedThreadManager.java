@@ -30,7 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.management.MBeanNotificationInfo;
@@ -38,6 +37,7 @@ import javax.management.MBeanServer;
 import javax.management.Notification;
 import javax.management.NotificationBroadcasterSupport;
 import javax.management.ObjectName;
+import javax.management.openmbean.CompositeData;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
@@ -591,7 +591,7 @@ Thread[Thread-10,6,main]
 	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getThreadInfo()
 	 */
 	@Override
-	public ExtendedThreadInfo[] getThreadInfo() {
+	public CompositeData[] getThreadInfo() {
 		return ExtendedThreadInfo.wrapThreadInfos(delegate.getThreadInfo(delegate.getAllThreadIds(), maxDepth));
 	}
 }
