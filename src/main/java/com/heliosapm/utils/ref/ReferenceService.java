@@ -25,9 +25,13 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeType;
@@ -35,13 +39,15 @@ import javax.management.openmbean.OpenType;
 import javax.management.openmbean.SimpleType;
 import javax.management.openmbean.TabularType;
 
+import jsr166e.LongAdder;
+
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
+import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
+import com.heliosapm.utils.time.SystemClock;
 import com.heliosapm.utils.unsafe.collections.ConcurrentLongSlidingWindow;
-
-import jsr166e.LongAdder;
 
 /**
  * <p>Title: ReferenceService</p>
@@ -57,8 +63,16 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
 	
+	/** Static class logger */
+	private static final Logger log = Logger.getLogger(ReferenceService.class.getName());
 	
-	private final ConcurrentHashMap<Integer, Reference<?>> refs = new ConcurrentHashMap<Integer, Reference<?>>(); 
+	
+	/** Registered soft references keyed by the system identity hash code of the referent */
+	private final NonBlockingHashMapLong<SoftReference<?>> softRefs = new NonBlockingHashMapLong<SoftReference<?>>();
+	/** Registered weak references keyed by the system identity hash code of the referent */
+	private final NonBlockingHashMapLong<WeakReference<?>> weakRefs = new NonBlockingHashMapLong<WeakReference<?>>();
+	/** Registered phantom references keyed by the system identity hash code of the referent */
+	private final NonBlockingHashMapLong<PhantomReference<?>> phantomRefs = new NonBlockingHashMapLong<PhantomReference<?>>();
 	
 	/** The ref queue cleaner thread */
 	private final Thread refQueueThread;
@@ -213,6 +227,40 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 			}
 		}
 		return instance;
+	}
+	
+	public static void log(Object msg) {
+		System.out.println(msg);
+	}
+	
+	static class Foo {
+		Foo() {
+			getInstance().newPhantomReference(this, new Runnable(){
+				public void run() {
+					System.out.println("He's gone");
+				}
+			});
+		}
+	}
+	
+	public static void main(String[] args) {
+		getInstance();
+		Foo foo = new Foo();
+		instance.newPhantomReference(foo, new Runnable(){
+			public void run() {
+				System.out.println("He's gone");
+			}
+		});
+		
+		log("Registered");
+		foo = null;
+		SystemClock.sleep(1000);
+		log("GC");
+		System.gc();
+		SystemClock.sleep(1000);
+		log("GC");
+		System.gc();
+		SystemClock.sleep(100000000);
 	}
 	
 	/**
@@ -376,8 +424,18 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 * @return the reference
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> PhantomReference<T> newPhantomReference(T referent, Runnable onEnqueueTask) {
-		return (PhantomReference<T>) new PhantomReferenceWrapper(referent, onEnqueueTask);
+	public <T> PhantomReference<T> newPhantomReference(final T referent, final Runnable onEnqueueTask) {
+		final int sysId = System.identityHashCode(referent);
+		final PhantomReference<T> pref = (PhantomReference<T>)new PhantomReferenceWrapper(referent, new Runnable(){
+			@Override
+			public void run() {
+				phantomRefs.remove(sysId);
+				if(onEnqueueTask!=null) onEnqueueTask.run();
+			}
+		});
+		phantomRefs.put(sysId, pref);
+		return pref;
+
 	}
 	
 	/**
@@ -388,17 +446,41 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> WeakReference<T> newWeakReference(final T referent, final Runnable onEnqueueTask) {
-		final int sysId = System.identityHashCode(referent);
+		final int sysId = System.identityHashCode(referent);		
 		final WeakReference<T> wref = (WeakReference<T>)new WeakReferenceWrapper(referent, new Runnable(){
+			@Override
 			public void run() {
-				refs.remove(sysId);
-				onEnqueueTask.run();
+				weakRefs.remove(sysId);
+				if(onEnqueueTask!=null) onEnqueueTask.run();
 			}
 		});
-		refs.put(sysId, wref);
-		//refs
+		weakRefs.put(sysId, wref);
 		return wref;
 	}
+	
+	private static void checkForLink(final Object ref, final Runnable r) {
+		final Class<?> rclazz = r.getClass();
+		final boolean staticRunnable = Modifier.isStatic(rclazz.getModifiers());
+		final Set<Class<?>> nestedClasses = new HashSet<Class<?>>(Arrays.asList(ref.getClass().getClasses()));
+		
+	}
+	
+//	private static void checkForLink(final Object ref, final Runnable r) {
+//		final Class<?> rclazz = r.getClass();
+//		if(!Modifier.isStatic(rclazz.getModifiers())) {
+//			rclazz.getE
+//			final Class<?>[] clazzes = ref.getClass().getClasses();
+//		}
+//		
+//	}//	private static void checkForLink(final Object ref, final Runnable r) {
+//final Class<?> rclazz = r.getClass();
+//if(!Modifier.isStatic(rclazz.getModifiers())) {
+//	rclazz.getE
+//	final Class<?>[] clazzes = ref.getClass().getClasses();
+//}
+//
+//}
+
 	
 	/**
 	 * Creates a new soft reference
@@ -407,8 +489,18 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	 * @return the reference
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> SoftReference<T> newSoftReference(T referent, Runnable onEnqueueTask) {
-		return (SoftReference<T>) new SoftReferenceWrapper(referent, onEnqueueTask);
+	public <T> SoftReference<T> newSoftReference(final T referent, final Runnable onEnqueueTask) {
+		final int sysId = System.identityHashCode(referent);		
+		final SoftReference<T> wref = (SoftReference<T>)new SoftReferenceWrapper(referent, new Runnable(){
+			@Override
+			public void run() {
+				softRefs.remove(sysId);
+				if(onEnqueueTask!=null) onEnqueueTask.run();
+			}
+		});
+		softRefs.put(sysId, wref);
+		return wref;
+		
 	}
 	
 //	public static final ThreadLocal<SwapableReferentWeakReference<?>> swap = new ThreadLocal<SwapableReferentWeakReference<?>>(); 
@@ -583,9 +675,16 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
     	return clearedRefCount.longValue();
     }
     
-    public int getMappedRefCount() {
-    	return refs.size();
+    public int getMappedSoftRefCount() {
+    	return softRefs.size();
     }
+    public int getMappedWeakRefCount() {
+    	return weakRefs.size();
+    }
+    public int getMappedPhantomRefCount() {
+    	return phantomRefs.size();
+    }
+    
 
     /**
      * {@inheritDoc}

@@ -35,7 +35,21 @@ public interface ReferenceServiceMXBean {
 	 */
 	public long getQueueDepth();
 	
-	public int getMappedRefCount();
+  /**
+   * Returns the number of pending soft references
+   * @return the number of pending soft references
+   */
+  public int getMappedSoftRefCount();
+  /**
+   * Returns the number of pending wsofteak references
+   * @return the number of pending weak references
+   */
+  public int getMappedWeakRefCount();
+  /**
+   * Returns the number of pending phantom references
+   * @return the number of pending phantom references
+   */
+  public int getMappedPhantomRefCount();
 	
 	/**
 	 * Returns the total number of cleared reference executions since the last reset

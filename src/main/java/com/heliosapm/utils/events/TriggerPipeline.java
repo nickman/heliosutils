@@ -25,9 +25,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -84,6 +87,11 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitt
 	protected final String flow;
 	/** The last advisory message */
 	protected final AtomicReference<String> advisory = new AtomicReference<String>("None");
+	/** Serial number for assigning registered functions an id */
+	protected final AtomicInteger functionIdSerial = new AtomicInteger(0);
+	/** Map iof registered {@link EventNotificationEnricher}s keyed by the assigned function id */
+	protected final Map<Integer, EventNotificationEnricher> enrichers = new ConcurrentSkipListMap<Integer, EventNotificationEnricher>();
+	
 	
 	/** Instance logger */
 	protected final Logger log = Logger.getLogger(getClass().getName());
@@ -159,8 +167,32 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitt
 		return this.advisory.get();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.PipelineContext#getSink()
+	 */
+	@Override
 	public Trigger<Void, R> getSink() {
 		return (Trigger<Void, R>) sink;
+	}
+	
+	
+	/**
+	 * Registers a function object
+	 * @param function The function object
+	 * @return a map of the assigned ids for the function keyed by the 
+	 * interface classes the function implemented
+	 */
+	public Map<Class<?>, Integer> registerFunction(final Object function) {
+		final Map<Class<?>, Integer> ids = new HashMap<Class<?>, Integer>();
+		if(function!=null) {
+			if(function instanceof EventNotificationEnricher) {
+				final int id = functionIdSerial.incrementAndGet();
+				enrichers.put(id, (EventNotificationEnricher)function);
+				ids.put(EventNotificationEnricher.class, id);
+			}
+		}
+		return ids;
 	}
 	
 	/**
@@ -233,6 +265,7 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitt
 		starter.in(e);
 	}
 	
+	@SuppressWarnings("rawtypes")
 	@Override
 	public void onStateChange(final Trigger sender, final Object e) {
 		if(sender==sink) {
@@ -248,6 +281,24 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitt
 			}
 		}		
 	}
+	
+//	@Override
+//	public void enrichEventMessage(final E event, final JSONObject eventMessage) {
+//		for(EventNotificationEnricher enricher: enrichers.values()) {
+//			enricher.onSunkEvent(objectName, (Enum)event, eventMessage);
+//		}
+//	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.events.PipelineContext#enrichEventMessage(java.lang.Object, org.json.JSONObject)
+	 */
+	@Override
+	public void enrichEventMessage(Object event, JSONObject eventMessage) {
+		for(EventNotificationEnricher enricher: enrichers.values()) {
+			enricher.onSunkEvent(objectName, (Enum)event, eventMessage);
+		}		
+	};
 	
 	@Override
 	public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {

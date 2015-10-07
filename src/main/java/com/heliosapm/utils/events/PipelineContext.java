@@ -22,6 +22,8 @@ import java.util.concurrent.ExecutorService;
 
 import javax.management.ObjectName;
 
+import org.json.JSONObject;
+
 /**
  * <p>Title: PipelineContext</p>
  * <p>Description: </p> 
@@ -32,7 +34,7 @@ import javax.management.ObjectName;
 
 public interface PipelineContext<E> {
 	public ExecutorService getPipelineExecutor();
-	public void eventSunk(final int triggerId, final Object event);
+	public void eventSunk(final int triggerId, final E event);
 	public ObjectName getObjectName();
 	public E getState();
 	/**
@@ -47,4 +49,12 @@ public interface PipelineContext<E> {
 	 * Allows a context caller to start the pipeline if it's not started when it receives the first input
 	 */
 	public void start();
+	
+	/**
+	 * Passes the event message back to the context for possible enrichment 
+	 * @param event The sunk event
+	 * @param eventMessage the event message
+	 */
+	public void enrichEventMessage(final Object event, JSONObject eventMessage);
+	
 }

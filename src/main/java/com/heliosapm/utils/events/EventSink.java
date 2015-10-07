@@ -284,7 +284,8 @@ public class EventSink<E extends Enum<E> & BitMasked> implements Sink<E>, Delega
 		eventChange.put("to", to.name());
 		eventChange.put("from", from.name());
 		eventChange.put("time", t);
-		body.put("statechange", eventChange);
+		body.put("statechange", eventChange);		
+		context.enrichEventMessage(to, eventChange);
 		final String userMsg = body.toString();
 		Notification n = new Notification(NOTIF_PREFIX, objectName, notifSerial.incrementAndGet(), t, msg);
 		n.setUserData(userMsg);
