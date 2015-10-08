@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +41,7 @@ import javax.management.QueryExp;
  * <p><code>com.heliosapm.utils.jmx.SharedNotificationExecutor</code></p>
  */
 
-public class SharedNotificationExecutor implements ExecutorService {
+public class SharedNotificationExecutor implements ExecutorService, Executor {
 	/** The singleton instance */
 	private static volatile SharedNotificationExecutor instance = null;
 	/** The singleton instance ctor lock */

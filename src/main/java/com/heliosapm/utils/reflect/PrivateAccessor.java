@@ -78,6 +78,17 @@ public class PrivateAccessor {
 		accessibleObjects.put(key, sr);
 	}
 	
+	public static <T> T createNewInstance(final Class<T> clazz, final Object[] arguments, final  Class<?>...signature) {
+		if(clazz==null) throw new IllegalArgumentException("The passed class was null");
+		try {
+			Constructor<T> ctor = findConstructorFromClass(clazz, signature);
+			if(ctor==null) throw new Exception("No ctor found for [" + clazz.getName() + "]");
+			return ctor.newInstance(arguments);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to create an instance of [" + clazz.getName() + "]", ex);
+		}
+	}
+	
 	/**
 	 * Invokes a method against an instance of an object.
 	 * @param targetObject The object to invoke against.
@@ -586,28 +597,32 @@ public class PrivateAccessor {
 	 * @param signature The types of the consructors parameters.
 	 * @return The located constructor.
 	 */
-	private static Constructor<?> findConstructorFromClass(Class<?> targetClass, Class<?>...signature) {
-		Constructor<?> constructor = null;
-		Class<?> clazz = targetClass;
-		while(constructor==null) {				
-			try {
-				// try declared constructor
-				constructor= clazz.getDeclaredConstructor(signature);
-			} catch (NoSuchMethodException e) {
-				// try constructor
+	private static <T> Constructor<T> findConstructorFromClass(Class<T> targetClass, Class<?>...signature) {
+		int key = invocationKey(targetClass, "CTOR", signature);
+		Constructor<T> ctor = (Constructor<T>)cacheLookup(key);
+		if(ctor==null) {
+			Class<?> clazz = targetClass;
+			while(ctor==null) {				
 				try {
-					constructor = clazz.getConstructor(signature);
-				} catch (NoSuchMethodException e2) {}
-			}
-			if(constructor!=null) break;
-			else {
+					// try declared constructor
+					ctor = (Constructor<T>) clazz.getDeclaredConstructor(signature);
+				} catch (NoSuchMethodException e) {
+					// try constructor
+					try {
+						ctor = (Constructor<T>) clazz.getConstructor(signature);
+					} catch (NoSuchMethodException e2) {}
+				}
+				if(ctor!=null) break;
 				clazz = clazz.getSuperclass();
 				if(clazz==null || java.lang.Object.class.equals(clazz)) {
 					break;
 				}
-			}								
+			}			
 		}
-		return constructor;	
+		if(ctor!=null) {
+			addToCache(key, ctor);
+		}
+		return ctor;	
 	}
 	
 	/**
