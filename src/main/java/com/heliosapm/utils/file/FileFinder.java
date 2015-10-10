@@ -137,6 +137,13 @@ public class FileFinder {
 		}
 	}
 	
+	/**
+	 * Initializes a file change watcher
+	 * @param scanPeriodSecs The scan period in seconds
+	 * @param initBeforeFire If true, files will be scanned before any events are fired
+	 * @param listeners The file change event listeners
+	 * @return the file change watcher
+	 */
 	public FileChangeWatcher watch(final long scanPeriodSecs, final boolean initBeforeFire, final FileChangeEventListener...listeners) {
 		return new FileChangeWatcher(this, scanPeriodSecs, initBeforeFire, listeners); 
 	}

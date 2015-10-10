@@ -195,6 +195,7 @@ public class TimedDecayEventTrigger<E extends Enum<E> & BitMasked> implements De
 	public void reset() {
 		if(handle!=null) {
 			handle.cancel(true);
+			System.out.println("Cancelled Decay Timer. Rescheduling for [" + period + ":" + unit + "]");
 		}
 		handle = scheduler.schedule(this, period, unit);		
 	}
