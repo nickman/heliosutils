@@ -25,6 +25,7 @@ import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -95,6 +96,7 @@ import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.enums.EnumSupport.EnumCardinality;
 import com.heliosapm.utils.io.CloseableService;
 import com.heliosapm.utils.lang.StringHelper;
+import com.heliosapm.utils.reflect.PrivateAccessor;
 
 /**
  * <p>Title: JMXHelper</p>
@@ -140,6 +142,7 @@ public class JMXHelper {
 	public static final ObjectName MXBEAN_MEMPOOL_ON = objectName(ManagementFactory.MEMORY_POOL_MXBEAN_DOMAIN_TYPE + ",*");
 	
 	
+	
 	/** A no arg op signature */
 	public static final String[] NO_ARG_SIGNATURE = {}; 
 	/** A no arg op arg array */
@@ -176,6 +179,10 @@ public class JMXHelper {
 	private static final String MXMAPPER_FACTORY_CLASSNAME = "com.sun.jmx.mbeanserver.MXBeanMappingFactory";
 	private static final Object mxMappingFactory;
 	private static final Method mxMappingMethod;
+	
+	public static final boolean THREAD_MEM_SUPPORTED;
+	public static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
+
 
 	
 	static {
@@ -192,7 +199,33 @@ public class JMXHelper {
 		}
 		mxMappingFactory = mxTmpFactory;
 		mxMappingMethod = mxFx;
+		
+		boolean tmSupported = false;
+		try {
+			tmSupported = (Boolean)PrivateAccessor.invoke(ManagementFactory.getThreadMXBean(), "isThreadAllocatedMemorySupported");
+			
+			if(tmSupported) {
+				//PrivateAccessor.invoke(ManagementFactory.getThreadMXBean(), "setThreadAllocatedMemoryEnabled0", new Object[]{true}, boolean.class);
+			}
+		} catch (Exception ex) {
+			tmSupported = false;
+		}
+		THREAD_MEM_SUPPORTED = tmSupported;
+		
 	}
+	
+	public static long getThreadAllocatedBytes(final long id) {
+		if(!THREAD_MEM_SUPPORTED) return -1;
+		return (Long)PrivateAccessor.invoke(THREAD_MX_BEAN, "getThreadAllocatedBytes", new Object[]{id}, long.class);
+	}
+	
+	
+	
+	public static long getThreadAllocatedBytes(final long[] ids) {
+		if(!THREAD_MEM_SUPPORTED) return -1;
+		return (Long)PrivateAccessor.invoke(THREAD_MX_BEAN, "getThreadAllocatedBytes", new Object[]{ids}, long[].class);
+	}
+	
 	
 	// DefaultMXBeanMappingFactory.DEFAULT.mappingForType(UIDMeta.class, DefaultMXBeanMappingFactory.DEFAULT);
 	

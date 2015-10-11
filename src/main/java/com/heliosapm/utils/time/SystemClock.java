@@ -18,6 +18,7 @@ under the License.
  */
 package com.heliosapm.utils.time;
 
+import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -97,6 +98,34 @@ public class SystemClock {
 		return TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
 	}
 	
+	/**
+	 * Returns the JVM up time in ms.
+	 * @return the up time in ms.
+	 */
+	public static long upTime() {
+		return ManagementFactory.getRuntimeMXBean().getUptime();
+	}
+
+	/**
+	 * Converts the passed time to SNMP ticks
+	 * @param time The time to convert
+	 * @param unit The unit the time is in
+	 * @return the time in SNMP ticks
+	 */
+	public static long toTicks(final long time, final TimeUnit unit) {
+		long tt = TimeUnit.MILLISECONDS.convert(time, unit)/100;
+		return tt;
+	}
+
+	/**
+	 * Converts the passed time to SNMP ticks
+	 * @param time The time to convert
+	 * @return the time in SNMP ticks
+	 */
+	public static long toTicks(final long time) {
+		return toTicks(time, TimeUnit.MILLISECONDS);
+	}
+
 	
 	/**
 	 * Returns the relative time in ns.
@@ -106,6 +135,15 @@ public class SystemClock {
 		return System.nanoTime();
 	}
 	
+	/**
+	 * Returns the current time in SNMP {@link TimeTicks} equivalent or <b><code>1/100th</code></b> seconds
+	 * @return the current time in SNMP {@link TimeTicks} 
+	 */
+	public static long tick() {
+		long tt = time()/100;
+		return tt;
+	}
+
 	
 	
 	

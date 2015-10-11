@@ -97,7 +97,7 @@ public class PrivateAccessor {
 	 * @param signature The class types of the method parameters.
 	 * @return The return value of the method invocation.
 	 */
-	public static Object invoke(Object targetObject, String methodName, Object[] arguments, Class<?>[] signature) {
+	public static Object invoke(Object targetObject, String methodName, Object[] arguments, Class<?>...signature) {
 		if(targetObject==null) throw new IllegalArgumentException("Target Object Was Null");	
 		Class<?> clazz = targetObject.getClass();
 		if(isDebug()) log("PrivateAccessor Invoking [" , clazz.getName() , "." , methodName , argsToString(arguments) , "]");

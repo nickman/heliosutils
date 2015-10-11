@@ -23,6 +23,8 @@ import java.lang.management.ThreadMXBean;
 import javax.management.MXBean;
 import javax.management.openmbean.CompositeData;
 
+import com.heliosapm.utils.jmx.JMXHelper;
+
 /**
  * <p>Title: ExtendedThreadManagerMXBean</p>
  * <p>Description: </p> 
@@ -100,6 +102,13 @@ public interface ExtendedThreadManagerMBean extends ThreadMXBean {
 	 * @return a list of thread names with the cpu time appended
 	 */
 	public String[] getBusyThreads(long sampleTime);
+	
+	public boolean isThreadAllocatedMemorySupported();
+	public boolean isThreadAllocatedMemoryEnabled();
+	public void setThreadAllocatedMemoryEnabled(final boolean enable);
+	public long getThreadAllocatedBytes(final long id);
+	
+	public long getThreadAllocatedBytes(final long[] ids);
 
 }
 

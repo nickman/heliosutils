@@ -48,7 +48,7 @@ public class ExtendedThreadInfo implements ExtendedThreadInfoMBean, Serializable
 	 * @param infos The array of {@link ThreadInfo}s to wrap
 	 * @return an array of ExtendedThreadInfos
 	 */
-	public static CompositeData[] wrapThreadInfos(ThreadInfo...infos) {
+	public static CompositeData[] wrapOpenTypeThreadInfos(ThreadInfo...infos) {
 		try {
 			CompositeData[] xinfos = new CompositeData[infos.length];
 			for(int i = 0; i < infos.length; i++) {
@@ -58,6 +58,14 @@ public class ExtendedThreadInfo implements ExtendedThreadInfoMBean, Serializable
 		} catch (Exception ex) {
 			throw new RuntimeException(ex);
 		}
+	}
+	
+	public static ExtendedThreadInfo[] wrapThreadInfos(ThreadInfo...infos) {
+		final ExtendedThreadInfo[] xinfos = new ExtendedThreadInfo[infos.length];
+		for(int i = 0; i < infos.length; i++) {
+			xinfos[i] = new ExtendedThreadInfo(infos[i]);
+		}			
+		return xinfos;
 	}
 	
 	

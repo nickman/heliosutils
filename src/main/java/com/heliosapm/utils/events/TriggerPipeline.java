@@ -299,7 +299,7 @@ public class TriggerPipeline<R, E> implements PipelineContext, NotificationEmitt
 			enricher.onSunkEvent(objectName, (Enum)event, eventMessage);
 		}		
 	};
-	
+	// com.sun.jmx.interceptor.DefaultMBeanServerInterceptor$ListenerWrapper@35ce1ee9
 	@Override
 	public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {
 		notificationBroadcaster.addNotificationListener(listener, filter, handback);

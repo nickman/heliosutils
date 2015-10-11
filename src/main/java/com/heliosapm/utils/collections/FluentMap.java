@@ -498,6 +498,23 @@ public class FluentMap<K, V> implements Map<K, V> {
   	instance.clear();
   }
 
+  /**
+   * Clears this map and returns it
+   * @return this map
+   */
+  public Map<K, V> fclear() {
+  	instance.clear();
+  	return this;
+  }
+  
+  /**
+   * {@inheritDoc}
+   * @see java.lang.Object#toString()
+   */
+  @Override
+  public String toString() {
+  	return instance.toString();
+  }
 
   // Views
 

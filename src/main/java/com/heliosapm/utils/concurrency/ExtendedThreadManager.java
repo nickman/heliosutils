@@ -41,6 +41,7 @@ import javax.management.openmbean.CompositeData;
 
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.SharedNotificationExecutor;
+import com.heliosapm.utils.reflect.PrivateAccessor;
 
 /**
  * <p>Title: ExtendedThreadManager</p>
@@ -266,6 +267,40 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 			sendNotification(new Notification(NOTIF_TCM_DISABLED, THREAD_MX_NAME, serial.incrementAndGet(), System.currentTimeMillis(), "Thread Contention Monitoring Disabled"));
 		}
 	}
+	
+	public boolean isThreadAllocatedMemorySupported() {
+		try {
+			return (Boolean)PrivateAccessor.invoke(delegate, "isThreadAllocatedMemorySupported");
+		} catch (Exception ex) {
+			return false;
+		}
+	}
+
+	
+	public boolean isThreadAllocatedMemoryEnabled() {
+		try {
+			return (Boolean)PrivateAccessor.invoke(delegate, "isThreadAllocatedMemoryEnabled");
+		} catch (Exception ex) {
+			return false;
+		}
+	}
+	
+	public void setThreadAllocatedMemoryEnabled(final boolean enable) {
+		try {
+			PrivateAccessor.invoke(delegate, "setThreadAllocatedMemoryEnabled", new Object[]{enable}, boolean.class);
+		} catch (Exception x) {/* No Op */}
+	}
+	
+	
+	public long getThreadAllocatedBytes(final long id) {
+		return JMXHelper.getThreadAllocatedBytes(id);
+	}
+	
+	public long getThreadAllocatedBytes(final long[] ids) {
+		return JMXHelper.getThreadAllocatedBytes(ids);
+	}
+
+	
 	/**
 	 * {@inheritDoc}
 	 * @see java.lang.management.ThreadMXBean#getCurrentThreadCpuTime()
@@ -592,6 +627,6 @@ Thread[Thread-10,6,main]
 	 */
 	@Override
 	public CompositeData[] getThreadInfo() {
-		return ExtendedThreadInfo.wrapThreadInfos(delegate.getThreadInfo(delegate.getAllThreadIds(), maxDepth));
+		return ExtendedThreadInfo.wrapOpenTypeThreadInfos(delegate.getThreadInfo(delegate.getAllThreadIds(), maxDepth));
 	}
 }

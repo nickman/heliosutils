@@ -25,6 +25,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -89,7 +90,8 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	/** A count of event sinks without forwarding to the next trigger in the pipeline */
 	protected final LongAdder sinks = new LongAdder();
 	
-	
+	/** Instance logger */
+	protected final Logger log = Logger.getLogger(getClass().getName());
 
 	
 	/**
