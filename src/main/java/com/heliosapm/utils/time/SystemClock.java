@@ -105,6 +105,15 @@ public class SystemClock {
 	public static long upTime() {
 		return ManagementFactory.getRuntimeMXBean().getUptime();
 	}
+	
+	/**
+	 * Returns the JVM up time in SNMP tick time.
+	 * @return the up time in SNMP tick time
+	 */
+	public static long upTimeTicks() {
+		return toTicks(ManagementFactory.getRuntimeMXBean().getUptime());
+	}
+	
 
 	/**
 	 * Converts the passed time to SNMP ticks
