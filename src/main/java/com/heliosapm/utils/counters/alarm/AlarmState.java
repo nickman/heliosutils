@@ -34,17 +34,17 @@ import com.heliosapm.utils.enums.RollupType;
 @RollupType(Rollup.DOWN)
 public enum AlarmState implements BitMasked  {
 	/** The alarm has been disabled */
-	OFF(false, null),		
+	OFF(false, "Initial"),		
 	/** No data has been submitted to the alarm yet */
-	NODATA(false, null),	
+	NODATA(false, "Initial"),	
 	/** State is stale as no data has been received */
-	STALE(false, "WARN"),	
+	STALE(false, "Major"),	
 	/** State is normal */
-	OK(true, "INFO"),
+	OK(true, "Normal"),
 	/** State is iffy */
-	WARN(true, "Warning"),
+	WARN(true, "Major"),
 	/** State is critical */
-	CRITICAL(true, "Error");
+	CRITICAL(true, "Critical");
 	
 	private AlarmState(final boolean evaluatable, final String snmpSeverity) {
 		this.evaluatable = evaluatable;
