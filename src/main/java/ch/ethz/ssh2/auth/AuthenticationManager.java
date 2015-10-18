@@ -327,6 +327,7 @@ public class AuthenticationManager implements MessageHandler
 		}
 		catch (IOException e)
 		{
+//			e.printStackTrace(System.err);
 			tm.close(e);
 			throw new IOException("Publickey authentication failed.", e);
 		}

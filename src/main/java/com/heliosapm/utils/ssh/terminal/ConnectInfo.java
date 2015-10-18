@@ -44,6 +44,7 @@ import ch.ethz.ssh2.KnownHosts;
 import ch.ethz.ssh2.ServerHostKeyVerifier;
 import ch.ethz.ssh2.crypto.PEMDecoder;
 
+import com.heliosapm.utils.json.ExtendedJSONObject;
 import com.heliosapm.utils.url.URLHelper;
 
 /**
@@ -117,10 +118,10 @@ public class ConnectInfo implements ServerHostKeyVerifier {
 	public static ConnectInfo fromJSON(final JSONObject authConfig) {
 		if(authConfig==null) throw new IllegalArgumentException("The passed authConfig was null");
 		final ConnectInfo a = new ConnectInfo();
-		JSONObject config = authConfig;
+		ExtendedJSONObject config = new ExtendedJSONObject(authConfig);
 		if(config.has("tunnel")) {
 			try {
-				JSONObject x = config.getJSONObject("tunnel");
+				ExtendedJSONObject x = config.getJSONObject("tunnel");
 				config = x;
 			} catch (Exception ex) {/* No Op */}
 		}
@@ -133,7 +134,7 @@ public class ConnectInfo implements ServerHostKeyVerifier {
 		if(config.has("privatekey")) { 
 			a.privateKey = config.optString("privatekey").toCharArray();
 		} else if(config.has("privatekeyf")) {
-			a.setPrivateKey(new File(config.optString("privatekeyf")));
+			a.setPrivateKey(new File(URLHelper.toURL(config.optString("privatekeyf")).getFile()));
 		}
 		if(config.has("pkpassword")) {
 			a.privateKeyPassword = config.optString("pkpassword");

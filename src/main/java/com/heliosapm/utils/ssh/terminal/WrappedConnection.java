@@ -516,6 +516,11 @@ public class WrappedConnection implements WrappedConnectionMBean, ConnectionMoni
 	public static final Connection createRaw(final String hostName, final int port, final ConnectInfo authInfo) {
 		if(hostName==null || hostName.trim().isEmpty()) throw new IllegalArgumentException("The passed host name was null or empty");
 		final Connection conn = new Connection(hostName, port);
+		try {
+			conn.connect(authInfo.getVerifier(), authInfo.getConnectTimeout(), authInfo.getKexTimeout());
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to connect to [" + hostName + ":" + port + "]", ex);
+		}
 		authInfo.authenticate(conn);
 		return conn;
 	}

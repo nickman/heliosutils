@@ -120,7 +120,7 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 		}
 		counters = new EnumMap<E, int[]>(eventType);
 		for(Map.Entry<E, Integer> entry: thresholds.entrySet()) {
-			this.counters.put(entry.getKey(), new int[]{entry.getValue()});
+			this.counters.put(entry.getKey(), new int[]{0});
 		}		
 		this.alertMask = BitMasked.StaticOps.maskFor(this.thresholds.keySet());
 		// pre-calculate and cache the rollup sets
@@ -199,7 +199,9 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 	protected E mostSevereTriggered(final E[] justIncremented) {
 		final TreeSet<E> triggered = new TreeSet<E>();
 		for(E e: justIncremented) {
-			if(counters.get(e)[0]==thresholds.get(e)[0]) {
+//			log.info("mostSevereTriggered Eval [" + e + "] ctr: [" + counters.get(e)[0] + "], thresh: [" + thresholds.get(e)[0] + "]");
+			if(counters.get(e)[0] == thresholds.get(e)[0]) {
+//				log.info("Added Triggered: " + e);
 				triggered.add(e);
 			}
 		}
@@ -284,7 +286,8 @@ public abstract class AbstractConsecutiveEventTrigger<E extends Enum<E> & BitMas
 				final int[] counter = counters.get(e);
 				counter[0]++;					
 			}
-			final E mostSevere = mostSevereTriggered(toIncrement);			
+			final E mostSevere = mostSevereTriggered(toIncrement);
+//			log.info("Most Severe State:" + mostSevere + ", toInc:" + Arrays.toString(toIncrement));
 			if(mostSevere!=null) {
 				windDown(mostSevere);		
 				out(mostSevere);
