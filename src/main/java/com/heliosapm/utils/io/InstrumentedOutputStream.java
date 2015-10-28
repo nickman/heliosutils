@@ -47,6 +47,18 @@ public class InstrumentedOutputStream extends OutputStream {
 		this.runOnClose = runOnClose;
 		this.bytesDown = bytesDown;
 	}
+	
+	/**
+	 * Creates a new InstrumentedOutputStream
+	 * @param os The output stream to instrument
+	 */
+	public InstrumentedOutputStream(final OutputStream os) {
+		if(os==null) throw new IllegalArgumentException("The passed OutputStream was null");
+		this.os = os;
+		this.runOnClose = null;
+		this.bytesDown = new LongAdder();
+	}
+	
 
 	/**
 	 * Returns the number of bytes transferred
