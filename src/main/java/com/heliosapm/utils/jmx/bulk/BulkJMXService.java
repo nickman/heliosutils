@@ -102,6 +102,7 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 		for(Map.Entry<ObjectName, String[]> entry: lookups.entrySet()) {
 			final ObjectName target = entry.getKey();
 			if(target.isPattern()) {
+//				log.info("Looking Up Matches for Pattern [" + target + "]");
 				Map<ObjectName, Map<String, Object>> bulkAttrValues = getPatternAttributes(target, cleanAttrs(entry.getValue()));
 				if(!bulkAttrValues.isEmpty()) {
 					map.putAll(bulkAttrValues);
@@ -249,7 +250,7 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	 * @return the expanded array, or if not a wildcard array (<b><code>{"*"}</code></b>) returns the array unmodified
 	 */
 	protected String[] expand(final ObjectName on, final String...names) {
-		if(names==null || names.length==0) return EMPTY_STR_ARR;
+		if(names==null || names.length==0) return getAttributeNames(on); //EMPTY_STR_ARR;
 		if("*".equals(names[0])) {
 			return getAttributeNames(on);
 		}
@@ -264,6 +265,9 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	 * @return A map of values keyed by the attribute name
 	 */
 	protected Map<String, Object> getAttributes(final ObjectName on, final String[] attrs) {
+		if(on==null) throw new IllegalArgumentException("The passed ObjectName was null");
+		if(server==null) throw new IllegalStateException("No MBeanServer Registered");
+		if(attrs==null) throw new IllegalArgumentException("The passed attribute name array was null");
 		if(!server.isRegistered(on) || on.isPattern() || attrs.length==0) return EMPTY_ATTR_MAP;
 		final String[] _attrs = expand(on, attrs);
 		final Map<String, Object> map = new HashMap<String, Object>();
@@ -272,8 +276,8 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 				final AttributeList al = server.getAttributes(on, _attrs);
 				for(Attribute attr: al.asList()) {
 					final Object obj = attr.getValue();
-					if(obj!=null && (obj instanceof Serializable)) {
-						map.put(attr.getName(), attr.getValue());
+					if(obj!=null && (obj instanceof Serializable) && isSerializable(obj)) {
+						map.put(attr.getName(), obj);
 					}
 				}
 			} catch (Exception ex) {
@@ -284,6 +288,20 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 		return map;
 	}
 	
+	protected static boolean isSerializable(final Object obj) {
+		ObjectOutputStream oos = null;
+		try {
+			oos = new ObjectOutputStream(NullOutputStream.INSTANCE);
+			oos.writeObject(obj);
+			oos.flush();
+			return true;
+		} catch (Exception ex) {
+			return false;
+		} finally {
+			if(oos!=null) try { oos.close(); } catch (Exception x) {/* No Op */}
+		}
+	}
+	
 	/**
 	 * Resolves the passed pattern ObjectName to a set of absolute ObjectNames and acquires the values from each
 	 * @param on The pattern ObjectName
@@ -291,12 +309,15 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	 * @return A map of values keyed by the attribute name  within a map keyed by the absolute ObjectName
 	 */
 	protected Map<ObjectName, Map<String, Object>> getPatternAttributes(final ObjectName on, final String[] attrs) {
-		if(!server.isRegistered(on) || attrs.length==0) return EMPTY_BULK_MAP;
-		final Set<ObjectName> names = server.queryNames(on, null);
+		//if(!server.isRegistered(on) || attrs.length==0) return EMPTY_BULK_MAP;
+		final Set<ObjectName> names = server.queryNames(on, null); 
 		if(names.isEmpty()) return EMPTY_BULK_MAP;
+//		log.info("Pattern [" + on + "] matched ["  + names.size() + "] MBeans");
 		Map<ObjectName, Map<String, Object>> map = new HashMap<ObjectName, Map<String, Object>>();
 		for(ObjectName objName: names) {
-			final Map<String, Object> attrValues = getAttributes(objName, attrs);
+			final String[] attrNames = expand(objName, attrs);
+//			log.info("Attrs for [" + objName + "]:" + Arrays.toString(attrNames));
+			final Map<String, Object> attrValues = getAttributes(objName, attrNames);
 			if(!attrValues.isEmpty()) {
 				map.put(objName, attrValues);
 			}
@@ -322,6 +343,7 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 						for(MBeanAttributeInfo mai: attrInfos) {
 							names.add(mai.getName());
 						}
+						attrNames = names.toArray(new String[names.size()]);
 						mbeanAttrNames.put(on, names.toArray(new String[names.size()]));
 					} catch (Exception ex) {
 						log.warning("Failed to get Attribute Names for [" + on + "]:" + ex);

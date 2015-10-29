@@ -26,6 +26,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.management.MBeanServerConnection;
+import javax.management.MBeanServerInvocationHandler;
+import javax.management.NotificationBroadcaster;
 import javax.management.ObjectName;
 import javax.management.loading.MLet;
 import javax.management.remote.JMXConnector;
@@ -39,16 +41,16 @@ import com.heliosapm.utils.jmx.JMXHelper;
 
 
 /**
- * <p>Title: Installer</p>
+ * <p>Title: BulkJMXServiceInstaller</p>
  * <p>Description: Installs the BulkJMXService on a remote JVM</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.jmx.bulk.Installer</code></p>
+ * <p><code>com.heliosapm.utils.jmx.bulk.BulkJMXServiceInstaller</code></p>
  */
 
-public class Installer {
+public class BulkJMXServiceInstaller {
 	/** The singleton instance */
-	private static volatile Installer instance = null;
+	private static volatile BulkJMXServiceInstaller instance = null;
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
 	/** Instance logger */
@@ -58,26 +60,39 @@ public class Installer {
 	private final String CONTENT_KEY;
 	
 	/**
-	 * Acquires and returns the Installer singleton
-	 * @return the Installer singleton
+	 * Acquires and returns the BulkJMXServiceInstaller singleton
+	 * @return the BulkJMXServiceInstaller singleton
 	 */
-	public static Installer getInstance() {
+	public static BulkJMXServiceInstaller getInstance() {
 		if(instance==null) {
 			synchronized(lock) {
 				if(instance==null) {
-					instance = new Installer();
+					instance = new BulkJMXServiceInstaller();
 				}
 			}
 		}
 		return instance;
 	}
 
+	/** The JMX ObjectName for the installed BulkJMXService */
 	public static final ObjectName BULK_SERVICE_OBJECT_NAME = JMXHelper.objectName(BulkJMXService.class);
+	/** The JMX ObjectName for the installed BulkJMXService's classloader */
 	public static final ObjectName BULK_SERVICE_CL_OBJECT_NAME = JMXHelper.objectName(BULK_SERVICE_OBJECT_NAME.toString() + ",ext=ClassLoader");
 
-	public boolean install(final JMXServiceURL jmxUrl, final String[] credentials, final long timeout, final TimeUnit unit, final Runnable onComplete) {
+	/**
+	 * Installs the {@link BulkJMXService} to the target MBeanServer resolved from the passed {@link JMXServiceURL}.
+	 * @param jmxUrl The JMXServiceURL to connect to the target MBeanServer
+	 * @param credentials The optional credentials
+	 * @param timeout The installation timeout
+	 * @param unit The timeout unit
+	 * @param onComplete An optional runnable to invoke when the installation is complete
+	 * @return a proxy invoker for the installed {@link BulkJMXServiceMBean}
+	 * FIXME: We need to do something with the connector so it doesn't stay open.
+	 */
+	public BulkJMXServiceMBean install(final JMXServiceURL jmxUrl, final String[] credentials, final long timeout, final TimeUnit unit, final Runnable onComplete) {
 		if(jmxUrl==null) throw new IllegalArgumentException("The passed JMXServiceURL was null");
 		JMXConnector connector = null;
+		BulkJMXServiceMBean proxy = null;
 		try {
 			final HashMap<String, Object> env = new HashMap<String, Object>();
 			if(credentials!=null && credentials.length==2 && credentials[0]!=null) {
@@ -94,25 +109,28 @@ public class Installer {
 				try { server.unregisterMBean(BULK_SERVICE_OBJECT_NAME); } catch (Exception x) {/* No Op */}
 			}
 			server.createMBean(BulkJMXService.class.getName(), BULK_SERVICE_OBJECT_NAME, new Object[0], new String[0]);
-			return true;
+			proxy = MBeanServerInvocationHandler.newProxyInstance(server, BULK_SERVICE_OBJECT_NAME, BulkJMXServiceMBean.class, NotificationBroadcaster.class.isAssignableFrom(BulkJMXService.class));
+			return proxy;
 		} catch (Exception ex) {
 			log.log(Level.SEVERE, "Failed to install BulkJMXService to [" + jmxUrl + "]", ex);
-			ex.printStackTrace(System.err);
-			return false;
+			throw new RuntimeException("Failed to install BulkJMXService to [" + jmxUrl + "]", ex);
 		} finally {
-			if(connector!=null) try { connector.close(); } catch (Exception x) {/* No Op */}
+			if(proxy==null) {
+				if(connector!=null) try { connector.close(); } catch (Exception x) {/* No Op */}
+			}
 		}
 	}
 	/**
-	 * Creates a new Installer
+	 * Creates a new BulkJMXServiceInstaller
 	 */
-	private Installer() {
+	private BulkJMXServiceInstaller() {
 		File tmp = null;
 		try {
 			tmp = File.createTempFile("BulkJMXService", ".jar");
 			File f = new JarBuilder(tmp, true)
 					.res("com.heliosapm.utils.jmx.bulk").classLoader(com.heliosapm.utils.jmx.bulk.BulkJMXService.class)
 					.filterPath(true, ".*BulkJMXService.*?\\.class")
+					.filterPath(true, ".*NullOutputStream.*?\\.class")
 					.apply()
 				.manifestBuilder().done()
 				.build();

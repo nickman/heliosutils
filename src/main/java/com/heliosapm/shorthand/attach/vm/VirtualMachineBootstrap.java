@@ -33,10 +33,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
-
-import com.heliosapm.shorthand.attach.vm.agent.AgentInstrumentation;
 
 /**
  * <p>Title: VirtualMachineBootstrap</p>
@@ -69,6 +68,8 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 		File.separator + ".." + File.separator + "lib" + File.separator
 	};
 	
+	/** Flag indicating if the attach classes have been found */
+	private static final AtomicBoolean found = new AtomicBoolean(false);
 	
 	
 	/** The attach API VirtualMachine class name */
@@ -145,9 +146,10 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 		if(className==null) throw new IllegalArgumentException("The passed class name was null", new Throwable());
 		Class<?> clazz = classCache.get(className);
 		if(clazz==null) throw new IllegalArgumentException("The passed class name [" + className + "] is not an Attach API class", new Throwable());
-		return clazz.isAssignableFrom(obj.getClass());
-		
+		return clazz.isAssignableFrom(obj.getClass());		
 	}
+	
+	
 	
 	/**
 	 * Indicates if the Attach VirtualMachine class can be found in the current classpath
@@ -158,6 +160,14 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 	}
 	
 	/**
+	 * Indicates if the attach classes have been found
+	 * @return true if the attach classes have been found, false otherwise
+	 */
+	public static boolean isAttachFound() {
+		return found.get();
+	}
+	
+	/**
 	 * Indicates if the Attach VirtualMachine class can be found in the current classpath
 	 * @param classLoader The class loader used to find the Attach API Jar
 	 * @return true if the Attach VirtualMachine class can be loaded, false if it cannot.
@@ -165,8 +175,16 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 	protected static boolean inClassPath(ClassLoader classLoader) {
 		if(attachClassLoader.get()!=null) return true;
 		try {
+			Class<?> clazz = Class.forName(VM_CLASS, true, ClassLoader.getSystemClassLoader());
+			attachClassLoader.set(clazz.getClassLoader()==null ? classLoader : clazz.getClassLoader());
+			found.set(true);
+		} catch (Exception e) {
+			/* No Op */
+		}		
+		try {
 			Class<?> clazz = Class.forName(VM_CLASS, true, classLoader);
 			attachClassLoader.set(clazz.getClassLoader()==null ? classLoader : clazz.getClassLoader());
+			found.set(true);
 			return true;
 		} catch (Exception e) {
 			return false;
@@ -184,7 +202,8 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 	 * Searches for the Attach API jar
 	 * @param urlLocation An optional override fully qualified URL of the attach jar
 	 */
-	protected static void findAttachAPI(String urlLocation) {			
+	protected static void findAttachAPI(String urlLocation) {
+		if(found.get()) return;
 		//if(inClassPath()) return;
 		try {
 			Class<?> clazz = Class.forName(VM_CLASS);
@@ -195,6 +214,7 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 			}
 			log.info("Attach API ClassLoader:" + cl);
 			attachClassLoader.set(cl);
+			found.set(true);
 			BaseWrappedClass.savedState.set(null);
 			return;
 		} catch (Exception e) {}

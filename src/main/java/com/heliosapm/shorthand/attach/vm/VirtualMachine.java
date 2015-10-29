@@ -83,6 +83,9 @@ public class VirtualMachine extends BaseWrappedClass {
 		return vm;
 	}
 	
+	static {
+		VirtualMachineBootstrap.getInstance();
+	}
 
 	/**
 	 * Creates a new VirtualMachine wrapper instance 

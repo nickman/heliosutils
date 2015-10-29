@@ -59,7 +59,8 @@ import com.heliosapm.utils.io.InstrumentedOutputStream;
 import com.heliosapm.utils.io.NIOHelper;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
-import com.heliosapm.utils.jmx.bulk.Installer;
+import com.heliosapm.utils.jmx.bulk.BulkJMXServiceInstaller;
+import com.heliosapm.utils.jmx.bulk.BulkJMXServiceMBean;
 import com.heliosapm.utils.lang.StringHelper;
 import com.heliosapm.utils.net.LocalHost;
 import com.heliosapm.utils.time.SystemClock;
@@ -159,10 +160,40 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 		log("HTTPJarFileServer Test:  Java Home: [" + System.getProperty("java.home") + "]");
 		JMXHelper.fireUpJMXMPServer("0.0.0.0", 2147, JMXHelper.getHeliosMBeanServer());
 		try {
-			final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.Groovy.*]");
-			if(Installer.getInstance().install(jmxUrl, null, 15, TimeUnit.SECONDS, null)) {
-				log("Completed install to [" + jmxUrl + "]");
+			//final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.Groovy.*]");
+			//final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach://17796");
+			final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.jboss.*]");
+			final BulkJMXServiceMBean proxy = BulkJMXServiceInstaller.getInstance().install(jmxUrl, null, 15, TimeUnit.SECONDS, null);
+			if(proxy==null) {
+				log("Failed install to [" + jmxUrl + "]");
 			}
+			log("Completed install to [" + jmxUrl + "]");
+			int names = 0;
+			int attrs = 0;
+//			log("Warmup");
+//			for(int i = 0; i < 1000; i++) {
+//				proxy.getAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
+//				proxy.getCompressedAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
+//				
+//			}
+			long start = System.currentTimeMillis();
+			Map<ObjectName, Map<String, Object>> map = proxy.getAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
+			long elapsed = System.currentTimeMillis() - start;
+			log("NonCompressed: " + elapsed + " ms.");
+			start = System.currentTimeMillis();
+			byte[] bmap = proxy.getCompressedAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
+			elapsed = System.currentTimeMillis() - start;
+			log("Compressed: " + elapsed + " ms.");
+			
+			for(Map.Entry<ObjectName, Map<String, Object>> entry: map.entrySet()) {
+				log("ObjectName: %s", entry.getKey());
+				names++;
+				for(Map.Entry<String, Object> attr: entry.getValue().entrySet()) {
+					log("\tAttr [%s]: [%s]", attr.getKey(), attr.getValue());
+					attrs++;
+				}
+			}
+			log("\n\t Complete. MBeans: %s, Attributes: %s", names, attrs);
 		} catch (Exception ex) {
 			ex.printStackTrace(System.err);			
 		} finally {
