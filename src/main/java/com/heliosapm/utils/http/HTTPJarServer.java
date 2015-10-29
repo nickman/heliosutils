@@ -54,12 +54,14 @@ import jsr166e.LongAdder;
 
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
+import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.io.InstrumentedOutputStream;
 import com.heliosapm.utils.io.NIOHelper;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
 import com.heliosapm.utils.jmx.bulk.Installer;
 import com.heliosapm.utils.lang.StringHelper;
+import com.heliosapm.utils.net.LocalHost;
 import com.heliosapm.utils.time.SystemClock;
 import com.heliosapm.utils.url.URLHelper;
 import com.sun.net.httpserver.Headers;
@@ -92,19 +94,23 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	/** The Http Server */
 	private HttpServer server;
 	/** The listening port */
-	private int port;
+	private final int port;
+	/** The listening iface */
+	private final String iface;
+	/** The listener backlog */
+	private final int backlog;
+	
+	/** The name or ip address the server should be accessed by from remote servers */
+	private final String remoteHostName = LocalHost.hostName();
+	
 	/** A long adder to track the number of bytes written out */
 	private final LongAdder bytesDown = new LongAdder();
 	/** A long adder to track the number of expiries */
 	private final LongAdder expiryCount = new LongAdder();
 	/** A long adder to track the number of completions */
 	private final LongAdder completionCount = new LongAdder();
-	
-	
-	
 	/** A map of served content buffers counts keyed by the content name */
 	private final NonBlockingHashMap<String, LongAdder> servedContentCounts = new NonBlockingHashMap<String, LongAdder>(); 
-	
 	/** The request executor */
 	private final JMXManagedThreadPool executor;
 	/** The expiration queue poller thread */
@@ -114,14 +120,25 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	
 	/** The jar loader http path */
 	public static final String JAR_CONTEXT = "/classpath/jar";
-	
 	/** Arg splitter */
 	public static final Pattern EQ_SPLIT = Pattern.compile("=");
 	/** Args splitter */
 	public static final Pattern AMP_SPLIT = Pattern.compile("&");
-	
 	/** Completion callback key. Used to determine when the issued client has consumed a given resource */
 	public static final String CKEY = "ckey";
+    /** The config prop key for the listening port */
+    public static final String PROP_LISTEN_PORT = "httpjarserver.listener.port";
+    /** The default listening port */
+    public static final int DEFAULT_LISTEN_PORT = 0;
+    /** The config prop key for the server binding interface */
+    public static final String PROP_BIND_FACE = "httpjarserver.listener.iface";
+    /** The default server binding interface */
+    public static final String DEFAULT_BIND_IFACE = "127.0.0.1";
+    /** The config prop key for the http server's listener backlog */
+    public static final String PROP_BACKLOG = "httpjarserver.listener.backlog";
+    /** The default http server's listener backlog  */
+    public static final int DEFAULT_BACKLOG = 128;
+	
 	
 	/**
 	 * Acquires and returns the HTTPJarServer singleton
@@ -139,7 +156,7 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	}
 	
 	public static void main(String[] args) {
-		log("HTTPJarFileServer Test");
+		log("HTTPJarFileServer Test:  Java Home: [" + System.getProperty("java.home") + "]");
 		JMXHelper.fireUpJMXMPServer("0.0.0.0", 2147, JMXHelper.getHeliosMBeanServer());
 		try {
 			final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.Groovy.*]");
@@ -324,7 +341,7 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	 * @param exch The HttpExchange to test
 	 * @return true if the client supports gzip, false otherwise
 	 */
-	protected boolean supportsGZip(final HttpExchange exch) {
+	protected static boolean supportsGZip(final HttpExchange exch) {
 		final Headers rhdrs = exch.getRequestHeaders();
 		final List<String> accepted = rhdrs.get("Accept-Encoding");
 		if(accepted==null || accepted.isEmpty()) return false;
@@ -350,7 +367,10 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 				try { JMXHelper.unregisterMBean(executorObjectName); } catch (Exception x) {/* No Op */}
 			}
 			executor = new JMXManagedThreadPool(executorObjectName, getClass().getSimpleName(), 1, 8, 128, 60000, 128, 99, true);
-			server = HttpServer.create(new InetSocketAddress("0.0.0.0", 9254), 100);
+			final int _port = ConfigurationHelper.getIntSystemThenEnvProperty(PROP_LISTEN_PORT, DEFAULT_LISTEN_PORT);
+			backlog = ConfigurationHelper.getIntSystemThenEnvProperty(PROP_BACKLOG, DEFAULT_BACKLOG);
+			iface = ConfigurationHelper.getSystemThenEnvProperty(PROP_BIND_FACE, DEFAULT_BIND_IFACE);
+			server = HttpServer.create(new InetSocketAddress(iface, _port), backlog);
 			server.setExecutor(executor);
 			server.createContext(JAR_CONTEXT, this);
 			server.start();
@@ -400,6 +420,33 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	@Override
 	public int getPort() {
 		return port;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.http.HTTPJarServerMBean#getBacklog()
+	 */
+	@Override
+	public int getBacklog() {
+		return backlog;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.http.HTTPJarServerMBean#getRemoteHostName()
+	 */
+	@Override
+	public String getRemoteHostName() {
+		return remoteHostName;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.http.HTTPJarServerMBean#getIface()
+	 */
+	@Override
+	public String getIface() {
+		return iface;
 	}
 	
 	/**
@@ -518,7 +565,7 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	 */
 	@Override
 	public long getCompletionCount() {
-		return expiryCount.longValue();
+		return completionCount.longValue();
 	}
 
 	/**
@@ -534,7 +581,7 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 		return map;
 	}
 	
-	Map<String, String> parseQuery(final HttpExchange exch) {
+	static Map<String, String> parseQuery(final HttpExchange exch) {
 		final Map<String, String> args = new HashMap<String, String>();
 		if(exch!=null) {
 			final URI queryURI = exch.getRequestURI();

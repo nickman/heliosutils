@@ -203,6 +203,7 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 			altLocs.add(urlLocation);
 		}
 		for(String s: ALT_LOCS) {
+			System.out.println("ALT_LOC: [" + (JAVA_HOME + s + JAR_NAME) + "]");
 			altLocs.add(JAVA_HOME + s + JAR_NAME);
 		}
 		for(String s: altLocs) {

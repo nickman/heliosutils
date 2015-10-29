@@ -42,6 +42,24 @@ public interface HTTPJarServerMBean {
 	public int getPort();
 	
 	/**
+	 * Returns the listener backlog
+	 * @return the listener backlog
+	 */
+	public int getBacklog();
+	
+	/**
+	 * Returns the listener binding interface
+	 * @return the listener binding interface
+	 */
+	public String getIface();
+	
+	/**
+	 * Returns the name or IP address to be used by remote hosts calling back here
+	 * @return a host name or ip address
+	 */
+	public String getRemoteHostName();
+	
+	/**
 	 * Stops this server and resets the singleton reference 
 	 */
 	public void stop();
