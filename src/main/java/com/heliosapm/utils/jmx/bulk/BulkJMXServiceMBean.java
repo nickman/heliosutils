@@ -19,6 +19,7 @@ under the License.
 package com.heliosapm.utils.jmx.bulk;
 
 import java.util.Map;
+import java.util.Set;
 
 import javax.management.ObjectName;
 import javax.management.QueryExp;
@@ -40,35 +41,39 @@ public interface BulkJMXServiceMBean {
 	
 	/**
 	 * Bulk attribute lookup
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param lookups A map of attribute names to lookup keyed by the [optionally pattern based] ObjectName of the MBeans to look them up from
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 */
-	public Map<ObjectName, Map<String, Object>> getAttributes(final Map<ObjectName, String[]> lookups);
+	public Map<ObjectName, Map<String, Object>> getAttributes(final String mbs, final Map<ObjectName, String[]> lookups);
 	
 	/**
 	 * Locates all registered MBeans matching the criteria defined by the passed ObjectName and query
-	 * and returns a bulk value map for all through {@link #getAttributes(Map)}.
+	 * and returns a bulk value map for all through {@link #getAttributes(String, Map)}.
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param on The object name to match
 	 * @param query The query to match
 	 * @param attrNames The attribute names of the attributes to retrieve
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 */
-	public Map<ObjectName, Map<String, Object>> getAttributes(final ObjectName on, final QueryExp query, final String[] attrNames);
+	public Map<ObjectName, Map<String, Object>> getAttributes(final String mbs, final ObjectName on, final QueryExp query, final String[] attrNames);
 	
 	/**
 	 * Locates all registered MBeans matching the criteria defined by the passed ObjectName and query
 	 * and returns a compressed byte array containing the serialized bulk value map for all through {@link #getCompressedAttributes(Map)}.
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param on The object name to match
 	 * @param query The query to match
 	 * @param attrNames The attribute names of the attributes to retrieve
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 * serialized into a compressed byte array
 	 */
-	public byte[] getCompressedAttributes(final ObjectName on, final QueryExp query, final String[] attrNames);
+	public byte[] getCompressedAttributes(final String mbs, final ObjectName on, final QueryExp query, final String[] attrNames);
 	
 	/**
 	 * Invokes the specified operation on all MBeans with ObjectNames matching the passed object name and query.
 	 * The results are returned as values in a map keyed by absolute object name if the result was not null.
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param on The object name
 	 * @param query The query
 	 * @param opName The operation name to invoke
@@ -76,22 +81,29 @@ public interface BulkJMXServiceMBean {
 	 * @param args The arguments to pass in the invocation
 	 * @return a map of invocation responses keyed by the absolute ObjectName
 	 */
-	public Map<ObjectName, Object> invoke(final ObjectName on, final QueryExp query, final String opName, final String[] signature, final Object...args);
+	public Map<ObjectName, Object> invoke(final String mbs, final ObjectName on, final QueryExp query, final String opName, final String[] signature, final Object...args);
 
 	
 	/**
 	 * Bulk attribute lookup with response compression. Same op as {@link #getAttributes(Map)} and
 	 * returns the result serialized into a compressed byte array
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param lookups A map of attribute names to lookup keyed by the [optionally pattern based] ObjectName of the MBeans to look them up from
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 * serialized into a compressed byte array
 	 */
-	public byte[] getCompressedAttributes(final Map<ObjectName, String[]> lookups);
+	public byte[] getCompressedAttributes(final String mbs, final Map<ObjectName, String[]> lookups);
 	
 	/**
 	 * Returns the number of cached MBean attribute name arrays
 	 * @return the number of cached MBean attribute name arrays
 	 */
 	public int getCachedAttributeNames();
+	
+	/**
+	 * Returns a set of the default domain names of all MBeanServers found on the services's creation
+	 * @return a set of the default domain names of all MBeanServers found
+	 */
+	public String[] getMBeanServerDomains();
 
 }

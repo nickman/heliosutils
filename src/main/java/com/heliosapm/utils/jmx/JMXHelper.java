@@ -91,6 +91,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
+import javax.management.remote.jmxmp.JMXMPConnectorServer;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.enums.EnumSupport.EnumCardinality;
@@ -2510,6 +2511,10 @@ while(m.find()) {
 			};
 			t.setDaemon(true);
 			t.start();
+			final ObjectName on = JMXHelper.objectName(JMXMPConnectorServer.class);
+			if(!server.isRegistered(on)) {
+				server.registerMBean(jmxServer, on);
+			}
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to start JMXServer on [" + bindInterface + ":" + port + "]", e);
 		}

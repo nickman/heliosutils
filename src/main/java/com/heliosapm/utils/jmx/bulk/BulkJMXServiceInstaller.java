@@ -78,6 +78,7 @@ public class BulkJMXServiceInstaller {
 	public static final ObjectName BULK_SERVICE_OBJECT_NAME = JMXHelper.objectName(BulkJMXService.class);
 	/** The JMX ObjectName for the installed BulkJMXService's classloader */
 	public static final ObjectName BULK_SERVICE_CL_OBJECT_NAME = JMXHelper.objectName(BULK_SERVICE_OBJECT_NAME.toString() + ",ext=ClassLoader");
+	
 
 	/**
 	 * Installs the {@link BulkJMXService} to the target MBeanServer resolved from the passed {@link JMXServiceURL}.
@@ -131,6 +132,7 @@ public class BulkJMXServiceInstaller {
 					.res("com.heliosapm.utils.jmx.bulk").classLoader(com.heliosapm.utils.jmx.bulk.BulkJMXService.class)
 					.filterPath(true, ".*BulkJMXService.*?\\.class")
 					.filterPath(true, ".*NullOutputStream.*?\\.class")
+					.filterPath(true, ".*ExternalizableMap.*?\\.class")					
 					.apply()
 				.manifestBuilder().done()
 				.build();

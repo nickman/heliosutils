@@ -18,9 +18,12 @@ under the License.
  */
 package com.heliosapm.utils.jmx.bulk;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,6 +40,7 @@ import javax.management.AttributeList;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanRegistration;
 import javax.management.MBeanServer;
+import javax.management.MBeanServerFactory;
 import javax.management.ObjectName;
 import javax.management.QueryExp;
 
@@ -50,7 +54,7 @@ import javax.management.QueryExp;
 
 public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	/** The MBeanServer this service was registered in */
-	protected MBeanServer server = null;
+	protected MBeanServer registeredServer = null;
 	/** The ObjectName this service was registered under */
 	protected ObjectName objectName = null;
 	/** A cache of mbean attribute names keyed by the ObjectName of the mbean they were extracted from */
@@ -72,11 +76,22 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	public static final byte[] EMPTY_BYTE_ARR = {};
 	/** Empty object array const */
 	public static final Object[] EMPTY_OBJ_ARR = {};
+	/** A map of MBeanServers keyed by their default domain names */
+	final Map<String, MBeanServer> mbeanServers;
 	
 	/**
 	 * Creates a new BulkJMXService
 	 */
-	public BulkJMXService() {
+	public BulkJMXService() {		
+		final ArrayList<MBeanServer> servers = MBeanServerFactory.findMBeanServer(null);
+		final Map<String, MBeanServer> tmp = new HashMap<String, MBeanServer>(servers.size());
+		for(MBeanServer mbs: servers) {
+			String defDomain = mbs.getDefaultDomain();
+			// some older jboss servers create the platform MBeanServer with a null default domain
+			if(defDomain==null || defDomain.trim().isEmpty()) defDomain = "DefaultDomain";
+			tmp.put(defDomain, mbs);
+		}
+		mbeanServers = Collections.unmodifiableMap(tmp);
 		log.info("Created BulkJMXService");
 	}
 	
@@ -91,24 +106,35 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	}
 	
 	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.jmx.bulk.BulkJMXServiceMBean#getMBeanServerDomains()
+	 */
+	@Override
+	public String[] getMBeanServerDomains() {
+		return mbeanServers.keySet().toArray(new String[mbeanServers.size()]);
+	}
+	
+	/**
 	 * Bulk attribute lookup
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param lookups A map of attribute names to lookup keyed by the [optionally pattern based] ObjectName of the MBeans to look them up from
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 */
 	@Override
-	public Map<ObjectName, Map<String, Object>> getAttributes(final Map<ObjectName, String[]> lookups) {
+	public Map<ObjectName, Map<String, Object>> getAttributes(final String mbs, final Map<ObjectName, String[]> lookups) {
 		if(lookups==null || lookups.isEmpty()) return EMPTY_BULK_MAP;
+		final MBeanServer server = mbs(mbs);
 		final Map<ObjectName, Map<String, Object>> map = new HashMap<ObjectName, Map<String, Object>>();
 		for(Map.Entry<ObjectName, String[]> entry: lookups.entrySet()) {
 			final ObjectName target = entry.getKey();
 			if(target.isPattern()) {
 //				log.info("Looking Up Matches for Pattern [" + target + "]");
-				Map<ObjectName, Map<String, Object>> bulkAttrValues = getPatternAttributes(target, cleanAttrs(entry.getValue()));
+				Map<ObjectName, Map<String, Object>> bulkAttrValues = getPatternAttributes(server, target, cleanAttrs(entry.getValue()));
 				if(!bulkAttrValues.isEmpty()) {
 					map.putAll(bulkAttrValues);
 				}
 			} else {
-				final Map<String, Object> attrMap = getAttributes(target, cleanAttrs(entry.getValue()));
+				final Map<String, Object> attrMap = getAttributes(server, target, cleanAttrs(entry.getValue()));
 				if(!attrMap.isEmpty()) {
 					map.put(target, attrMap);
 				}
@@ -119,24 +145,25 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	
 	/**
 	 * Locates all registered MBeans matching the criteria defined by the passed ObjectName and query
-	 * and returns a bulk value map for all through {@link #getAttributes(Map)}.
+	 * and returns a bulk value map for all through {@link #getAttributes(String, Map)}.
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param on The object name to match
 	 * @param query The query to match
 	 * @param attrNames The attribute names of the attributes to retrieve
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 */
 	@Override
-	public Map<ObjectName, Map<String, Object>> getAttributes(final ObjectName on, final QueryExp query, final String[] attrNames) {
+	public Map<ObjectName, Map<String, Object>> getAttributes(final String mbs, final ObjectName on, final QueryExp query, final String[] attrNames) {
 		if((on==null && query==null) || attrNames==null || attrNames.length==0) return EMPTY_BULK_MAP;
 		if(query==null) {
-			return getAttributes(Collections.singletonMap(on, attrNames));
+			return getAttributes(mbs, Collections.singletonMap(on, attrNames));
 		}
-		final Set<ObjectName> matches = server.queryNames(on, query);
+		final Set<ObjectName> matches = mbs(mbs).queryNames(on, query);
 		final Map<ObjectName, String[]> lookups = new HashMap<ObjectName, String[]>(matches.size());
 		for(ObjectName o: matches) {
 			lookups.put(o, attrNames);
 		}
-		return getAttributes(lookups);		
+		return getAttributes(mbs, lookups);		
 	}
 	
 	/**
@@ -149,13 +176,14 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	 * serialized into a compressed byte array
 	 */
 	@Override
-	public byte[] getCompressedAttributes(final ObjectName on, final QueryExp query, final String[] attrNames) {
-		return compress(getAttributes(on, query, attrNames));
+	public byte[] getCompressedAttributes(final String mbs, final ObjectName on, final QueryExp query, final String[] attrNames) {
+		return compress(getAttributes(mbs, on, query, attrNames));
 	}
 	
 	/**
 	 * Invokes the specified operation on all MBeans with ObjectNames matching the passed object name and query.
 	 * The results are returned as values in a map keyed by absolute object name if the result was not null.
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param on The object name
 	 * @param query The query
 	 * @param opName The operation name to invoke
@@ -164,8 +192,9 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	 * @return a map of invocation responses keyed by the absolute ObjectName
 	 */
 	@Override
-	public Map<ObjectName, Object> invoke(final ObjectName on, final QueryExp query, final String opName, final String[] signature, final Object...args) {
+	public Map<ObjectName, Object> invoke(final String mbs, final ObjectName on, final QueryExp query, final String opName, final String[] signature, final Object...args) {
 		if((on==null && query==null) || opName==null || opName.trim().isEmpty()) return EMPTY_OPRES_MAP;
+		final MBeanServer server = mbs(mbs);
 		final Set<ObjectName> matches = server.queryNames(on, query);
 		final Map<ObjectName, Object> map = new HashMap<ObjectName, Object>(matches.size());
 		for(ObjectName o : matches) {
@@ -184,13 +213,14 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	/**
 	 * Bulk attribute lookup with response compression. Same op as {@link #getAttributes(Map)} and
 	 * returns the result serialized into a compressed byte array
+	 * @param mbs The default domain name of the target MBeanServer
 	 * @param lookups A map of attribute names to lookup keyed by the [optionally pattern based] ObjectName of the MBeans to look them up from
 	 * @return A map of key/value attributes keyed by the absolute ObjectName of the MBean they were read from
 	 * serialized into a compressed byte array
 	 */
 	@Override
-	public byte[] getCompressedAttributes(final Map<ObjectName, String[]> lookups) {
-		final Map<ObjectName, Map<String, Object>> map = getAttributes(lookups);
+	public byte[] getCompressedAttributes(final String mbs, final Map<ObjectName, String[]> lookups) {
+		final Map<ObjectName, Map<String, Object>> map = getAttributes(mbs, lookups);
 		return compress(map);
 	}
 	
@@ -245,14 +275,15 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	
 	/**
 	 * Expands an attribute name array of <b><code>{"*"}</code></b> to the full attribute name array for the target MBean
+	 * @param server The target MBeanServer
 	 * @param on A non-pattern ObjectName
 	 * @param names The array to expand
 	 * @return the expanded array, or if not a wildcard array (<b><code>{"*"}</code></b>) returns the array unmodified
 	 */
-	protected String[] expand(final ObjectName on, final String...names) {
-		if(names==null || names.length==0) return getAttributeNames(on); //EMPTY_STR_ARR;
+	protected String[] expand(final MBeanServer server, final ObjectName on, final String...names) {
+		if(names==null || names.length==0) return getAttributeNames(server, on); //EMPTY_STR_ARR;
 		if("*".equals(names[0])) {
-			return getAttributeNames(on);
+			return getAttributeNames(server, on);
 		}
 		return names;
 	}
@@ -260,23 +291,24 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	
 	/**
 	 * Simple absolute attribute getter
+	 * @param server The target MBeanServer
 	 * @param on A non pattern ObjectName to read attributes from
 	 * @param attrs The attribute names to retrieve
-	 * @return A map of values keyed by the attribute name
+	 * @return A map of values keyed by the attributer name
 	 */
-	protected Map<String, Object> getAttributes(final ObjectName on, final String[] attrs) {
+	protected Map<String, Object> getAttributes(final MBeanServer server, final ObjectName on, final String[] attrs) {
 		if(on==null) throw new IllegalArgumentException("The passed ObjectName was null");
 		if(server==null) throw new IllegalStateException("No MBeanServer Registered");
 		if(attrs==null) throw new IllegalArgumentException("The passed attribute name array was null");
 		if(!server.isRegistered(on) || on.isPattern() || attrs.length==0) return EMPTY_ATTR_MAP;
-		final String[] _attrs = expand(on, attrs);
-		final Map<String, Object> map = new HashMap<String, Object>();
+		final String[] _attrs = expand(server, on, attrs);
+		final Map<String, Object> map = new ExternalizableMap();
 		if(server.isRegistered(on)) {
 			try {
 				final AttributeList al = server.getAttributes(on, _attrs);
 				for(Attribute attr: al.asList()) {
 					final Object obj = attr.getValue();
-					if(obj!=null && (obj instanceof Serializable) && isSerializable(obj)) {
+					if(obj!=null && (obj instanceof Serializable)) {    // && isSerializable(obj)
 						map.put(attr.getName(), obj);
 					}
 				}
@@ -290,34 +322,43 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	
 	protected static boolean isSerializable(final Object obj) {
 		ObjectOutputStream oos = null;
+		ObjectInputStream ois = null;
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
+		final ByteArrayInputStream bais; 
 		try {
-			oos = new ObjectOutputStream(NullOutputStream.INSTANCE);
+			oos = new ObjectOutputStream(baos);
 			oos.writeObject(obj);
 			oos.flush();
+			baos.flush();
+			bais = new ByteArrayInputStream(baos.toByteArray());
+			ois = new ObjectInputStream(bais);
+			final Object o = ois.readObject();
 			return true;
 		} catch (Exception ex) {
 			return false;
 		} finally {
 			if(oos!=null) try { oos.close(); } catch (Exception x) {/* No Op */}
+			if(ois!=null) try { ois.close(); } catch (Exception x) {/* No Op */}
 		}
 	}
 	
 	/**
 	 * Resolves the passed pattern ObjectName to a set of absolute ObjectNames and acquires the values from each
+	 * @param server The target MBeanServer
 	 * @param on The pattern ObjectName
 	 * @param attrs @param attrs The attribute names to retrieve
 	 * @return A map of values keyed by the attribute name  within a map keyed by the absolute ObjectName
 	 */
-	protected Map<ObjectName, Map<String, Object>> getPatternAttributes(final ObjectName on, final String[] attrs) {
+	protected Map<ObjectName, Map<String, Object>> getPatternAttributes(final MBeanServer server, final ObjectName on, final String[] attrs) {
 		//if(!server.isRegistered(on) || attrs.length==0) return EMPTY_BULK_MAP;
 		final Set<ObjectName> names = server.queryNames(on, null); 
 		if(names.isEmpty()) return EMPTY_BULK_MAP;
 //		log.info("Pattern [" + on + "] matched ["  + names.size() + "] MBeans");
 		Map<ObjectName, Map<String, Object>> map = new HashMap<ObjectName, Map<String, Object>>();
 		for(ObjectName objName: names) {
-			final String[] attrNames = expand(objName, attrs);
+			final String[] attrNames = expand(server, objName, attrs);
 //			log.info("Attrs for [" + objName + "]:" + Arrays.toString(attrNames));
-			final Map<String, Object> attrValues = getAttributes(objName, attrNames);
+			final Map<String, Object> attrValues = getAttributes(server, objName, attrNames);
 			if(!attrValues.isEmpty()) {
 				map.put(objName, attrValues);
 			}
@@ -327,10 +368,11 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	
 	/**
 	 * Retrieves the attribute names of the MBean registered with the passed ObjectName
+	 * @param server The target MBeanServer
 	 * @param on The ObjectName of the target MBean
 	 * @return An array of attribute names
 	 */
-	protected String[] getAttributeNames(final ObjectName on) {
+	protected String[] getAttributeNames(final MBeanServer server, final ObjectName on) {
 		if(on==null || on.isPattern() || !server.isRegistered(on)) return EMPTY_STR_ARR;
 		String[] attrNames = mbeanAttrNames.get(on);
 		if(attrNames==null) {
@@ -370,7 +412,7 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 	 */
 	@Override
 	public ObjectName preRegister(final MBeanServer server, final ObjectName name) throws Exception {
-		this.server = server;
+		this.registeredServer = server;
 		this.objectName = name;
 		return name;
 	}
@@ -406,7 +448,17 @@ public class BulkJMXService implements MBeanRegistration, BulkJMXServiceMBean {
 		/* No Op */
 	}
 	
-	
+	/**
+	 * Retrieves the MBeanServer with the passed default domain name
+	 * @param mbs The default domain name of the target MBeanServer
+	 * @return the target MBeanServer
+	 */
+	protected MBeanServer mbs(final String mbs) {
+		if(mbs==null || mbs.trim().isEmpty()) throw new IllegalArgumentException("The passed MBeanServer Default Domain was null or empty");
+		final MBeanServer server = mbeanServers.get(mbs.trim());
+		if(server==null) throw new IllegalArgumentException("No MBeanServer found for Default Domain [" + mbs + "]");
+		return server;
+	}
 	
 	
 	

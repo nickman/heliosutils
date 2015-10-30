@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -162,12 +163,14 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 		try {
 			//final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.Groovy.*]");
 			//final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach://17796");
-			final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.jboss.*]");
+			//final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.jboss.*]");
+			final JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:attach:///[.*?\\.HMaster.*]");
 			final BulkJMXServiceMBean proxy = BulkJMXServiceInstaller.getInstance().install(jmxUrl, null, 15, TimeUnit.SECONDS, null);
 			if(proxy==null) {
 				log("Failed install to [" + jmxUrl + "]");
 			}
 			log("Completed install to [" + jmxUrl + "]");
+			log("MBeanServers: " + Arrays.toString(proxy.getMBeanServerDomains()));
 			int names = 0;
 			int attrs = 0;
 //			log("Warmup");
@@ -176,12 +179,13 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 //				proxy.getCompressedAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
 //				
 //			}
+			final String DOMAIN = "DefaultDomain";
 			long start = System.currentTimeMillis();
-			Map<ObjectName, Map<String, Object>> map = proxy.getAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
+			Map<ObjectName, Map<String, Object>> map = proxy.getAttributes(DOMAIN, JMXHelper.objectName("*:*"), null, new String[]{"*"});
 			long elapsed = System.currentTimeMillis() - start;
 			log("NonCompressed: " + elapsed + " ms.");
 			start = System.currentTimeMillis();
-			byte[] bmap = proxy.getCompressedAttributes(JMXHelper.objectName("*:*"), null, new String[]{"*"});
+			byte[] bmap = proxy.getCompressedAttributes(DOMAIN, JMXHelper.objectName("*:*"), null, new String[]{"*"});
 			elapsed = System.currentTimeMillis() - start;
 			log("Compressed: " + elapsed + " ms.");
 			
@@ -231,7 +235,7 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 	/**
 	 * Registers the passed file to be served through the Http server.
 	 * @param jarFile The file to register
-	 * @return the fully qualified content key
+	 * @return The fully qualified content key
 	 */
 	public String register(final File jarFile) {
 		if(jarFile==null) throw new IllegalArgumentException("The passed file was null");
@@ -253,6 +257,21 @@ public class HTTPJarServer implements HttpHandler, HTTPJarServerMBean, Runnable 
 		}
 		server.createContext(key, this);
 		return key;
+	}
+	
+	/**
+	 * Registers an already created content buffer
+	 * @param name The simple name of the resource
+	 * @param content The buffer to register
+	 * @return The fully qualified content key 
+	 */
+	public String register(final String name, final ByteBuffer content) {
+		if(name==null || name.trim().isEmpty()) throw new IllegalArgumentException("The passed name was null or empty");
+		if(content==null) throw new IllegalArgumentException("The passed buffer was null");
+		final String key = JAR_CONTEXT + "/" + name.trim();
+		if(cachedContent.putIfAbsent(key, content)!=null) throw new RuntimeException("The context [" + key + "] is already registered");
+		server.createContext(key, this);
+		return key;		
 	}
 	
 	/**
