@@ -62,8 +62,9 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.generic.GenericConnector;
 import javax.management.remote.generic.MessageConnection;
 
-import com.sun.jmx.remote.socket.SocketConnection;
+import jsr166e.LongAdder;
 
+import com.sun.jmx.remote.socket.SocketConnection;
 import com.sun.jmx.remote.opt.util.EnvHelp;
 
 /**
@@ -78,6 +79,12 @@ public class JMXMPConnector extends GenericConnector
 
     private static final long serialVersionUID = 7098019344073706637L;
 
+    /** Bytes in counter */
+    private final LongAdder bytesIn = new LongAdder();
+    /** Bytes out counter */
+    private final LongAdder bytesOut = new LongAdder();
+    
+    
     /**
      * <p>Constructs a JMXMP Connector client that can make a
      * connection to the connector server at the given address.  This
@@ -153,7 +160,7 @@ public class JMXMPConnector extends GenericConnector
 		   defaultClassLoader);
 	if (!newEnv.containsKey(MESSAGE_CONNECTION)) {
 	    MessageConnection conn =
-		new SocketConnection(address.getHost(), address.getPort());
+		new SocketConnection(address.getHost(), address.getPort(), bytesIn, bytesOut);
 	    newEnv.put(MESSAGE_CONNECTION, conn);
 	}
 	super.connect(newEnv);
@@ -181,4 +188,29 @@ public class JMXMPConnector extends GenericConnector
     private transient Map env;
 
     private static final String protocolName = "jmxmp";
+    
+		/**
+		 * Returns the total number of bytes read in 
+		 * @return the total number of bytes read in
+		 */
+		public long getBytesIn() {
+			return bytesIn.longValue();
+		}
+
+		/**
+		 * Returns the total number of bytes written out 
+		 * @return the total number of bytes written out
+		 */
+		public long getBytesOut() {
+			return bytesOut.longValue();
+		}
+		
+		/**
+		 * Resets the IO counters
+		 */
+		public void resetStats() {
+			bytesIn.reset();
+			bytesOut.reset();
+		}
+    
 }

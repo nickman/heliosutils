@@ -101,7 +101,7 @@ import com.sun.jmx.remote.socket.SocketConnectionServer;
  * is none.  If the connection is rejected, the method throws an
  * exception, typically {@link SecurityException}.</p>
  */
-public class JMXMPConnectorServer extends GenericConnectorServer {
+public class JMXMPConnectorServer extends GenericConnectorServer implements JMXMPConnectorServerMBean {
     /**
      * <p>Name of the attribute that specifies whether the connector
      * server should listen for connections on all connected network
@@ -113,6 +113,8 @@ public class JMXMPConnectorServer extends GenericConnectorServer {
      */
     public static final String SERVER_ADDRESS_WILDCARD =
 	"jmx.remote.server.address.wildcard";
+    
+    final SocketConnectionServer socketConnectionServer;
 
     /**
      * <p>Creates a connector server that listens for connection
@@ -208,8 +210,17 @@ public class JMXMPConnectorServer extends GenericConnectorServer {
      */
     public JMXMPConnectorServer(JMXServiceURL address, Map env,
 				MBeanServer mbs) throws IOException {
-	super(completeEnv(address, env), mbs);
+    			super(completeEnv(address, removeConnServer(env)), mbs);
+    			socketConnectionServer = scs.get();
+    			scs.remove();
     }
+    
+    private static Map removeConnServer(Map map) {
+    	if(map!=null) map.remove(MESSAGE_CONNECTION_SERVER);
+    	return map;
+    }
+    
+    private static final ThreadLocal<SocketConnectionServer> scs = new ThreadLocal<SocketConnectionServer>(); 
 
     private static Map completeEnv(JMXServiceURL address, Map env)
 	    throws IOException {
@@ -218,8 +229,37 @@ public class JMXMPConnectorServer extends GenericConnectorServer {
 	if (address == null)
 	    address = new JMXServiceURL("jmxmp", null, 0);
 	Map newEnv = (env == null) ? new HashMap() : new HashMap(env);
+	final SocketConnectionServer sockServer = new SocketConnectionServer(address, newEnv);
+	scs.set(sockServer);
 	newEnv.put(MESSAGE_CONNECTION_SERVER,
-		   new SocketConnectionServer(address, newEnv));
+		   sockServer);
 	return newEnv;
     }
+    
+		/**
+		 * Returns the total number of bytes read in 
+		 * @return the total number of bytes read in
+		 */
+		@Override
+		public long getBytesIn() {
+			return socketConnectionServer.getBytesIn();
+		}
+
+		/**
+		 * Returns the total number of bytes written out 
+		 * @return the total number of bytes written out
+		 */
+		@Override
+		public long getBytesOut() {
+			return socketConnectionServer.getBytesOut();
+		}
+		
+		/**
+		 * Resets the IO counters
+		 */
+		@Override
+		public void resetStats() {
+			socketConnectionServer.resetStats();
+		}
+    
 }

@@ -52,14 +52,12 @@ package com.sun.jmx.remote.socket;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.InputStream;
-
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.security.Principal;
 import java.util.Iterator;
@@ -67,12 +65,14 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.management.remote.JMXConnectorFactory;
-import javax.management.remote.JMXServiceURL;
 import javax.management.remote.generic.MessageConnection;
-
 import javax.management.remote.message.Message;
 import javax.security.auth.Subject;
 
+import jsr166e.LongAdder;
+
+import com.heliosapm.utils.io.InstrumentedInputStream;
+import com.heliosapm.utils.io.InstrumentedOutputStream;
 import com.sun.jmx.remote.generic.DefaultConfig;
 import com.sun.jmx.remote.opt.util.ClassLogger;
 
@@ -80,6 +80,10 @@ import com.sun.jmx.remote.opt.util.ClassLogger;
  * This class uses TCP sockets to implement a JMX client MessageConnection.
  */
 public class SocketConnection implements SocketConnectionIf, MessageConnection {
+  /** Bytes in counter */
+  private final LongAdder bytesIn;
+  /** Bytes out counter */
+  private final LongAdder bytesOut;
 
     //-------------
     // Constructors
@@ -89,8 +93,13 @@ public class SocketConnection implements SocketConnectionIf, MessageConnection {
      * Constructs a TCP socket client connection from a given socket.
      *
      * @param socket a TCP socket created by a user.
+     * @param bytesIn The input bytes counter
+     * @param bytesOut The output bytes counter 
+     * @throws IOException 
      */
-    public SocketConnection(Socket socket) throws IOException {
+    public SocketConnection(Socket socket, final LongAdder bytesIn, final LongAdder bytesOut) throws IOException {
+    	this.bytesIn = bytesIn;
+    	this.bytesOut = bytesOut;
 	if (logger.traceOn()) {
 	    logger.trace("Constructor", "Creating with a socket "+socket);
 	}
@@ -99,7 +108,10 @@ public class SocketConnection implements SocketConnectionIf, MessageConnection {
 
 	addr = sock.getInetAddress().getHostName();
 	port = sock.getPort();
-	replaceStreams(socket.getInputStream(), socket.getOutputStream());
+	replaceStreams(
+			new InstrumentedInputStream(socket.getInputStream(), bytesIn, null), 
+			new InstrumentedOutputStream(socket.getOutputStream(), bytesOut, null)
+	);
     }
 
     /**
@@ -108,33 +120,41 @@ public class SocketConnection implements SocketConnectionIf, MessageConnection {
      *
      * @param addr the server host address.
      * @param port the server port.
+     * @param bytesIn The input bytes counter
+     * @param bytesOut The output bytes counter 
      */
-    public SocketConnection(String addr, int port) throws IOException {
-	if (logger.traceOn()) {
-	    logger.trace("Constructor", "Creating with a socket address: "+addr+" "+port);
-	}
-
-	this.addr = addr;
-	this.port = port;
+    public SocketConnection(String addr, int port, final LongAdder bytesIn, final LongAdder bytesOut) throws IOException {
+    	this.bytesIn = bytesIn;
+    	this.bytesOut = bytesOut;
+    	
+			if (logger.traceOn()) {
+			    logger.trace("Constructor", "Creating with a socket address: "+addr+" "+port);
+			}
+		
+			this.addr = addr;
+			this.port = port;
     }  
 
     public void connect(Map env) throws IOException {
-	waitConnectedState = DefaultConfig.getTimeoutForWaitConnectedState(env);
+    	waitConnectedState = DefaultConfig.getTimeoutForWaitConnectedState(env);
 
-	synchronized(stateLock) {
-	    if (state == UNCONNECTED) {
-                if (logger.traceOn()) {
-		    logger.trace("connect", "First time to connect to the server.");
-		}
+			synchronized(stateLock) {
+			    if (state == UNCONNECTED) {
+		                if (logger.traceOn()) {
+				    logger.trace("connect", "First time to connect to the server.");
+				}
 
-		state = CONNECTING;
-		stateLock.notifyAll();
+				state = CONNECTING;
+				stateLock.notifyAll();
+		
+				if (sock == null) {
+				    sock = new Socket(addr, port);
+				}
 
-		if (sock == null) {
-		    sock = new Socket(addr, port);
-		}
-
-		replaceStreams(sock.getInputStream(), sock.getOutputStream());
+			replaceStreams(
+					new InstrumentedInputStream(sock.getInputStream(), bytesIn, null), 
+					new InstrumentedOutputStream(sock.getOutputStream(), bytesOut, null)
+			);
 
 		if (env != null) {
 		    defaultClassLoader = (ClassLoader)

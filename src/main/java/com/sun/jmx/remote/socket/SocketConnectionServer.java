@@ -66,8 +66,9 @@ import javax.management.remote.jmxmp.JMXMPConnectorServer;
 import javax.management.remote.generic.MessageConnection;
 import javax.management.remote.generic.MessageConnectionServer;
 
-import com.sun.jmx.remote.generic.DefaultConfig;
+import jsr166e.LongAdder;
 
+import com.sun.jmx.remote.generic.DefaultConfig;
 import com.sun.jmx.remote.opt.util.ClassLogger;
 import com.sun.jmx.remote.opt.util.EnvHelp;
 
@@ -75,33 +76,39 @@ import com.sun.jmx.remote.opt.util.EnvHelp;
  * This class uses a Tcp Server Socket to realize a JMX connection server
  */
 public class SocketConnectionServer implements MessageConnectionServer {
-
-    public SocketConnectionServer(JMXServiceURL addr, Map env)
-	    throws IOException {
-
-	if (logger.traceOn()) {
-	    logger.trace("constructor", "Constructs a SocketConnectionServer on "+addr);
-	}
-
-	if (addr == null) {
-	    throw new NullPointerException("Null address.");
-	}
-
-	if (!DEFAULT_PROTOCOL.equalsIgnoreCase(addr.getProtocol())) {
-	    throw new MalformedURLException("Unknown protocol: " +
-					    addr.getProtocol());
-	}
-
-	String wildcardS = null;
-	if (env != null) {
-	    wildcardS =
-		(String)env.get(JMXMPConnectorServer.SERVER_ADDRESS_WILDCARD);
-	}
-
-	wildcard =
-	    (wildcardS == null) ? true : wildcardS.equalsIgnoreCase("true");
-
-	this.addr = addr;
+	
+  /** Bytes in counter */
+  private final LongAdder bytesIn = new LongAdder();
+  /** Bytes out counter */
+  private final LongAdder bytesOut = new LongAdder();
+	
+  
+  
+    public SocketConnectionServer(JMXServiceURL addr, Map env) throws IOException {
+    	
+			if (logger.traceOn()) {
+			    logger.trace("constructor", "Constructs a SocketConnectionServer on "+addr);
+			}
+		
+			if (addr == null) {
+			    throw new NullPointerException("Null address.");
+			}
+		
+			if (!DEFAULT_PROTOCOL.equalsIgnoreCase(addr.getProtocol())) {
+			    throw new MalformedURLException("Unknown protocol: " +
+							    addr.getProtocol());
+			}
+		
+			String wildcardS = null;
+			if (env != null) {
+			    wildcardS =
+				(String)env.get(JMXMPConnectorServer.SERVER_ADDRESS_WILDCARD);
+			}
+		
+			wildcard =
+			    (wildcardS == null) ? true : wildcardS.equalsIgnoreCase("true");
+		
+			this.addr = addr;
     }
 
 // implements MessageConnectionServer interface
@@ -210,7 +217,7 @@ public class SocketConnectionServer implements MessageConnectionServer {
 	    logger.trace("accept", "Waiting a new connection...");
 	}
 
-	MessageConnection mc = new SocketConnection(ss.accept()); 
+	MessageConnection mc = new SocketConnection(ss.accept(), bytesIn, bytesOut); 
 	return mc;
     }
 
@@ -238,4 +245,30 @@ public class SocketConnectionServer implements MessageConnectionServer {
     private static final int DEFAULT_BACKLOG = 100;
 
     private final ClassLogger logger = new ClassLogger("javax.management.remote.misc", "SocketConnectionServer");
+
+
+
+		/**
+		 * Returns the total number of bytes read in 
+		 * @return the total number of bytes read in
+		 */
+		public long getBytesIn() {
+			return bytesIn.longValue();
+		}
+
+		/**
+		 * Returns the total number of bytes written out 
+		 * @return the total number of bytes written out
+		 */
+		public long getBytesOut() {
+			return bytesOut.longValue();
+		}
+		
+		/**
+		 * Resets the IO counters
+		 */
+		public void resetStats() {
+			bytesIn.reset();
+			bytesOut.reset();
+		}
 }
