@@ -157,7 +157,7 @@ public class JarBuilder {
 //			.res("").classLoader(ClassLoader.getSystemClassLoader().getParent()).apply()
 			.res("META-INF/services").classLoader(ClassLoader.getSystemClassLoader().getParent()).apply()
 			.res("META-INF/services").classLoader(ClassLoader.getSystemClassLoader()).apply()
-			.res("META-INF/services").apply()
+			.res("META-INF/services").apply()			
 			.addResourceMerger(new ServiceDefinitionMerger())
 //			.res("javax.management.remote").classLoader(JMXMPConnector.class).apply()
 //			.res("org.json").classLoader(JSONObject.class).apply()
