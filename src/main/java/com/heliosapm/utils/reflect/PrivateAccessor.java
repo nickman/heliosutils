@@ -536,7 +536,7 @@ public class PrivateAccessor {
 	 * @return The located method.
 	 */
 	public static Method findMethodFromClass(Class<?> targetClass,
-			String methodName, Class<?>[] signature) {
+			String methodName, Class<?>... signature) {
 		Method method = null;
 		Class<?> clazz = targetClass;
 		while(method==null) {

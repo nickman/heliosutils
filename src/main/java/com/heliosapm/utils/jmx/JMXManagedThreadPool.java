@@ -22,11 +22,13 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +54,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	/** The pool name */
 	protected final String poolName;
 	/** The task work queue */
-	protected final ArrayBlockingQueue<Runnable> workQueue;
+	protected final BlockingQueue<Runnable> workQueue;
 	/** The count of uncaught exceptions */
 	protected final AtomicLong uncaughtExceptionCount = new AtomicLong(0L);
 	/** The count of rejected executions where the task queue was full and a new task could not be accepted */
@@ -143,13 +145,14 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	 * @param publishJMX If true, publishes the management interface
 	 */
 	public JMXManagedThreadPool(ObjectName objectName, String poolName, int corePoolSize, int maximumPoolSize, int queueSize, long keepAliveTimeMs, int metricWindowSize, int metricDefaultPercentile, boolean publishJMX) {
-		super(corePoolSize, maximumPoolSize, keepAliveTimeMs, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(queueSize, false));
+		super(corePoolSize, maximumPoolSize, keepAliveTimeMs, TimeUnit.MILLISECONDS, 
+				queueSize==1 ? new SynchronousQueue<Runnable>() : new ArrayBlockingQueue<Runnable>(queueSize, false));
 		this.threadGroup = new ThreadGroup(poolName + "ThreadGroup");
 		setThreadFactory(this);
 		setRejectedExecutionHandler(this);		
 		this.objectName = objectName;
 		this.poolName = poolName;
-		workQueue = (ArrayBlockingQueue<Runnable>)getQueue();
+		workQueue = (BlockingQueue<Runnable>)getQueue();
 		if(publishJMX) {
 			try {			
 				JMXHelper.getHeliosMBeanServer().registerMBean(this, objectName);
