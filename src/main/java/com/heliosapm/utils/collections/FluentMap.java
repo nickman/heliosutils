@@ -292,6 +292,10 @@ public class FluentMap<K, V> implements Map<K, V> {
 		return this;
 	}
 	
+	public <T extends Map> T asMap(final Class<T> mapType) {
+		return mapType.cast(instance);
+	}
+	
 	// ======================================================================================
 	//		Standard Map Ops
 	//======================================================================================
