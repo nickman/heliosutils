@@ -66,6 +66,39 @@ public abstract class ArrayHelper {
 		return array;
 	}
 	
+	/**
+	 * Returns the dimension of the passed array type
+	 * @param clazz The array type
+	 * @return the dimensions of the array
+	 */
+	public static int getDimension(Class<?> clazz) {
+		if(clazz==null) throw new IllegalArgumentException("The passed class was null");
+		if(!clazz.isArray()) return 0;
+		Class<?> arrType = clazz;
+		int dim = 0;
+		while(arrType!=null && arrType.isArray()) {
+			dim++;
+			arrType = arrType.getComponentType();
+		}
+		return dim;
+	}
+	
+	/**
+	 * Returns the core type of the passed array type
+	 * @param clazz The array type
+	 * @return the core type of the array
+	 */
+	public static Class<?>  getBaseType(Class<?> clazz) {
+		if(clazz==null) throw new IllegalArgumentException("The passed class was null");
+		if(!clazz.isArray()) return clazz;
+		Class<?> arrType = clazz;
+		int dim = 0;
+		while(arrType!=null && arrType.isArray()) {
+			dim++;
+			arrType = arrType.getComponentType();
+		}
+		return arrType;
+	}
 	
 	private ArrayHelper() {}
 
