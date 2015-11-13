@@ -143,7 +143,10 @@ public class SSHTunnelMessageConnection implements MessageConnection, JMXAddress
 			copyEnvs(env);
 			connectInfo = extractConnectInfo();
 			try {
-				wsf = SSHService.getInstance().connect(connectInfo.getRelayHost(serviceURL.getHost()), connectInfo.getRelayPort(), connectInfo).dedicatedStreamTunnel(serviceURL.getHost(), serviceURL.getPort());
+				wsf = SSHService.getInstance()
+					.connect(connectInfo.getRelayHost(serviceURL.getHost()), connectInfo.getRelayPort(), connectInfo)
+					.dedicatedStreamTunnel(serviceURL.getHost(), serviceURL.getPort());
+				
 			} catch (Exception ex) {
 				connected.set(false);
 				throw new RuntimeException("Unexpected error creating stream forward to [" + connectInfo + "]", ex);

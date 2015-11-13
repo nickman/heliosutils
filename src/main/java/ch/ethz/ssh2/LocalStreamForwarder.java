@@ -9,8 +9,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,6 +24,7 @@ import javax.management.ObjectName;
 import com.heliosapm.utils.io.InstrumentedInputStream;
 import com.heliosapm.utils.io.InstrumentedOutputStream;
 import com.heliosapm.utils.jmx.JMXHelper;
+import com.heliosapm.utils.jmx.JMXManagedThreadPool;
 import com.heliosapm.utils.ssh.terminal.SSHService;
 
 import ch.ethz.ssh2.channel.Channel;
@@ -40,6 +45,7 @@ public class LocalStreamForwarder implements LocalStreamForwarderMBean, Closeabl
 	private ChannelManager cm;
 
 	private Channel cn;
+	private Future<Channel> cnFuture = null;
 	private final AtomicBoolean open = new AtomicBoolean(false);
 	
 	private final String host;
@@ -59,6 +65,17 @@ public class LocalStreamForwarder implements LocalStreamForwarderMBean, Closeabl
 	};
 	private final AtomicReference<ScheduledFuture<?>> handle = new AtomicReference<ScheduledFuture<?>>(null);
 	
+	private static final JMXManagedThreadPool streamForwarderExecutor = new JMXManagedThreadPool(
+			JMXHelper.objectName("com.heliosapm.ssh:service=LocalStreamForwarderExecutor"),
+			"LocalStreamForwarder",
+			1, 4, 
+			128, 60000,
+			100, 99,
+			true);
+			
+			
+	
+	
 	public long getSerial() {
 		return mySerial;
 	}
@@ -73,13 +90,19 @@ public class LocalStreamForwarder implements LocalStreamForwarderMBean, Closeabl
 	
 
 
-	LocalStreamForwarder(ChannelManager cm, String host_to_connect, int port_to_connect) throws IOException
+	LocalStreamForwarder(final ChannelManager cm, final String host_to_connect, final int port_to_connect) throws IOException
 	{
 		this.host = host_to_connect;
 		this.port = port_to_connect;
 		this.cm = cm;
-		cn = cm.openDirectTCPIPChannel(host_to_connect, port_to_connect,
-				InetAddress.getLocalHost().getHostAddress(), 0);
+		cnFuture = streamForwarderExecutor.submit(new Callable<Channel>(){
+			@Override
+			public Channel call() throws Exception {				
+				cn = cm.openDirectTCPIPChannel(host_to_connect, port_to_connect,
+						InetAddress.getLocalHost().getHostAddress(), 0);
+				return cn;
+			}
+		});
 		open.set(true);
 		objectName = register();
 		final LocalStreamForwarderWatcher watcher = LocalStreamForwarderWatcher.getInstance(host, port);
@@ -136,7 +159,16 @@ public class LocalStreamForwarder implements LocalStreamForwarderMBean, Closeabl
 	 */
 	public InputStream getInputStream() throws IOException
 	{
-		return new InstrumentedInputStream(cn.getStdoutStream(), bytesDown, onClose);
+		try {
+			if(cnFuture.isDone()) {
+				if(cn==null) cn = cnFuture.get();
+				return new InstrumentedInputStream(cn.getStdoutStream(), bytesDown, onClose);
+			}
+			cnFuture.get(10, TimeUnit.SECONDS);
+			return new InstrumentedInputStream(cn.getStdoutStream(), bytesDown, onClose);
+		} catch (Exception ex) {
+			throw new IOException("Timed out while waiting for Channel Connect to [" + host + ":" + port + "]", ex);
+		}
 	}
 
 	/**
