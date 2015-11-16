@@ -181,6 +181,14 @@ public class FileChangeWatcher extends Thread {
 			}
 		}
 	}
+
+	/**
+	 * Returns 
+	 * @return the finder
+	 */
+	public FileFinder getFinder() {
+		return finder;
+	}
 	
 	
 }
