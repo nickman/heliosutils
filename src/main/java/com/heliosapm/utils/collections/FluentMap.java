@@ -190,6 +190,14 @@ public class FluentMap<K, V> implements Map<K, V> {
 	public static <K, V> FluentMap<K, V> newMap(final Class<K> keyType, final Class<V> valueType) {
 		return newMap(null, keyType, valueType);
 	}
+	
+	/**
+	 * Returns the plain map
+	 * @return the plain map
+	 */
+	public Map<K,V> map() {
+		return instance;
+	}
 
 	private FluentMap(final MapType type) {
 		if(type==null) {
