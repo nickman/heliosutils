@@ -18,6 +18,10 @@ under the License.
  */
 package com.heliosapm.utils.jmx;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -28,8 +32,6 @@ import javax.management.Notification;
 import javax.management.NotificationEmitter;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
-
-import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
  * <p>Title: ExposedSubscribersNotificationBroadcaster</p>
@@ -42,21 +44,42 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 public class ExposedSubscribersNotificationBroadcaster implements NotificationEmitter {
 
-	protected final NonBlockingHashMap<Listener, String> subs = new NonBlockingHashMap<Listener, String>(8);
+	/** The total number of dispatched notifications */
+	private final AtomicLong dispatches = new AtomicLong(0L);
 	
-	protected final Executor executor; 
+	/** The registered notification listeners */
+	private final CopyOnWriteArraySet<Listener> subs = new CopyOnWriteArraySet<Listener>();
+	
+	/** The executor used to asynch dispatch notifications */
+	private final Executor executor; 
+	/** The published MBean notification meta data */
 	final MBeanNotificationInfo[] infos;
 	
   private static final MBeanNotificationInfo[] NO_NOTIFICATION_INFO =
       new MBeanNotificationInfo[0];
 
 	
-	private static class Listener {
+	private static class Listener implements NotificationFilter, NotificationListener {
 		final NotificationListener notifListener;
 		final NotificationFilter notifFilter;
 		final Object handback;
 		final boolean wildcard;
 		final int hashCode;
+		final String pattern;
+		final String toString;
+		
+		
+		private Listener(final NotificationListener notifListener, final NotificationFilter notifFilter, final Object handback, final boolean wildcard) {
+			if(notifListener==null) throw new IllegalArgumentException("The passed notification listener was null");
+			this.notifListener = notifListener;
+			this.notifFilter = notifFilter;
+			this.handback = handback;
+			this.wildcard = wildcard;
+			hashCode = _hashCode();
+			pattern = wildcard ? "X" : "X" + (notifFilter==null ? "0" : "X") + (handback==null ? "0" : "X"); 
+			toString = _toString();			
+		}
+		
 		
 		/**
 		 * Creates a new Listener
@@ -65,12 +88,7 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 		 * @param handback The optional handback
 		 */
 		public Listener(final NotificationListener notifListener, final NotificationFilter notifFilter, final Object handback) {
-			if(notifListener==null) throw new IllegalArgumentException("The passed notification listener was null");
-			this.notifListener = notifListener;
-			this.notifFilter = notifFilter;
-			this.handback = handback;
-			wildcard = notifFilter==null && handback==null;
-			hashCode = _hashCode();
+			this(notifListener, notifFilter, handback, false);
 		}
 		
 		/**
@@ -78,7 +96,28 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 		 * @param notifListener The mandatory listener
 		 */
 		public Listener(final NotificationListener notifListener) {
-			this(notifListener, null, null);
+			this(notifListener, null, null, true);
+		}
+		
+		/**
+		 * @param notification
+		 * @param handback
+		 */
+		@Override
+		public void handleNotification(final Notification notification, final Object handback) {
+			notifListener.handleNotification(notification, handback);
+		}
+		
+		/**
+		 * @param notification
+		 * @return
+		 */
+		@Override
+		public boolean isNotificationEnabled(final Notification notification) {			
+			if(notification==null) return false;
+			if(notifFilter==null) return true;
+			return notifFilter.isNotificationEnabled(notification);
+			
 		}
 		
 		/**
@@ -87,15 +126,29 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 		 */
 		@Override
 		public String toString() {
+			return toString;
+		}
+		
+		/**
+		 * Returns the listener pattern
+		 * @return the listener pattern
+		 */
+		public String pattern() {
+			return pattern;
+		}
+		
+		private String _toString() {
 			final StringBuilder b = new StringBuilder("Listener [");
 			b.append("hash:").append(hashCode()).append(",");
-			b.append("type:").append(notifListener.getClass().getSimpleName()).append(",");
-			if(notifFilter!=null) b.append("filter:").append(notifFilter.getClass().getSimpleName()).append(",");
-			if(handback!=null) b.append("handback:").append(handback.getClass().getSimpleName()).append(",");
+			b.append("pattern:").append(pattern).append(",");
+			b.append("type:").append(notifListener.getClass().getName()).append(",");
+			if(notifFilter!=null) b.append("filter:").append(notifFilter.getClass().getName()).append(",");
+			if(handback!=null) b.append("handback:").append(handback.getClass().getName()).append(",");
 			if(notifFilter==null && handback==null) b.append("wildcard:").append(wildcard).append(",");
 			return b.deleteCharAt(b.length()-1).append("]").toString();
 		}
 
+		
 		/**
 		 * {@inheritDoc}
 		 * @see java.lang.Object#hashCode()
@@ -110,10 +163,10 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + notifListener.hashCode();
-			if(!wildcard) {
-				result = prime * result + ((handback == null) ? 23 : handback.hashCode());
-				result = prime * result + ((notifFilter == null) ? 33 : notifFilter.hashCode());				
-			} 			
+//			if(!wildcard) {
+//				result = prime * result + ((handback == null) ? 23 : handback.hashCode());
+//				result = prime * result + ((notifFilter == null) ? 33 : notifFilter.hashCode());				
+//			} 			
 			return result;
 		}
 
@@ -131,8 +184,12 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 			if (getClass() != obj.getClass())
 				return false;			
 			Listener other = (Listener) obj;
-			// =============== Listener ONLY ===============
-			if(wildcard && other.wildcard && notifListener == other.notifListener) return true;
+			// =============== Wildcard ===============
+			if(other.wildcard && !wildcard && notifListener == other.notifListener) return true;
+			// =============== Pattern ===============
+			if(!pattern.equals(other.pattern)) return false;
+			// =============== Listener ONLY ===============			
+			if(wildcard && other.wildcard && notifListener == other.notifListener) return true;			
 			// =============== Handback ===============
 			if (handback == null) {
 				if (other.handback != null)
@@ -158,6 +215,38 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 			final TestNotificationListener list2 = new TestNotificationListener("Two");
 			final TestNotificationFilter filter1 = new TestNotificationFilter("XXX");
 			log("================== Adding");
+			log("Adding XXX");
+			nb.addNotificationListener(list2, filter1, MBeanServerDelegate.DELEGATE_NAME);
+			log("Size: " + nb.subs.size() + " After XXX\n" + nb.printListeners());
+			log("Adding XOO");
+			nb.addNotificationListener(list2, null, null);
+			log("Size: " + nb.subs.size() + " After XOO\n" + nb.printListeners());
+			log("Adding XOX");
+			nb.addNotificationListener(list2, null, MBeanServerDelegate.DELEGATE_NAME);
+			log("Size: " + nb.subs.size() + " After XOX\n" + nb.printListeners());
+			log("Adding XXO");
+			nb.addNotificationListener(list2, filter1, null);
+			log("Size: " + nb.subs.size() + " After XXO\n" + nb.printListeners());			
+			log("================== Removing: XXX");
+			nb.removeNotificationListener(list2, filter1, MBeanServerDelegate.DELEGATE_NAME);
+			log(nb.printListeners());			
+			log("Remaining: " + nb.subs.size());
+			log("================== Removing: XXO");
+			nb.removeNotificationListener(list2, filter1, null);
+			log(nb.printListeners());
+			log("Remaining: " + nb.subs.size());
+			log(nb.printListeners());
+			log("================== Removing: XOX");
+			nb.removeNotificationListener(list2, null, MBeanServerDelegate.DELEGATE_NAME);
+			log("Remaining: " + nb.subs.size());
+			log("================== Removing: XOO");
+			nb.removeNotificationListener(list2, null, null);
+			log("Remaining: " + nb.subs.size());			
+
+			
+			
+			
+			log("================== Adding");
 			nb.addNotificationListener(list2, filter1, MBeanServerDelegate.DELEGATE_NAME);
 			log("Size: " + nb.subs.size());
 			nb.addNotificationListener(list2, null, null);
@@ -167,27 +256,24 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 			nb.addNotificationListener(list2, filter1, null);
 			log("Size: " + nb.subs.size());
 			log("Done Adding: " + nb.subs.size() + " :: \n" + nb.printListeners());
-			log("================== Removing");
-			nb.removeNotificationListener(list2, filter1, MBeanServerDelegate.DELEGATE_NAME);
-			log(nb.printListeners());
-			log("Remaining: " + nb.subs.size());
-			nb.removeNotificationListener(list2, filter1, null);
-			log(nb.printListeners());
-			log("Remaining: " + nb.subs.size());
-			log(nb.printListeners());
-			nb.removeNotificationListener(list2, filter1, MBeanServerDelegate.DELEGATE_NAME);
-			log("Remaining: " + nb.subs.size());
-			nb.removeNotificationListener(list2, null, null);
+			log("================== Removing: X");
+			nb.removeNotificationListener(list2);
 			log("Remaining: " + nb.subs.size());			
+			
+			
 			
 		} catch (Exception ex) {
 			ex.printStackTrace(System.err);
 		}
 	}
 	
+	/**
+	 * Prints the registered listeners
+	 * @return A string describing the listeners
+	 */
 	public String printListeners() {
 		final StringBuilder b = new StringBuilder();
-		for(Listener l : subs.keySet()) {
+		for(Listener l : subs) {
 			b.append(l.toString()).append("\n");
 		}
 		return b.toString();
@@ -229,14 +315,55 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 		this.executor = executor==null ? SharedNotificationExecutor.getInstance() : executor;
 		this.infos = infos==null ? NO_NOTIFICATION_INFO : infos.clone();
 	}
+	
+	/**
+	 * Dispatches the passed notification to all registered listeners
+	 * @param n The notification to dispatch
+	 * @return the number of actual receipients dispatched to after each subscriber filtered the notification
+	 */
+	public int sendNotification(final Notification n) {
+		int cnt = 0;
+		if(n!=null && !subs.isEmpty()) {
+			for(final Listener x: subs) {
+				if(x.isNotificationEnabled(n)) {
+					executor.execute(new Runnable(){
+						public void run() {
+							x.handleNotification(n, x.handback);
+						}
+					});
+					cnt++;
+				}
+			}
+		}
+		dispatches.addAndGet(cnt);
+		return cnt;
+	}
+	
+	/**
+	 * Indicates if any subscribers are registered
+	 * @return true if any subscribers are registered, false otherwise
+	 */
+	public boolean hasSubscribers() {
+		return !subs.isEmpty();
+	}
 
+	/**
+	 * Returns the number of registered subscribers
+	 * @return the number of registered subscribers
+	 */
+	public int size() {
+		return subs.size();
+	}
+	
+	
 	/**
 	 * {@inheritDoc}
 	 * @see javax.management.NotificationBroadcaster#addNotificationListener(javax.management.NotificationListener, javax.management.NotificationFilter, java.lang.Object)
 	 */
 	@Override
 	public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {
-		subs.put(new Listener(listener, filter, handback), "");
+		final Listener x = new Listener(listener, filter, handback);
+		subs.add(x);
 	}
 
 	/**
@@ -244,8 +371,9 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 	 * @see javax.management.NotificationBroadcaster#removeNotificationListener(javax.management.NotificationListener)
 	 */
 	@Override
-	public void removeNotificationListener(final NotificationListener listener) throws ListenerNotFoundException {		
-		if(subs.remove(new Listener(listener))==null) {
+	public void removeNotificationListener(final NotificationListener listener) throws ListenerNotFoundException {	
+		final Listener key = new Listener(listener);
+		if(!subs.removeAll(Collections.singleton(key))) {
 			throw new ListenerNotFoundException();
 		}
 	}
@@ -255,8 +383,8 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 	 * @see javax.management.NotificationEmitter#removeNotificationListener(javax.management.NotificationListener, javax.management.NotificationFilter, java.lang.Object)
 	 */
 	@Override
-	public void removeNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws ListenerNotFoundException {
-		if(subs.remove(new Listener(listener, filter, handback))==null) {
+	public void removeNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws ListenerNotFoundException {		
+		if(!subs.remove(new Listener(listener, filter, handback))) {
 			throw new ListenerNotFoundException();
 		}
 	}
@@ -268,6 +396,26 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 	 */
 	@Override
 	public MBeanNotificationInfo[] getNotificationInfo() {
+		return infos;
+	}
+	
+	/**
+	 * Returns the total number of dispatched notifications
+	 * @return the total number of dispatched notifications
+	 */
+	public long getDispatchCount() {
+		return dispatches.get();
+	}
+	
+	/**
+	 * Returns info on the current subscribers
+	 * @return info on the current subscribers
+	 */
+	public HashSet<String> getSubscriberInfo() {
+		final HashSet<String> infos = new HashSet<String>();
+		for(Listener x: subs) {
+			infos.add(x.toString());
+		}
 		return infos;
 	}
 	

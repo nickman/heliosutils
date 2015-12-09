@@ -2468,10 +2468,12 @@ while(m.find()) {
 	 */
 	public static int remapMBeans(ObjectName query, MBeanServer source, MBeanServer target) {
 		int remaps = 0;
-		Set<ObjectName> mbeans = target.queryNames(query, null);
+		Set<ObjectName> mbeans = source.queryNames(query, null);
 		for(ObjectName on: mbeans) {
 			try {
-				Object proxy = MBeanServerInvocationHandler.newProxyInstance(source, on, DynamicMBean.class, true);
+				final String iface = (String)source.getMBeanInfo(on).getDescriptor().getFieldValue("interfaceClassName");
+				final Class<?> clazz = Class.forName(iface);
+				Object proxy = MBeanServerInvocationHandler.newProxyInstance(source, on, clazz, true);
 				target.registerMBean(proxy, on);
 				remaps++;
 			} catch (Exception e) {/* No Op */}
