@@ -20,6 +20,7 @@ package com.heliosapm.utils.collections;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.IdentityHashMap;
@@ -102,6 +103,7 @@ public class FluentMap<K, V> implements Map<K, V> {
 				return HashMap.class.isInstance(map);
 			}
 		},
+		/** Creates {@link HashMap}s */
 		HASHT(){@Override
 			public Map createMap() {
 				return new Hashtable();
@@ -176,6 +178,8 @@ public class FluentMap<K, V> implements Map<K, V> {
 	 * @param keyType The key type
 	 * @param valueType the map The value type
 	 * @return the map
+	 * @param <K> The key type of the map
+	 * @param <V> The value type of the map
 	 */
 	public static <K, V> FluentMap<K, V> newMap(final MapType mapType, final Class<K> keyType, final Class<V> valueType) {
 		return new FluentMap(mapType);
@@ -186,10 +190,40 @@ public class FluentMap<K, V> implements Map<K, V> {
 	 * @param keyType The key type
 	 * @param valueType the map The value type
 	 * @return the map
+	 * @param <K> The key type of the map
+	 * @param <V> The value type of the map
 	 */
 	public static <K, V> FluentMap<K, V> newMap(final Class<K> keyType, final Class<V> valueType) {
-		return newMap(null, keyType, valueType);
+		return newMap((MapType)null, keyType, valueType);
 	}
+	
+	
+	/**
+	 * Creates a new fluent tree map with the supplied comparator
+	 * @param comparator The comparator to initialize the tree map with
+	 * @param keyType The map key type class
+	 * @param valueType The map value type class
+	 * @return The fluent map instance
+	 * @param <K> The key type of the map
+	 * @param <V> The value type of the map
+	 */
+	public static <K, V> FluentMap<K, V> newMap(final Comparator<K> comparator, final Class<K> keyType, final Class<V> valueType) {
+		return new FluentMap(new TreeMap<K, V>(comparator), MapType.TREE);
+	}
+	
+	/**
+	 * Creates a new fluent concurrent skip list map with the supplied comparator
+	 * @param comparator The comparator to initialize the concurrent skip list map with
+	 * @param keyType The map key type class
+	 * @param valueType The map value type class
+	 * @return The fluent map instance
+	 * @param <K> The key type of the map
+	 * @param <V> The value type of the map
+	 */
+	public static <K, V> FluentMap<K, V> newCMap(final Comparator<K> comparator, final Class<K> keyType, final Class<V> valueType) {
+		return new FluentMap(new ConcurrentSkipListMap<K, V>(comparator), MapType.CSKP);
+	}
+	
 	
 	/**
 	 * Returns the plain map
@@ -300,6 +334,12 @@ public class FluentMap<K, V> implements Map<K, V> {
 		return this;
 	}
 	
+	/**
+	 * Returns the underlying [non-fluent] map instance
+	 * @param mapType The expected map type class
+	 * @return the underlying map
+	 * @param <T> The expected map type
+	 */
 	public <T extends Map> T asMap(final Class<T> mapType) {
 		return mapType.cast(instance);
 	}
