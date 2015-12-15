@@ -304,6 +304,20 @@ public class FluentMap<K, V> implements Map<K, V> {
 	}
 	
 	/**
+	 * Safe Fluent put. Puts the passed key/value if both are not null and returns this instance
+	 * @param key The key to put
+	 * @param value The value to put
+	 * @return this map
+	 */
+	public FluentMap<K, V> sfput(final K key, final V value) {
+		if(key!=null && value != null) {
+			instance.put(key, value);
+		}
+		return this;
+	}
+	
+	
+	/**
 	 * Fluent remove. Removes the passed key and returns this instance
 	 * @param key The key to remove
 	 * @return this map
