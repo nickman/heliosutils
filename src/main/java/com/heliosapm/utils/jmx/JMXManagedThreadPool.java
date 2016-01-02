@@ -19,6 +19,7 @@ under the License.
 package com.heliosapm.utils.jmx;
 
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -132,6 +133,9 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 		}
 	}
 	
+	
+	
+	
 	/**
 	 * Creates a new JMXManagedThreadPool
 	 * @param objectName The JMX ObjectName for this pool's MBean 
@@ -201,7 +205,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	@Override
 	public void uncaughtException(Thread t, Throwable e) {
 		uncaughtExceptionCount.incrementAndGet();
-		System.err.println("Thread pool handled uncaught exception on thread [" + t + "]:" + e);
+		System.err.println("Thread pool [" + this.poolName + "] handled uncaught exception on thread [" + t + "]:" + e);
 		if(exceptionHandler!=null) {
 			exceptionHandler.uncaughtException(t, e);
 		}
@@ -215,7 +219,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	@Override
 	public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
 		rejectedExecutionCount.incrementAndGet();
-		System.err.println("Submitted execution task [" + r + "] was rejected due to a full task queue");		
+		System.err.println("Submitted execution task [" + r + "] was rejected by pool [" + this.poolName + "] due to a full task queue");		
 	}
 
 
@@ -462,5 +466,194 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 		return false;
 	}
 	
+	public static JMXManagedThreadPoolBuilder builder() {
+		return new JMXManagedThreadPoolBuilder();
+	}
+
+	public static class JMXManagedThreadPoolBuilder {
+		public static final int CORES = ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors();
+		public static final String OBJECT_NAME_TEMPLATE = "com.heliosapm.threading:service=ThreadPool,name=%s";
+		private static final AtomicInteger serial = new AtomicInteger(0);
+		private ObjectName objectName = null;
+		private String poolName = null;
+		private int corePoolSize = CORES;
+		private int maximumPoolSize = CORES * 2;
+		private int queueSize = CORES * 100;
+		private long keepAliveTimeMs = 60000;
+		private int metricWindowSize = 1000;
+		private int metricDefaultPercentile = 99;
+		private boolean publishJMX = true;
+		private int prestart = 0;
+		private Thread.UncaughtExceptionHandler uncaughtHandler = null;
+		private RejectedExecutionHandler rejectionHandler = null; 
+		
+		/**
+		 * Builds and returns the configured JMXManagedThreadPool
+		 * @return the configured JMXManagedThreadPool
+		 */
+		public JMXManagedThreadPool build() {
+			if(!publishJMX) {
+				objectName = null;
+				if((poolName==null||poolName.trim().isEmpty())) {
+					poolName = "Pool#" + serial.incrementAndGet();
+				}
+			} else {
+				if(objectName==null && (poolName==null||poolName.trim().isEmpty())) {
+					poolName = "Pool#" + serial.incrementAndGet();
+					objectName = JMXHelper.objectName(String.format(OBJECT_NAME_TEMPLATE, poolName));
+				} else {
+					if(objectName==null) {
+						objectName = JMXHelper.objectName(String.format(OBJECT_NAME_TEMPLATE, poolName));
+					} else {
+						poolName = "Pool#" + serial.incrementAndGet();
+					}
+				}				
+			}
+			if(prestart > 0 && prestart > maximumPoolSize) {
+				prestart = maximumPoolSize;
+			}
+			JMXManagedThreadPool pool = new JMXManagedThreadPool(objectName, poolName, corePoolSize, maximumPoolSize, queueSize, keepAliveTimeMs, metricWindowSize, metricDefaultPercentile, publishJMX);
+			if(rejectionHandler!=null) {
+				pool.setRejectedExecutionHandler(rejectionHandler);
+			}
+			if(uncaughtHandler!=null) {
+				pool.setUncaughtExceptionHandler(uncaughtHandler);
+			}
+			if(prestart > 0) {
+				for(int i = 0; i < prestart; i++) {
+					pool.prestartCoreThread();
+				}
+			}
+			return pool;
+		}
+		
+		/**
+		 * Sets 
+		 * @param objectName the objectName to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder objectName(final ObjectName objectName) {
+			if(objectName==null) throw new IllegalArgumentException("The passed ObjectName was null");
+			this.objectName = objectName;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param poolName the poolName to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder poolName(final String poolName) {
+			if(poolName==null || poolName.trim().isEmpty()) throw new IllegalArgumentException("The passed Pool Name was null or empty");
+			this.poolName = poolName;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param corePoolSize the corePoolSize to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder corePoolSize(final int corePoolSize) {
+			if(corePoolSize < 1) throw new IllegalArgumentException("Invalid core pool size [" + corePoolSize + "]");
+			this.corePoolSize = corePoolSize;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param maximumPoolSize the maximumPoolSize to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder maxPoolSize(final int maximumPoolSize) {
+			if(maximumPoolSize < 1) throw new IllegalArgumentException("Invalid max pool size [" + maximumPoolSize + "]");
+			this.maximumPoolSize = maximumPoolSize;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param queueSize the queueSize to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder queueSize(final int queueSize) {
+			if(queueSize < 1) throw new IllegalArgumentException("Invalid queue size [" + queueSize + "]");
+			this.queueSize = queueSize;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param keepAliveTimeMs the keepAliveTimeMs to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder keepAliveTimeMs(final long keepAliveTimeMs) {
+			if(keepAliveTimeMs < 1) throw new IllegalArgumentException("Invalid keep alive time [" + keepAliveTimeMs + "] ms.");
+			this.keepAliveTimeMs = keepAliveTimeMs;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param metricWindowSize the metricWindowSize to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder metricWindowSize(final int metricWindowSize) {
+			if(metricWindowSize < 1) throw new IllegalArgumentException("Invalid metric window size [" + metricWindowSize + "]");
+			this.metricWindowSize = metricWindowSize;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param metricDefaultPercentile the metricDefaultPercentile to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder metricDefaultPercentile(final int metricDefaultPercentile) {
+			if(metricDefaultPercentile < 1 || metricDefaultPercentile > 99) throw new IllegalArgumentException("Invalid metric default percentile [" + metricDefaultPercentile + "]");
+			this.metricDefaultPercentile = metricDefaultPercentile;
+			return this;
+		}
+		/**
+		 * Sets 
+		 * @param publishJMX the publishJMX to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder publishJMX(final boolean publishJMX) {
+			this.publishJMX = publishJMX;
+			return this;
+		}
+
+
+		/**
+		 * Sets 
+		 * @param prestart the prestart to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder prestart(final int prestart) {
+			if(prestart < 1) throw new IllegalArgumentException("Invalid prestart [" + prestart + "]");
+			this.prestart = prestart;
+			return this;
+		}
+
+		/**
+		 * Sets 
+		 * @param uncaughtHandler the uncaughtHandler to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder uncaughtHandler(Thread.UncaughtExceptionHandler uncaughtHandler) {
+			if(uncaughtHandler==null) throw new IllegalArgumentException("The passed UncaughtExceptionHandler was null");
+			this.uncaughtHandler = uncaughtHandler;
+			return this;
+		}
+
+		/**
+		 * Sets 
+		 * @param rejectionHandler the rejectionHandler to set
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder rejectionHandler(RejectedExecutionHandler rejectionHandler) {
+			if(rejectionHandler==null) throw new IllegalArgumentException("The passed RejectedExecutionHandler was null");
+			this.rejectionHandler = rejectionHandler;
+			return this;
+		}
+		
+		
+		
+		
+	}
 
 }
