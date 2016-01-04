@@ -72,6 +72,14 @@ public class StdInCommandHandler implements Runnable {
 				System.exit(0);
 			}
 		});
+		commands.put("halt", new Runnable(){
+			@Override
+			public void run() {
+				System.out.println("Halt triggered by StdInCommandHandler. Exit code: -1");
+				Runtime.getRuntime().halt(-1);				
+			}
+		});
+		
 		commands.put("exit-1", new Runnable(){
 			@Override
 			public void run() {

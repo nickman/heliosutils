@@ -24,9 +24,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -41,11 +41,13 @@ import javax.management.QueryExp;
  * <p><code>com.heliosapm.utils.jmx.SharedNotificationExecutor</code></p>
  */
 
-public class SharedNotificationExecutor implements ExecutorService, Executor {
+public class SharedNotificationExecutor implements ExecutorService {
 	/** The singleton instance */
 	private static volatile SharedNotificationExecutor instance = null;
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
+	
+	
 	
 	/** The MBean ObjectName for the file watcher's JMX notification thread pool */
 	public static final ObjectName NOTIF_THREAD_POOL_OBJECT_NAME = JMXHelper.objectName("com.heliosapm.notifications:service=NotificationThreadPool");
@@ -75,12 +77,8 @@ public class SharedNotificationExecutor implements ExecutorService, Executor {
 	
 	
 	private SharedNotificationExecutor() {		
-		threadPool = new JMXManagedThreadPool(NOTIF_THREAD_POOL_OBJECT_NAME, "WatcherNotificationThreadPool", CORES, CORES, 1024, 60000, 100, 90);
-		final Runnable r = new Runnable() {
-			@Override
-			public void run() {}
-		};
-		threadPool.execute(r);threadPool.execute(r);threadPool.execute(r);		
+		threadPool = new JMXManagedThreadPool(NOTIF_THREAD_POOL_OBJECT_NAME, "SharedNotificationThreadPool", CORES, CORES * 2, 10240, 60000, 100, 90);
+		
 	}
 	
 	

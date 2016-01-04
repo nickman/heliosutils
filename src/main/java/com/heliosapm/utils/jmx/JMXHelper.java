@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
+import java.lang.management.PlatformManagedObject;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.AccessibleObject;
@@ -56,6 +57,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -101,7 +104,7 @@ import com.heliosapm.utils.reflect.PrivateAccessor;
 
 /**
  * <p>Title: JMXHelper</p>
- * <p>Description: </p> 
+ * <p>Description: Static JMX utility helper methods</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.jmx.JMXHelper</code></p>
@@ -2223,6 +2226,68 @@ while(m.find()) {
 	}
 
 
+	/**
+	 * Creates a new visible MBeanServer
+	 * @param name The MBeanServer's default domain name
+	 * @param xregPlatform true to register all known PlatformManagedObject in the created MBeanServer, false otherwise
+	 * @return the new MBeanServer
+	 */
+	public static synchronized MBeanServer createMBeanServer(final String name, final boolean xregPlatform) {
+		MBeanServer mbs = getLocalMBeanServer(name);
+		if(mbs==null) {
+			mbs = MBeanServerFactory.createMBeanServer(name);
+		}
+		if(xregPlatform) {
+			registerPlatformManagedObjects(mbs);
+		}
+		return mbs;
+	}
+	
+	/**
+	 * Registers all known platform management MXBeans on the passed MBeanServer
+	 * @param mbs The MBeanServer to register in
+	 */
+	public static void registerPlatformManagedObjects(final MBeanServer mbs) {
+		if(mbs==null) throw new IllegalArgumentException("The passed MBeanServer was null");
+		publish(ManagementFactory.getClassLoadingMXBean(), mbs);
+		publish(ManagementFactory.getCompilationMXBean(), mbs);
+		publish(ManagementFactory.getMemoryMXBean(), mbs);
+		publish(ManagementFactory.getOperatingSystemMXBean(), mbs);
+		publish(ManagementFactory.getRuntimeMXBean(), mbs);
+		publish(ManagementFactory.getThreadMXBean(), mbs);
+		for(PlatformManagedObject p : ManagementFactory.getGarbageCollectorMXBeans()) {
+			publish(p, mbs);
+		}
+		for(PlatformManagedObject p : ManagementFactory.getMemoryPoolMXBeans()) {
+			publish(p, mbs);
+		}
+		for(PlatformManagedObject p : ManagementFactory.getMemoryManagerMXBeans()) {
+			publish(p, mbs);
+		}
+		registerMBean(mbs, JMXHelper.objectName("java.util.logging:type=Logging"), LogManager.getLoggingMXBean());
+		// Java 6 safe for now .....
+		remapMBeans(JMXHelper.objectName("java.lang:*"), JMXHelper.getHeliosMBeanServer(), mbs);
+	}
+	
+	/**
+	 * Registers a platform managed object in the passed MBeanServer
+	 * @param obj The PlatformManagedObject to register
+	 * @param server The MBeanServer to register in
+	 */
+	public static void publish(final PlatformManagedObject obj, final MBeanServer server) {
+		if(obj==null) throw new IllegalArgumentException("The passed PlatformManagedObject was null");
+		if(server==null) throw new IllegalArgumentException("The passed MBeanServer was null");
+		try {
+			if(!server.isRegistered(obj.getObjectName())) {
+				server.registerMBean(obj, obj.getObjectName());
+			}
+		} catch (Exception ex) {
+			log.log(Level.WARNING, "Failed to register PlatformManagedObject [" + obj.getObjectName() + "] against MBeanServer [" + server.getDefaultDomain() + "]", ex);			
+		}
+	}
+	
+	
+
 	
 	/**
 	 * Retrieves an attribute from an MBeanServer connection. 
@@ -2468,10 +2533,12 @@ while(m.find()) {
 	 */
 	public static int remapMBeans(ObjectName query, MBeanServer source, MBeanServer target) {
 		int remaps = 0;
-		Set<ObjectName> mbeans = target.queryNames(query, null);
+		Set<ObjectName> mbeans = source.queryNames(query, null);
 		for(ObjectName on: mbeans) {
 			try {
-				Object proxy = MBeanServerInvocationHandler.newProxyInstance(source, on, DynamicMBean.class, true);
+				final String iface = (String)source.getMBeanInfo(on).getDescriptor().getFieldValue("interfaceClassName");
+				final Class<?> clazz = Class.forName(iface);
+				Object proxy = MBeanServerInvocationHandler.newProxyInstance(source, on, clazz, true);
 				target.registerMBean(proxy, on);
 				remaps++;
 			} catch (Exception e) {/* No Op */}
@@ -2497,8 +2564,9 @@ while(m.find()) {
 	 * @param bindInterface The interface to bind to
 	 * @param port The JMXMP listening port
 	 * @param server The MBeanServer to expose
+	 * @return The URL to access the JMXMP server on
 	 */
-	public static void fireUpJMXMPServer(final String bindInterface, final int port, final MBeanServer server) {
+	public static JMXServiceURL fireUpJMXMPServer(final String bindInterface, final int port, final MBeanServer server) {
 		try {
 			final JMXServiceURL surl = new JMXServiceURL("jmxmp", bindInterface, port);
 			final JMXConnectorServer jmxServer = JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
@@ -2515,6 +2583,7 @@ while(m.find()) {
 			if(!server.isRegistered(on)) {
 				server.registerMBean(jmxServer, on);
 			}
+			return jmxServer.getAddress();
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to start JMXServer on [" + bindInterface + ":" + port + "]", e);
 		}

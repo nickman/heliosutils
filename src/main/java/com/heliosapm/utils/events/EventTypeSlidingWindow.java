@@ -47,7 +47,7 @@ public class EventTypeSlidingWindow<E extends Enum<E> & BitMasked> {
 	/** The series as an int array */	
 	protected final int[] series;
 	/** A buffer wrapping the series so we can efficiently compact */
-	protected final IntBuffer buffer;
+	protected final IntBuffer buffer;;
 	/** The decode for the event types */
 	protected final E[] eventTypes;
 	/** The event type */
