@@ -34,6 +34,7 @@ import java.io.ObjectStreamClass;
 import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -42,15 +43,16 @@ import java.util.regex.Pattern;
 import javax.management.remote.JMXAddressable;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
-import javax.management.remote.generic.GenericConnector;
 import javax.management.remote.generic.MessageConnection;
 import javax.management.remote.message.Message;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.heliosapm.utils.jmx.SharedNotificationExecutor;
 import com.heliosapm.utils.ssh.terminal.ConnectInfo;
 import com.heliosapm.utils.ssh.terminal.SSHService;
+import com.heliosapm.utils.ssh.terminal.WrappedConnection;
 import com.heliosapm.utils.ssh.terminal.WrappedStreamForwarder;
 import com.sun.jmx.remote.generic.DefaultConfig;
 
@@ -143,10 +145,12 @@ public class SSHTunnelMessageConnection implements MessageConnection, JMXAddress
 			copyEnvs(env);
 			connectInfo = extractConnectInfo();
 			try {
+//				WrappedConnection wc = SSHService.getInstance().connect(connectInfo.getRelayHost(serviceURL.getHost()), connectInfo.getRelayPort(), connectInfo);
+//				System.err.println("WrappedConnection:" + wc.isOpen());
+//				wsf = wc.dedicatedStreamTunnel(serviceURL.getHost(), serviceURL.getPort());								
 				wsf = SSHService.getInstance()
 					.connect(connectInfo.getRelayHost(serviceURL.getHost()), connectInfo.getRelayPort(), connectInfo)
 					.dedicatedStreamTunnel(serviceURL.getHost(), serviceURL.getPort());
-				
 			} catch (Exception ex) {
 				connected.set(false);
 				throw new RuntimeException("Unexpected error creating stream forward to [" + connectInfo + "]", ex);

@@ -27,14 +27,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
+
 /**
  * <p>Title: ManagedForkJoinWorkerThreadFactory</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.tsdblite.jmx.ManagedForkJoinWorkerThreadFactory</code></p>
+ * <p><code>com.heliosapm.utils.jmx.ManagedForkJoinWorkerThreadFactory</code></p>
  */
-
 public class ManagedForkJoinWorkerThreadFactory implements ForkJoinWorkerThreadFactory {
 	/** The thread name prefix */
 	protected final String name;
