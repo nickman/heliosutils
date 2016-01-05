@@ -3107,7 +3107,7 @@ public class ForkJoinPool extends AbstractExecutorService {
             for (long waitTime = nanos, millis = 0L;;) {
                 if (terminated = isTerminated() ||
                     waitTime <= 0L ||
-                    (millis = unit.toMillis(waitTime)) <= 0L)
+                    (millis = unit.convert(waitTime, TimeUnit.NANOSECONDS)) <= 0L)
                     break;
                 wait(millis);
                 waitTime = nanos - (System.nanoTime() - startTime);

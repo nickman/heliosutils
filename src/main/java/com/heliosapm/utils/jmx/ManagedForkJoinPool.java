@@ -86,7 +86,34 @@ public class ManagedForkJoinPool extends ForkJoinPool implements ManagedForkJoin
 		objectName = JMXHelper.objectName(String.format(OBJECT_NAME_TEMPLATE, poolName));
 		JMXHelper.registerMBean(this, objectName);
 	}
+	
+	
+	@Override
+	public void shutdown() {
+		try {
+			super.shutdown();
+		} finally {
+			try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+		}
+	}
+	
+	@Override
+	public List<Runnable> shutdownNow() {
+		try {
+			return super.shutdownNow();
+		} finally {
+			try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+		}
+	}
 
+	@Override
+	public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
+		try {
+			return super.awaitTermination(timeout, unit);
+		} finally {
+			try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+		}		
+	}
 
 	/**
 	 * {@inheritDoc}

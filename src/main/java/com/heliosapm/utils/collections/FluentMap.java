@@ -26,6 +26,7 @@ import java.util.Hashtable;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
@@ -580,6 +581,18 @@ public class FluentMap<K, V> implements Map<K, V> {
   @Override
   public String toString() {
   	return instance.toString();
+  }
+  
+  /**
+   * Creates and returns a disconnected {@link Properties} instance from this map.
+   * @return the properties instance
+   */
+  public Properties toProperties() {
+  	final Properties p = new Properties();
+  	for(Map.Entry<?, ?> entry: entrySet()) {
+  		p.setProperty(entry.getKey().toString(), entry.getValue().toString());
+  	}
+  	return p;
   }
 
   // Views

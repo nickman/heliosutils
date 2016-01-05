@@ -22,6 +22,7 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -373,6 +374,34 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	@Override
 	public void stop() {
 		shutdownNow();
+		try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) { /* No Op */}
+	}
+	
+	@Override
+	public void shutdown() {
+		try {
+			super.shutdown();
+		} finally {
+			try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+		}
+	}
+	
+	@Override
+	public List<Runnable> shutdownNow() {
+		try {
+			return super.shutdownNow();
+		} finally {
+			try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+		}
+	}
+
+	@Override
+	public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
+		try {
+			return super.awaitTermination(timeout, unit);
+		} finally {
+			try { JMXHelper.unregisterMBean(objectName); } catch (Exception x) {/* No Op */}
+		}		
 	}
 	
 	

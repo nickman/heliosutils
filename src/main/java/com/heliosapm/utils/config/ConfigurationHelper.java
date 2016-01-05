@@ -306,11 +306,11 @@ public class ConfigurationHelper {
 	}
 	
 	/**
-	 * Returns the value defined as a string array looked up from the Environment, then System properties.
+	 * Returns the value defined as a string array looked up from the System properties, then Environment.
 	 * The values should be comma separated. Strips out any null or blank entries.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return as a String array if the name is not defined.
-	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties, then Environment. The first located match will be returned.
 	 * @return The string array or the passed default value.
 	 */
 	public static String[] getArraySystemThenEnvProperty(final String name, final String[] defaultValue, final Properties...properties) {
@@ -324,6 +324,41 @@ public class ConfigurationHelper {
 		}
 		return list.toArray(new String[list.size()]);
 	}
+	
+	/**
+	 * Returns the enum member indicated by the configured value looked up in System Properties then Environment with the passed name automatically upper cased.
+	 * @param enumType The enum type
+	 * @param name The config name
+	 * @param defaultEnum The default enum member
+	 * @param properties An array of properties to search in. If empty or null, will search system properties, then Environment. The first located match will be returned.
+	 * @return the configured enum member or the default if one cannot be decoded
+	 */
+	public static <E extends Enum<E>> E getEnumUpperSystemThenEnvProperty(final Class<E> enumType, final String name, final E defaultEnum, final Properties...properties) {
+		return getEnumSystemThenEnvProperty(enumType, name==null ? null : name.toUpperCase(), defaultEnum, properties);
+	}
+	
+	/**
+	 * Returns the enum member indicated by the configured value looked up in System Properties then Environment.
+	 * @param enumType The enum type
+	 * @param name The config name
+	 * @param defaultEnum The default enum member
+	 * @param properties An array of properties to search in. If empty or null, will search system properties, then Environment. The first located match will be returned.
+	 * @return the configured enum member or the default if one cannot be decoded
+	 */
+	public static <E extends Enum<E>> E getEnumSystemThenEnvProperty(final Class<E> enumType, final String name, final E defaultEnum, final Properties...properties) {
+		if(enumType==null) throw new IllegalArgumentException("The passed enum type was null");
+		try {
+			final String n = getSystemThenEnvProperty(name, null, properties);			
+			if(n!=null && !n.trim().isEmpty()) {
+				final String _n = n.trim();
+				return Enum.valueOf(enumType, _n);
+			}
+		} catch (Exception ex) {
+			/* No Op */
+		}
+		return defaultEnum;
+	}
+	
 	
 	/**
 	 * Attempts to create an instance of the passed class using one of:<ol>
