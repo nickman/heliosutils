@@ -639,6 +639,14 @@ public class StringHelper {
 		}
 	};
 	
+	private static final ThreadLocal<WeakReference<StringBuffer>> stringBufferCache = new ThreadLocal<WeakReference<StringBuffer>>() {
+		@Override
+		protected WeakReference<StringBuffer> initialValue() {			
+			return new WeakReference<StringBuffer>(new StringBuffer());
+		}
+	};
+	
+	
 	/**
 	 * Acquires and truncates the current thread's StringBuilder.
 	 * @return A truncated string builder for use by the current thread.
@@ -652,7 +660,59 @@ public class StringHelper {
 		}
 		b.setLength(0);
 		return b;
+	}
+	
+	/**
+	 * Acquires and truncates the current thread's StringBuffer.
+	 * @return A truncated string buffer for use by the current thread.
+	 */
+	public static StringBuffer getStringBuffer() {
+		StringBuffer b = stringBufferCache.get().get();
+		if(b==null) {
+			b = new StringBuffer();
+			stringBufferCache.set(new WeakReference<StringBuffer>(b));
+			return b;
+		}
+		b.setLength(0);
+		return b;
 	}	
+	
+	
+	/** The token matcher */
+	public static final Pattern NUMERIC_TOKEN = Pattern.compile("\\$\\{(\\d+)?\\}");
+
+	/**
+	 * <p>Replaces numeric tokens in the format <b><code>${#}</code></b> using the token decode in the provided decodes
+	 * with the index found in the token.</p>
+	 * <p>e.g. An expression <b><code>"gc.${1}=name=${0},service=GCMonitor"</code></b> with a set of tokens
+	 * <b><code>{"Scavenge", "time"}</code></b> will resolve to  <b><code>"gc.time=name=Scavenge,service=GCMonitor"</code></b></p>
+	 * @param expression The expression to resolve
+	 * @param decodes The token decodes
+	 * @return The replaced expression
+	 */
+	public static String replaceNumericTokens(final CharSequence expression, final String...decodes) {
+		if(expression==null) throw new IllegalArgumentException("The passed expression was null");
+		if(decodes.length==0) return expression.toString();
+		final Matcher m = NUMERIC_TOKEN.matcher(expression);
+		final StringBuffer b = getStringBuffer();
+		int index = -1;
+		while(m.find()) {
+			index = Integer.parseInt(m.group(1));
+			if(index < 0 || index-1 > decodes.length) throw new IllegalArgumentException("Invalid token [" + m.group(0) + "] in expression [" + expression + "] with decodes " + Arrays.toString(decodes));			
+			m.appendReplacement(b, decodes[index]);
+		}
+		m.appendTail(b);
+		return b.toString();
+	}
+	
+	public static void main(String[] args) {
+		log("TOK Test");
+		log(replaceNumericTokens("gc.${1}=name=${0},service=GCMonitor", splitString("Scavenge.time", '.')));
+	}
+	
+	public static void log(Object msg) {
+		System.out.println(msg);
+	}
 	
 	/**
 	 * Escapes quote characters in the passed string
