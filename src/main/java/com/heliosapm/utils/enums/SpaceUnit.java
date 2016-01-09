@@ -19,6 +19,8 @@ under the License.
 package com.heliosapm.utils.enums;
 
 import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 
 /**
@@ -118,10 +120,28 @@ public enum SpaceUnit {
 		
 	}
 	
-	public long convert(long sourceSpace, SpaceUnit sourceUnit) {
+	public long convert(final long sourceSpace, final SpaceUnit sourceUnit) {
 		if(sourceUnit==null) throw new IllegalArgumentException("The source unit was null");
 		return sourceUnit.byteSize * sourceSpace / byteSize;
 	}
+	
+	public double dconvert(final double sourceSpace, final SpaceUnit sourceUnit, final int decimalPlaces) {
+		if(sourceUnit==null) throw new IllegalArgumentException("The source unit was null");
+		return round((sourceUnit.byteSize * sourceSpace / byteSize), decimalPlaces);
+	}
+	
+	public double dconvert(final double sourceSpace, final SpaceUnit sourceUnit) {
+		return dconvert(sourceSpace, sourceUnit, 2);
+	}
+	
+	public static double round(double value, int places) {
+    if (places < 0) throw new IllegalArgumentException();
+
+    BigDecimal bd = new BigDecimal(value);
+    bd = bd.setScale(places, RoundingMode.HALF_UP);
+    return bd.doubleValue();
+}	
+	
 	
 	public String fovert(long sourceSpace, SpaceUnit sourceUnit) {
 		return format(convert(sourceSpace, sourceUnit)) + symbol;
