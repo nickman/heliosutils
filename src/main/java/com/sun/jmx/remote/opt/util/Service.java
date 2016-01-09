@@ -91,7 +91,7 @@ import java.security.PrivilegedAction;
  * file in the resource directory <tt>META-INF/services</tt>.  The file's name
  * should consist of the fully-qualified name of the abstract service class.
  * The file should contain a list of fully-qualified concrete provider-class
- * names, one per line.  Space and tab characters surrounding each name, as
+ * names, one per line.  SpaceUnit and tab characters surrounding each name, as
  * well as blank lines, are ignored.  The comment character is <tt>'#'</tt>
  * (<tt>0x23</tt>); on each line all characters following the first comment
  * character are ignored.  The file must be encoded in UTF-8.
