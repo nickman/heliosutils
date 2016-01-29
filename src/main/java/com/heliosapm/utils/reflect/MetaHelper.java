@@ -115,8 +115,67 @@ public class MetaHelper {
 		return null;
 	}
 	
+	public static <T> T instantiate(final String className, final Object...args) {
+		return (T) instantiate(className, Thread.currentThread().getContextClassLoader(), Object.class, args);
+	}
 	
 	
-	public MetaHelper() {}
+	public static <T> T instantiate(final String className, final Class<T> supertype, final Object...args) {
+		return instantiate(className, Thread.currentThread().getContextClassLoader(), supertype, args);
+	}
+	
+	public static <T> T instantiate(final String className, final ClassLoader classLoader, final Class<T> supertype, final Object...args) {
+		if(className==null || className.trim().isEmpty()) throw new IllegalArgumentException("The passed class name was null or empty");
+		final Class<?> stype = supertype==null ? Object.class : supertype;
+		final ClassLoader cl = classLoader==null ? Thread.currentThread().getContextClassLoader() : classLoader;
+		Constructor<?> ctor = null;
+		Method gim = null;
+		try {
+			final Class<?> clazz = Class.forName(className, true, classLoader);
+			if(allNullOrEmpty(args)) {
+				ctor = findConstructor(clazz, EMPTY_CLASS_ARR);
+				if(ctor!=null) {
+					ctor.setAccessible(true);
+					return (T)stype.cast(ctor.newInstance());
+				}
+				gim = findNamedMethod(clazz, "getInstance", EMPTY_CLASS_ARR, SModifier.STATIC);
+				if(gim==null) throw new Exception("No paramless constructor or getInstance found for [" + clazz.getName() + "]");
+				gim.setAccessible(true);
+				return (T)stype.cast(gim.invoke(null));
+			} else {
+				for(Object arg: args) {
+					if(arg==null) continue;
+					try {
+						final Class<?>[] signature = new Class<?>[]{arg.getClass()};
+						ctor = findConstructor(clazz, signature);
+						if(ctor!=null) {
+							ctor.setAccessible(true);
+							return (T)stype.cast(ctor.newInstance(arg));
+						}
+						gim = findNamedMethod(clazz, "getInstance", signature, SModifier.STATIC);
+						if(gim==null) continue;
+						gim.setAccessible(true);
+						return (T)stype.cast(gim.invoke(null));
+					} catch (Exception x) {/* No Op */}
+				}
+				throw new Exception("No matching constructor or getInstance found for [" + clazz.getName() + "]");
+			}
+		} catch (Exception ex) {
+			//throw new RuntimeException("Failed to instantiate [" + className + "] instance of [" + supertype + "]", ex);
+		}
+		return null;
+	}
+	
+	public static boolean allNullOrEmpty(final Object...args) {
+		if(args.length==0) return true;
+		for(Object arg: args) {
+			if(arg!=null) return false;
+		}
+		return true;
+	}
+	
+	
+	
+	private MetaHelper() {}
 
 }
