@@ -19,9 +19,12 @@ under the License.
 package com.heliosapm.utils.collections;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import com.heliosapm.utils.url.URLHelper;
 import com.heliosapm.utils.xml.XMLHelper;
@@ -89,6 +92,18 @@ public class Props {
 	 */
 	public static Properties strToProps(final CharSequence cs) {
 		return strToProps(cs, UTF8);
+	}
+	
+	/**
+	 * Add the passed properties to the system properties
+	 * @param p The properties to add to system
+	 */
+	public static void setSystem(final Properties p) {
+		if(p!=null && !p.isEmpty()) {
+			for(String key: p.stringPropertyNames()) {
+				System.setProperty(key, p.getProperty(key));
+			}
+		}
 	}
 	
 	/**
@@ -202,6 +217,19 @@ public class Props {
 		}
 		
 		/**
+		 * Removes properties with the passed keys
+		 * @param keys The keys to remove properties for
+		 * @return this builder
+		 */
+		public PropsBuilder remove(final Object...keys) {
+			for(Object key: keys) {
+				if(key==null) continue;
+				p.remove(key);
+			}
+			return this;
+		}
+		
+		/**
 		 * Return the built properties
 		 * @return the built properties
 		 */
@@ -217,8 +245,65 @@ public class Props {
 			return new PropsBuilder(p).getProperties();
 		}
 		
+		/**
+		 * Returns the build properties as a UTF8 encoded string
+		 * @param comments The optional comments
+		 * @return the build properties as a string
+		 */
+		public String asString(final String comments) {
+			final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			try {
+				p.store(baos, comments==null ? "" : comments);
+			} catch (Exception ex) {
+				throw new RuntimeException("Failed to convert to a string");
+			}
+			return new String(baos.toByteArray(), UTF8);
+		}
+		
+		/**
+		 * Returns the build properties as a UTF8 encoded string with blank comments
+		 * @return the build properties as a string
+		 */
+		public String asString() {
+			return asString("");
+		}
 		
 		
+		/**
+		 * Returns the build properties as a UTF8 encoded XML string
+		 * @param comments The optional comments
+		 * @return the build properties as an XML string
+		 */
+		public String asXML(final String comments) {
+			final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			try {
+				p.storeToXML(baos, comments==null ? "" : comments);
+			} catch (Exception ex) {
+				throw new RuntimeException("Failed to convert to XML");
+			}
+			return new String(baos.toByteArray(), UTF8);
+		}
+		
+		/**
+		 * Returns the build properties as a UTF8 encoded XML string with blank comments
+		 * @return the build properties as an XML string
+		 */
+		public String asXML() {
+			return asXML("");
+		}
+		
+		/**
+		 * Returns an array of strings containing the <b><code>-Dkey=value</code></b> command line
+		 * directives to set system props.
+		 * @return an array of strings
+		 */
+		public String[] asCommandLine() {
+			final Set<String> cmds = new LinkedHashSet<String>();
+			for(String key: p.stringPropertyNames()) {
+				cmds.add("-D" + key + "=" + p.getProperty(key));
+			}
+			return cmds.toArray(new String[cmds.size()]);
+		}
 		
 		
 	}
