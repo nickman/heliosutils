@@ -25,6 +25,7 @@ import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.lang.management.PlatformManagedObject;
+import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.AccessibleObject;
@@ -33,6 +34,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
@@ -45,6 +47,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -65,7 +68,6 @@ import java.util.regex.Pattern;
 
 import javax.management.Attribute;
 import javax.management.AttributeList;
-import javax.management.DynamicMBean;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanNotificationInfo;
@@ -117,11 +119,25 @@ public class JMXHelper {
 	public static final String JMX_DOMAIN_DEFAULT = System.getProperty(JMX_DOMAIN_PROPERTY, ManagementFactory.getPlatformMBeanServer().getDefaultDomain());
 	/** Regex WildCard Support Pattern for ObjectName key values */
 	public static final Pattern OBJECT_NAME_KP_WILDCARD = Pattern.compile("[:|,](\\S+?)~=\\[(\\S+?)\\]");
+	/** IP4 address pattern matcher */
+	public static final Pattern IP4_ADDRESS = Pattern.compile("((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])");
+	/** IP6 address pattern matcher */
+	public static final Pattern IP6_ADDRESS = Pattern.compile("(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])).*?");
+	
 	/** Static class logger */
 	private static final Logger log = Logger.getLogger(JMXHelper.class.getName());
 	
 	/** The MBeanInfo changed notification type */
 	public static final String MBEAN_INFO_CHANGED = "jmx.mbean.info.changed";
+	
+	/** The VMSupport class name from which we can get the agent properties */
+	public static final String VMSUPPORT_CLASSNAME = "sun.misc.VMSupport";
+	
+	/** Indicates if the host OS is some flavor of windows */
+	public static final boolean IS_WIN = System.getProperty("os.name", "").toLowerCase().contains("windows");
+	
+	/** The VMSupport instance (if located, otherwise null) */
+	public static final Properties AGENT_PROPERTIES;
 	
 	/** A reusable MBeanInfo changed notification */
 	public static final MBeanNotificationInfo META_CHANGED_NOTIF = new MBeanNotificationInfo(new String[] {MBEAN_INFO_CHANGED}, Notification.class.getName(), "Broadcast when an MBean's meta-data changes");
@@ -215,7 +231,14 @@ public class JMXHelper {
 			tmSupported = false;
 		}
 		THREAD_MEM_SUPPORTED = tmSupported;
-		
+		Properties vmsupp = null;
+		try {
+			Class<?> vmsuppClazz = Class.forName(VMSUPPORT_CLASSNAME);
+			vmsupp = (Properties) vmsuppClazz.getDeclaredMethod("getAgentProperties").invoke(null); 
+		} catch (Exception ex) {
+			vmsupp = new Properties();
+		}
+		AGENT_PROPERTIES = vmsupp;
 	}
 	
 	public static long getThreadAllocatedBytes(final long id) {
@@ -2643,7 +2666,157 @@ while(m.find()) {
 		System.out.println(String.format("Registry started on [%s:%s]", "0.0.0.0",  20384));
 		stopRMIRegistry("localhost", 20384);
 		System.out.println("Registry stopped");
+		System.out.println("AgentProps:" + AGENT_PROPERTIES);
+		// AgentProps:{sun.jvm.args=-Dfile.encoding=UTF-8, sun.jvm.flags=, sun.java.command=com.heliosapm.utils.jmx.JMXHelper}
 	}	
+	
+	/**
+	 * Returns the JVM flags from the agent properties <b><code>sun.jvm.flags</code></p> property
+	 * @return the JVM flags
+	 */
+	public static String getJVMFlags() {
+		return AGENT_PROPERTIES.getProperty("sun.jvm.flags", "");
+	}
+	
+	/**
+	 * Returns the JVM main class name from the first source returning a non-null/non-empty value:<ol>
+	 * 	<li>The agent, then system properties <b><code>com.heliosapm.appname</code></p> property</li>
+	 * 	<li>The agent, then system properties <b><code>sun.java.command</code></p> property</li>
+	 *  <li>The agent, then system properties <b><code>sun.rt.javaCommand</code></p> property</li>
+	 *  <li>The agent, then system properties <b><code>program.name</code></p> property</li>
+	 *  <li>The JVM PID from the runtime name from {@link RuntimeMXBean#getName()}</li>
+	 * @return the JVM main class name
+	 */
+	public static String getJVMMain() {
+		String main = cleanAppName(ConfigurationHelper.getSystemThenEnvProperty("com.heliosapm.appname", null, AGENT_PROPERTIES));
+		if(main!=null && !main.trim().isEmpty()) return main;
+		main = cleanAppName(ConfigurationHelper.getSystemThenEnvProperty("sun.java.command", null, AGENT_PROPERTIES));
+		if(main!=null && !main.trim().isEmpty()) return main;
+		main = cleanAppName(ConfigurationHelper.getSystemThenEnvProperty("sun.rt.javaCommand", null, AGENT_PROPERTIES));
+		if(main!=null && !main.trim().isEmpty()) return main;		
+		main = cleanAppName(ConfigurationHelper.getSystemThenEnvProperty("program.name", null, AGENT_PROPERTIES));
+		if(main!=null && !main.trim().isEmpty()) return main;				
+		return ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+	}
+	
+	/**
+	 * Attempts a series of methods of divining the host name
+	 * @return the determined host name
+	 */
+	public static String getMyHostName() {
+		String host = ConfigurationHelper.getSystemThenEnvProperty("com.heliosapm.hostname", null, AGENT_PROPERTIES);
+		if(host!=null && !host.trim().isEmpty()) return host;		
+		host = getHostNameByNic();
+		if(host!=null && !host.trim().isEmpty()) return host;
+		host = getHostNameByInet();
+		if(host!=null && !host.trim().isEmpty()) return host;
+		host = ConfigurationHelper.getSystemThenEnvProperty("java.rmi.server.hostname", null, AGENT_PROPERTIES);
+		if(host!=null && !host.trim().isEmpty()) return host;
+		host = System.getenv(IS_WIN ? "COMPUTERNAME" : "HOSTNAME");
+		if(host!=null && !host.trim().isEmpty()) return host;
+		return ManagementFactory.getRuntimeMXBean().getName().split("@")[1];
+	}	
+	
+	
+	/**
+	 * Returns the optimal identifier for this JVM
+	 * @return the identfier for this JVM
+	 */
+	public static String getJVMName() {
+		return getJVMMain() + "@" + getMyHostName();
+	}
+	
+	/**
+	 * Loads a class by name
+	 * @param className The class name
+	 * @param loader The optional class loader
+	 * @return The class of null if the name could not be resolved
+	 */
+	public static Class<?> loadClassByName(final String className, final ClassLoader loader) {
+		try {
+			if(loader!=null) {
+				return Class.forName(className, true, loader);
+			} 
+			return Class.forName(className);
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+	
+	
+	/**
+	 * Cleans an app name
+	 * @param appName The app name
+	 * @return the cleaned name or null if the result is no good
+	 */
+	public static String cleanAppName(final String appName) {
+		if(appName==null || appName.trim().isEmpty()) return null;
+		final String[] frags = appName.split("\\s+");
+		if(appName.contains(".jar")) {
+			
+			for(String s: frags) {
+				if(s.endsWith(".jar")) {
+					String[] jfrags = s.split("\\.");
+					return jfrags[jfrags.length-1];
+				}
+			}
+		} else {
+			String className = frags[0];
+			Class<?> clazz = loadClassByName(className, null);
+			if(clazz!=null) {
+				return clazz.getSimpleName();
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Uses <b><code>InetAddress.getLocalHost().getCanonicalHostName()</code></b> to get the host name.
+	 * If the value is null, empty or equals <b><code>localhost</code></b>, returns null.
+	 * @return The host name or null if one was not found.
+	 */
+	public static String getHostNameByInet() {
+		try {
+			String inetHost = InetAddress.getLocalHost().getCanonicalHostName();
+			if(inetHost==null || inetHost.trim().isEmpty() || "localhost".equalsIgnoreCase(inetHost.trim())) return null;
+			return inetHost.trim();
+		} catch (Exception x) {
+			return null;
+		}
+	}
+	
+	
+	
+	/**
+	 * Iterates through the found NICs, extracting the host name if the NIC is not the loopback interface.
+	 * The host name is extracted from the first address bound to the first matching NIC that does not 
+	 * have a canonical name that is an IP address.
+	 * @return The host name or null if one was not found.
+	 */
+	public static String getHostNameByNic() {
+		try {
+			for(Enumeration<NetworkInterface> nicEnum = NetworkInterface.getNetworkInterfaces(); nicEnum.hasMoreElements();) {
+				NetworkInterface nic = nicEnum.nextElement();
+				if(nic!=null && nic.isUp() && !nic.isLoopback()) {
+					for(Enumeration<InetAddress> nicAddr = nic.getInetAddresses(); nicAddr.hasMoreElements();) {
+						InetAddress addr = nicAddr.nextElement();
+						String chost = addr.getCanonicalHostName();
+						if(chost!=null && !chost.trim().isEmpty()) {
+							if(!IP4_ADDRESS.matcher(chost).matches() && !IP6_ADDRESS.matcher(chost).matches()) {
+								return chost;
+							}
+						}
+					}
+				}
+			}
+			return null;
+		} catch (Exception x) {
+			return null;
+		}		
+	}
+	
+	
+	
 	
 	/**
 	 * Generates a unique key for an RMI registry end point
