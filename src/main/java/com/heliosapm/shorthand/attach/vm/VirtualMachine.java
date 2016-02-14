@@ -319,7 +319,7 @@ public class VirtualMachine extends BaseWrappedClass {
 	public void loadAgentPath(String agentPath, String options) {
 		try {			
 			pushCl();
-			invoke(delegate, null, "loadAgentPathSS", agentPath);
+			invoke(delegate, null, "loadAgentPathSS", agentPath, options);
 		} finally {
 			popCl();
 		}				

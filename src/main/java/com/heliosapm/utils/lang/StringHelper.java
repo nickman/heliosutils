@@ -502,6 +502,20 @@ public class StringHelper {
     }
     
     /**
+     * Builds a descriptor from an array of classes
+     * @param sig The signature
+     * @return the descriptor
+     */
+    public static String getDescriptor(final Class<?>...sig) {
+    	final StringBuilder buf = new StringBuilder("(");
+    	for(Class<?> clazz: sig) {
+    		if(clazz==null) throw new RuntimeException("Array of sig had a null");
+    		getDescriptor(buf, clazz);
+    	}
+    	return buf.append(")").toString();
+    }
+    
+    /**
      * Returns a deep toStringed string array built from the names of the passed classes
      * @param signature A class array
      * @return the concat value

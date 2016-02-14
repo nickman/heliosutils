@@ -12,7 +12,7 @@ import java.util.Random;
  * for classes supporting dynamic striping on 64bit values. The class
  * extends Number so that concrete subclasses must publicly do so.
  */
-abstract class Striped64 extends Number {
+abstract class Striped64 extends Number implements Comparable<Number> {
     /*
      * This class maintains a lazily-initialized table of atomically
      * updated variables, plus an extra "base" field. The table size
@@ -337,5 +337,12 @@ abstract class Striped64 extends Number {
             throw new RuntimeException("Could not initialize intrinsics",
                                        e.getCause());
         }
+    }
+    
+    @Override
+    public int compareTo(final Number him) {
+    	final double me = doubleValue();
+    	final double you = him.doubleValue();    	
+    	return me==you ? 0 : (me < you ? -1 : 1);
     }
 }
