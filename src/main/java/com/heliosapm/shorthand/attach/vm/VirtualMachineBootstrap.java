@@ -179,7 +179,7 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 			attachClassLoader.set(clazz.getClassLoader()==null ? classLoader : clazz.getClassLoader());
 			found.set(true);
 		} catch (Exception e) {
-			/* No Op */
+			e.printStackTrace(System.err);
 		}		
 		try {
 			Class<?> clazz = Class.forName(VM_CLASS, true, classLoader);
@@ -217,7 +217,9 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 			found.set(true);
 			BaseWrappedClass.savedState.set(null);
 			return;
-		} catch (Exception e) {}
+		} catch (Throwable e) {
+			log.info("Not found:" + e);
+		}
 		List<String> altLocs = new ArrayList<String>();
 		if(urlLocation!=null) {
 			altLocs.add(urlLocation);
