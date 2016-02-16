@@ -35,7 +35,7 @@ import java.io.Serializable;
  * @since 1.8
  * @author Doug Lea
  */
-public class LongAdder extends Striped64 implements Serializable {
+public class LongAdder extends Striped64 implements Serializable, Comparable<Number> {
     private static final long serialVersionUID = 7249069246863182397L;
 
     /**
@@ -195,5 +195,12 @@ public class LongAdder extends Striped64 implements Serializable {
         cells = null;
         base = s.readLong();
     }
+
+	@Override
+	public int compareTo(final Number la) {
+		final long me = longValue();
+		final long him = la.longValue();
+		return me==him ? 0 : (me < him ? -1 : 1);
+	}
 
 }
