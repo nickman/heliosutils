@@ -29,8 +29,30 @@ import java.io.File;
  */
 
 public interface FileChangeEventListener {
+	/**
+	 * Callback fired when a watched file changes
+	 * @param file the changed file
+	 */
 	public void onChange(final File file);
+	/**
+	 * Callback fired when a watched file is deleted
+	 * @param file the deleted file
+	 */
 	public void onDelete(final File file);
+	/**
+	 * Callback fired when a new file is created matching the watcher's criteria
+	 * @param file the new file
+	 */
 	public void onNew(final File file);
+	/**
+	 * Returns the file change events that this listener is interested in
+	 * @return an array of file change events
+	 */
 	public FileChangeEvent[] getInterest();
+	
+	/**
+	 * Provides this listener a reference to the FileChangeWatcher that is managing the file watch
+	 * @param fileChangeWatcher The parent FileChangeWatcher
+	 */
+	public void setFileChangeWatcher(final FileChangeWatcher fileChangeWatcher);
 }

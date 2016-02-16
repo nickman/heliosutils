@@ -73,8 +73,16 @@ public class EmptyFileChangeEventListener implements FileChangeEventListener {
 	 */
 	@Override
 	public FileChangeEvent[] getInterest() {
-		// TODO Auto-generated method stub
-		return null;
+		return types;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.file.FileChangeEventListener#setFileChangeWatcher(com.heliosapm.utils.file.FileChangeWatcher)
+	 */
+	@Override
+	public void setFileChangeWatcher(final FileChangeWatcher fileChangeWatcher) {
+		/* No Op */
 	}
 
 }

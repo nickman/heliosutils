@@ -74,7 +74,9 @@ public class FileChangeWatcher extends Thread {
 		for(FileChangeEventListener listener: listeners) {
 			if(listener!=null) {
 				for(FileChangeEvent fce: listener.getInterest()) {
-					fileChangeListeners.get(fce).add(listener);
+					if(fileChangeListeners.get(fce).add(listener)) {
+						listener.setFileChangeWatcher(this);
+					}
 				}
 			}
 		}

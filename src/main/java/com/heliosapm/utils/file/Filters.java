@@ -270,6 +270,27 @@ public abstract class Filters {
 	}
 	
 	/**
+	 * <p>Title: ExactNameFileFilter</p>
+	 * <p>Description: Builds filters that filter in files based on the exact file name (excepting case which is parameterized)</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.file.Filters.ExactNameFileFilter</code></p>
+	 */
+	public static class ExactNameFileFilter extends AbstractNameFileFilter<String> {
+		@Override
+		protected FileFilter doCreate(final String comp, final boolean caseSensitive) {			
+			return new FileFilter() {
+				final String cc = caseSensitive ? comp : comp.toLowerCase();
+				@Override
+				public boolean accept(final File file) {
+					final String name = caseSensitive ? file.getName() : file.getName().toLowerCase();
+					return name.equals(cc);
+				}
+			};
+		}		
+	}
+	
+	/**
 	 * <p>Title: EndsWithNameFileFilter</p>
 	 * <p>Description: Builds filters that filter in files based on a {@link String#endsWith(String)} to the file name</p> 
 	 * <p>Company: Helios Development Group LLC</p>

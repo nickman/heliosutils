@@ -108,6 +108,13 @@ public class FileFilterBuilder {
 		return this;
 	}
 	
+	public FileFilterBuilder exactMatch(final String name) {
+		if(name==null || name.trim().isEmpty()) throw new IllegalArgumentException("The passed name was null or empty");
+		enabledFilters.put(Filter.EXACT, new Object[]{name, null});
+		return this;
+	}
+	
+	
 	public FileFilterBuilder endsWithMatch(final String suffix) {
 		if(suffix==null || suffix.trim().isEmpty()) throw new IllegalArgumentException("The passed suffix was null or empty");
 		enabledFilters.put(Filter.ENDSWITH, new Object[]{suffix, null});

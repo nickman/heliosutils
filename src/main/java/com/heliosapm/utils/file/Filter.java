@@ -25,6 +25,7 @@ import java.util.Set;
 
 import com.heliosapm.utils.file.Filters.ContainsNameFileFilter;
 import com.heliosapm.utils.file.Filters.EndsWithNameFileFilter;
+import com.heliosapm.utils.file.Filters.ExactNameFileFilter;
 import com.heliosapm.utils.file.Filters.FileMod;
 import com.heliosapm.utils.file.Filters.FileModFileFilter;
 import com.heliosapm.utils.file.Filters.FileType;
@@ -43,6 +44,8 @@ import com.heliosapm.utils.file.Filters.TimeRangeFileFilter;
  */
 
 public enum Filter implements FileFilterFactory {
+	/** Exact match against the file name. Args are: name, case sens. (see {@link ExactNameFileFilter}) */
+	EXACT(new ExactNameFileFilter()),	
 	/** Uses regex pattern match against the file name. Args are: pattern, case sens. (see {@link RegexNameFileFilter}) */
 	PATTERN(new RegexNameFileFilter()),
 	/** Matches where the file name ends with. Args are: ending str, case sens. (see {@link EndsWithNameFileFilter}) */
