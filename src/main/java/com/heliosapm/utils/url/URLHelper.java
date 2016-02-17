@@ -1,5 +1,7 @@
 package com.heliosapm.utils.url;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -7,9 +9,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.Charset;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
@@ -36,6 +40,8 @@ public class URLHelper {
 	public static final String DEFAULT_CONNECT_TO = "sun.net.client.defaultConnectTimeout";
 	/** The system property to retrieve the default client read timeout in ms.  */
 	public static final String DEFAULT_READ_TO = "sun.net.client.defaultReadTimeout";
+	/** A UTF8 charset */
+	public static final Charset UTF8 = Charset.forName("UTF8");	
 	
 	
 	/**
@@ -379,14 +385,25 @@ public class URLHelper {
 	 * @param url The URL to test for writability
 	 * @return true if this URL represents a writable resource, false otherwise.
 	 */
-	public static boolean isWritable(URL url) {
+	public static boolean isWritable(final URL url) {
 		if(url==null) return false;
 		if("file".equals(url.getProtocol())) {
 			File file = new File(url.getFile());
 			return file.exists() && file.isFile() && file.canWrite();
 		}
-		return false;
+		OutputStream os = null;
+		URLConnection urlConn = null;
+		try {
+			urlConn = url.openConnection();
+			os = urlConn.getOutputStream();
+			return true;
+		} catch (Exception ex) {
+			return false;
+		} finally {
+			if(os!=null) try { os.close(); } catch (Exception x) {/* No Op */}			
+		}		
 	}
+	
 	
 	/**
 	 * Writes the passed byte content to the URL origin.
@@ -394,7 +411,7 @@ public class URLHelper {
 	 * @param content The content to write
 	 * @param append true to append, false to replace
 	 */
-	public static void writeToURL(URL url, byte[] content, boolean append) {
+	public static void writeToURL(final URL url, final byte[] content, final boolean append) {
 		if(!isWritable(url)) throw new RuntimeException("The url [" + url + "] is not writable", new Throwable());
 		if(content==null) throw new RuntimeException("The passed content was null", new Throwable());
 		File file = new File(url.getFile());
@@ -415,6 +432,64 @@ public class URLHelper {
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Writes the passed byte content to the URL origin.
+	 * @param url The URL to write to
+	 * @param content The content to write
+	 * @param append true to append, false to replace
+	 */
+	public static void writeToURL(final URL url, final CharSequence content, final boolean append) {
+		if(content==null) throw new RuntimeException("The passed content was null or empty");
+		writeToURL(url, content.toString().getBytes(UTF8), append);
+	}
+
+	/**
+	 * Writes the content read from the passed source URL to the specified file.
+	 * @param source The URL to read the content from
+	 * @param file The file to write to
+	 * @param append true to append, false to replace
+	 */
+	public static void writeToFile(final URL source, final File file, final boolean append) {
+		if(source==null) throw new IllegalArgumentException("The passed URL was null");
+		if(file==null) throw new IllegalArgumentException("The passed file was null");
+		if(!append) try { file.delete(); } catch (Exception x) {/* No Op */}
+		if(!file.exists()) {
+			try {
+				if(!file.createNewFile()) throw new Exception();
+			} catch (Exception ex) {
+				throw new IllegalArgumentException("Failed to create the file [" + file + "]");
+			}
+		}
+		if(!file.canWrite()) {
+			throw new IllegalArgumentException("Cannot write to the file [" + file + "]");
+		}
+		FileOutputStream fos = null;
+		BufferedOutputStream bos = null;
+		InputStream is = null;
+		BufferedInputStream bis = null;
+		final byte[] transfer = new byte[8192];
+		int bytesRead = -1;
+		try {
+			is = source.openStream();
+			bis = new BufferedInputStream(is, 8192);
+			fos = new FileOutputStream(file, append);
+			bos = new BufferedOutputStream(fos, 8192);
+			while((bytesRead = bis.read(transfer))!=-1) {
+				bos.write(transfer, 0, bytesRead);
+			}
+		} catch (Exception ex) {
+			throw new RuntimeException("Transfer from [" + source + "] to [" + file + "] failed", ex);
+		} finally {
+			try { bis.close(); } catch (Exception x) {/* No Op */}
+			try { is.close(); } catch (Exception x) {/* No Op */}
+			try { bos.flush(); } catch (Exception x) {/* No Op */}
+			try { fos.flush(); } catch (Exception x) {/* No Op */}
+			try { bos.close(); } catch (Exception x) {/* No Op */}
+			try { fos.close(); } catch (Exception x) {/* No Op */}
+		}
+		
 	}
 	
 	/**

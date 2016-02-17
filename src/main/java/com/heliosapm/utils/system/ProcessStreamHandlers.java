@@ -41,6 +41,40 @@ public class ProcessStreamHandlers {
 	public static final int BA_BUFFER_SIZE = 8192;
 	
 	
+	/**
+	 * <p>Title: EmptyProcessStreamHandler</p>
+	 * <p>Description: An empty process stream handler</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.system.ProcessStreamHandlers.EmptyProcessStreamHandler</code></p>
+	 */
+	public static class EmptyProcessStreamHandler implements IProcessStreamHandler {
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.system.IProcessStreamHandler#handleStream(java.io.InputStream, boolean, java.lang.Process)
+		 */
+		@Override
+		public void handleStream(final InputStream in, final boolean out, final Process process) {
+			/* No Op */			
+		}
+		
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.system.IProcessStreamHandler#onProcessEnd(java.lang.Process, int)
+		 */
+		@Override
+		public void onProcessEnd(final Process process, final int exitCode) {			
+			/* No Op */
+		}
+	}
+	
+	/**
+	 * <p>Title: StreamToFileHandler</p>
+	 * <p>Description: Process stream handler to write one process output stream to a named file</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.system.ProcessStreamHandlers.StreamToFileHandler</code></p>
+	 */
 	public static class StreamToFileHandler implements IProcessStreamHandler {
 		/** The file to write to */
 		final File output;
@@ -118,9 +152,13 @@ public class ProcessStreamHandlers {
 							if(bytesRead == -1) break;
 							bos.write(transfer, 0, bytesRead);
 						} catch (IOException iex) {
-							
+							// TODO: what do we do here ?
 						}
 					}
+					try { bos.flush(); } catch (Exception x) {/* No Op */} 
+					try { fos.flush(); } catch (Exception x) {/* No Op */}
+					try { bos.close(); } catch (Exception x) {/* No Op */}
+					try { fos.close(); } catch (Exception x) {/* No Op */}
 				}
 			};
 			readerThread.setDaemon(true);
@@ -129,10 +167,10 @@ public class ProcessStreamHandlers {
 		
 		/**
 		 * {@inheritDoc}
-		 * @see com.heliosapm.utils.system.IProcessStreamHandler#onProcessEnd(java.lang.Process)
+		 * @see com.heliosapm.utils.system.IProcessStreamHandler#onProcessEnd(java.lang.Process, int)
 		 */
 		@Override
-		public void onProcessEnd(final Process process) {			
+		public void onProcessEnd(final Process process, final int exitCode) {			
 			running.set(false);
 			if(readerThread!=null) {
 				try { readerThread.interrupt(); } catch (Exception x) {/* No Op */}

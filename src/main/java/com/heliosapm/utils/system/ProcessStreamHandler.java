@@ -21,6 +21,7 @@ package com.heliosapm.utils.system;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>Title: ProcessStreamHandler</p>
@@ -39,7 +40,6 @@ public class ProcessStreamHandler {
 	
 	/** The UTF character set */
 	public static final Charset UTF8 = Charset.forName("UTF8");
-
 	
 	/**
 	 * Creates a new ProcessStreamHandler that handles both system.out and system.err streams

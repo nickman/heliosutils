@@ -40,6 +40,7 @@ public interface IProcessStreamHandler {
 	/**
 	 * Called when the process ends
 	 * @param process The process that ended
+	 * @param exitCode The process exit code
 	 */
-	public void onProcessEnd(final Process process);
+	public void onProcessEnd(final Process process, final int exitCode);
 }

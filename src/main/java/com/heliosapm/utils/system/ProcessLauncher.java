@@ -21,6 +21,9 @@ package com.heliosapm.utils.system;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import com.heliosapm.utils.system.ProcessStreamHandlers.StreamToFileHandler;
 
 /**
  * <p>Title: ProcessLauncher</p>
@@ -49,6 +52,12 @@ public class ProcessLauncher {
 	public static final File JAVA_HOME = new File(System.getProperty("java.home"));
 	/** The java (jre) executable */
 	public static final File JRE_EXE = new File(JAVA_HOME.getAbsolutePath() + File.separator + "bin" + File.separator + "java" + (IS_WIN ? ".exe" : ""));
+	/** The java (jdk) executable */
+	public static final File JDK_EXE = new File(JAVA_HOME.getAbsolutePath() + File.separator + ".." + File.separator + "bin" + File.separator + "java" + (IS_WIN ? ".exe" : ""));
+	
+	/** A process watcher thread serial factory */
+	private static final AtomicInteger threadSerial = new AtomicInteger();
+
 	
 	/**
 	 * Creates a new process lancher
@@ -85,7 +94,7 @@ public class ProcessLauncher {
 	}
 	
 	/**
-	 * Appends the java executable running this JVM to prepare an external java launch.
+	 * Appends the java JRE executable running this JVM to prepare an external java launch.
 	 * @return this launcher
 	 */
 	public ProcessLauncher thisJre() {
@@ -95,6 +104,19 @@ public class ProcessLauncher {
 		cmds.add(JRE_EXE.getAbsolutePath());
 		return this;
 	}
+	
+	/**
+	 * Appends the java JDK executable running this JVM to prepare an external java launch.
+	 * @return this launcher
+	 */
+	public ProcessLauncher thisJdk() {
+		if(!JDK_EXE.canExecute()) {
+			throw new RuntimeException("The default JRE at [" + JDK_EXE + "] cannot be executed");
+		}
+		cmds.add(JDK_EXE.getAbsolutePath());
+		return this;
+	}
+	
 	
 	/**
 	 * Appends a command to the process launcher
@@ -116,6 +138,56 @@ public class ProcessLauncher {
 	 */
 	public ProcessLauncher redirectErrorStream() {
 		redirectErr = true;
+		return this;
+	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.out</code></b> to a file
+	 * @param fileName The name of the file to write to
+	 * @param append true to append, false to overwrite
+	 * @param bufferSize The buffered output stream size
+	 * @param transferSize The transfer buffer size
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectOutToFile(final String fileName, final boolean append, final int bufferSize, final int transferSize) {
+		outHandler = new StreamToFileHandler(fileName, append, bufferSize, transferSize);
+		return this;
+	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.out</code></b> to a file.
+	 * Uses the default buffer and transfer sizes
+	 * @param fileName The name of the file to write to
+	 * @param append true to append, false to overwrite
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectOutToFile(final String fileName, final boolean append) {
+		outHandler = new StreamToFileHandler(fileName, append);
+		return this;
+	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.err</code></b> to a file
+	 * @param fileName The name of the file to write to
+	 * @param append true to append, false to overwrite
+	 * @param bufferSize The buffered output stream size
+	 * @param transferSize The transfer buffer size
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectErrToFile(final String fileName, final boolean append, final int bufferSize, final int transferSize) {
+		errHandler = new StreamToFileHandler(fileName, append, bufferSize, transferSize);
+		return this;
+	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.err</code></b> to a file.
+	 * Uses the default buffer and transfer sizes
+	 * @param fileName The name of the file to write to
+	 * @param append true to append, false to overwrite
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectErrToFile(final String fileName, final boolean append) {
+		outHandler = new StreamToFileHandler(fileName, append);
 		return this;
 	}
 	
@@ -147,11 +219,34 @@ public class ProcessLauncher {
 		pb = new ProcessBuilder(cmds);
 		try {
 			final Process p = pb.start();
+			boolean listeners = false;
 			if(outHandler!=null) {
 				outHandler.handleStream(p.getInputStream(), true, p);
+				listeners = true;
 			}
 			if(!pb.redirectErrorStream() && errHandler!=null) {
 				errHandler.handleStream(p.getErrorStream(), true, p);
+				listeners = true;
+			}
+			if(listeners) {
+				final Thread watcher = new Thread("ProcessWatcherThread " + cmds.toString()) {
+					public void run() {
+						try {
+							final int exitCode = p.waitFor();
+							try {
+								if(outHandler != null) outHandler.onProcessEnd(p, exitCode);
+							} catch (Exception x) {/* No Op */}
+							try {
+								if(errHandler != null) errHandler.onProcessEnd(p, exitCode);
+							} catch (Exception x) {/* No Op */}
+							
+						} catch (InterruptedException ex) {
+							System.err.println("Process Watcher Thread was interrupted:" + ex);
+						}
+					}
+				};
+				watcher.setDaemon(true);
+				watcher.start();
 			}
 			return p;
 		} catch (Exception ex) {
