@@ -42,17 +42,28 @@ public class ProcessStreamHandler {
 
 	
 	/**
-	 * Creates a new ProcessStreamHandler
+	 * Creates a new ProcessStreamHandler that handles both system.out and system.err streams
 	 * @param process The process to stream from
 	 * @param prefix A prefix put in front of every printed line
+	 * @param handleOut true to handle system.out, false otherwise
+	 * @param handleErr true to handle system.err, false otherwise
 	 */
-	public ProcessStreamHandler(final Process process, final String prefix) {
+	public ProcessStreamHandler(final Process process, final String prefix, final boolean handleOut, final boolean handleErr) {
 		this.process = process;
 		this.prefix = "[" + prefix + "]";
 		outThread = new StreamThread(process.getInputStream(), System.out);
 		errThread = new StreamThread(process.getErrorStream(), System.err);
 		outThread.start();
 		errThread.start();
+	}
+	
+	/**
+	 * Creates a new ProcessStreamHandler that handles both system.out and system.err streams
+	 * @param process The process to stream from
+	 * @param prefix A prefix put in front of every printed line
+	 */
+	public ProcessStreamHandler(final Process process, final String prefix) {
+		this(process, prefix, true, true);
 	}
 	
 	

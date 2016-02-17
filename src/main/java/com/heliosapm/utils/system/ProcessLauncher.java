@@ -33,6 +33,13 @@ import java.util.List;
 public class ProcessLauncher {
 	/** The underlying process builder */
 	protected ProcessBuilder pb = null;
+	/** The redirect err flag */
+	protected boolean redirectErr = false;
+	/** The stream handler that will handle <b><code>System.out</code></b> */
+	protected IProcessStreamHandler outHandler = null;
+	/** The stream handler that will handle <b><code>System.err</code></b> */
+	protected IProcessStreamHandler errHandler = null;
+	
 	/** The commands and arguments to be executed */
 	protected final List<String> cmds = new ArrayList<String>();
 	
@@ -104,6 +111,15 @@ public class ProcessLauncher {
 	}
 	
 	/**
+	 * Configures the process launcher to merge the future Process to merge system.err to system.out.
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectErrorStream() {
+		redirectErr = true;
+		return this;
+	}
+	
+	/**
 	 * Executes the configured process
 	 * @param streamHandler true to install an auto-stream handler
 	 * @param prefix An optional prefix to put on all stream lines
@@ -121,5 +137,27 @@ public class ProcessLauncher {
 			throw new RuntimeException("Failed to start process [" + cmds + "]", ex);
 		}
 	}
+	
+	/**
+	 * Executes the configured process.
+	 * Note that no stream handlers are implicitly added.
+	 * @return the process
+	 */
+	public Process execute() {
+		pb = new ProcessBuilder(cmds);
+		try {
+			final Process p = pb.start();
+			if(outHandler!=null) {
+				outHandler.handleStream(p.getInputStream(), true, p);
+			}
+			if(!pb.redirectErrorStream() && errHandler!=null) {
+				errHandler.handleStream(p.getErrorStream(), true, p);
+			}
+			return p;
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to start process [" + cmds + "]", ex);
+		}
+	}
+	
 
 }
