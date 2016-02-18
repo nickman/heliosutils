@@ -6,11 +6,24 @@
 package org.cliffc.high_scale_lib;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
+import java.lang.reflect.Field;
+import java.util.AbstractCollection;
+import java.util.AbstractMap;
+import java.util.AbstractSet;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import sun.misc.Unsafe;
-import java.lang.reflect.*;
 
 /**
  * A lock-free alternate implementation of {@link java.util.ConcurrentHashMap}
@@ -232,6 +245,50 @@ public class NonBlockingHashMapLong<TypeV>
     _opt_for_space = opt_for_space;
     initialize(initial_sz); 
   }
+  
+  /**
+   * Creates a copy of the passed map, optionally clearing it when done
+   * @param source The map to copy from
+   * @param clearSource true to clear the source when copy is complete, false otherwise
+   * @return a new map which is a copy of the original
+   */
+  public static <T> NonBlockingHashMapLong<T> copy(final NonBlockingHashMapLong<T> source, final boolean clearSource) {
+	  if(source==null || source.isEmpty()) return new NonBlockingHashMapLong<T>(0);
+	  final NonBlockingHashMapLong<T> target = new NonBlockingHashMapLong<T>(source.size());
+	  for(@SuppressWarnings("rawtypes") final NonBlockingHashMapLong.IteratorLong iter = (NonBlockingHashMapLong.IteratorLong)source.keySet().iterator(); iter.hasNext();) {
+		  final long key = iter.nextLong();
+		  target.put(key, source.get(key));
+	  }
+	  if(clearSource) source.clear();
+	  return target;
+  }
+  
+	  /**
+	   * Creates a copy of the passed map, with no clearing
+	   * @param source The map to copy from
+	   * @return a new map which is a copy of the original
+	   */
+	  public static <T> NonBlockingHashMapLong<T> copy(final NonBlockingHashMapLong<T> source) {
+		  return copy(source, false);
+	  }
+  
+  	/**
+  	 * Copies the content from the source map into the target map.
+	 * @param source The source map
+	 * @param target The target map
+	 * @param clearSource true to clear the source map after the copy is complete, false otherwise.
+	 * @param clearTarget true to clear the target map before the copy is executed, false otherwise.
+	 */
+	public static <T> void copy(final NonBlockingHashMapLong<T> source, final NonBlockingHashMapLong<T> target, final boolean clearSource, final boolean clearTarget) {
+	  if(clearTarget) target.clear();
+	  for(@SuppressWarnings("rawtypes") final NonBlockingHashMapLong.IteratorLong iter = (NonBlockingHashMapLong.IteratorLong)source.keySet().iterator(); iter.hasNext();) {
+		  final long key = iter.nextLong();
+		  target.put(key, source.get(key));
+	  }
+	  if(clearSource) source.clear();	  
+  }
+  
+  
   private final void initialize( final int initial_sz ) { 
     if( initial_sz < 0 ) throw new IllegalArgumentException();
     int i;                      // Convert to next largest power-of-2

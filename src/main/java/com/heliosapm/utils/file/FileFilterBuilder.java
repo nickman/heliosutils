@@ -110,7 +110,7 @@ public class FileFilterBuilder {
 	
 	public FileFilterBuilder exactMatch(final String name) {
 		if(name==null || name.trim().isEmpty()) throw new IllegalArgumentException("The passed name was null or empty");
-		enabledFilters.put(Filter.EXACT, new Object[]{name, null});
+		enabledFilters.put(Filter.EXACT, new Object[]{name});
 		return this;
 	}
 	
