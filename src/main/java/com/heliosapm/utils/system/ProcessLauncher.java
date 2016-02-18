@@ -19,11 +19,13 @@ under the License.
 package com.heliosapm.utils.system;
 
 import java.io.File;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.heliosapm.utils.system.ProcessStreamHandlers.StreamToFileHandler;
+import com.heliosapm.utils.system.ProcessStreamHandlers.StreamToStreamHandler;
 
 /**
  * <p>Title: ProcessLauncher</p>
@@ -167,6 +169,32 @@ public class ProcessLauncher {
 	}
 	
 	/**
+	 * Installs a redirector to write the process <b><code>System.out</code></b> to the supplied output stream.
+	 * Uses the default buffer and transfer sizes
+	 * @param out The output stream to write to
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectOutToStream(final OutputStream out) {
+		outHandler = new StreamToStreamHandler(out);
+		return this;
+	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.out</code></b> to the supplied output stream.
+	 * Uses the default buffer and transfer sizes
+	 * @param out The output stream to write to
+	 * @param bufferSize The buffered output stream size
+	 * @param transferSize The transfer buffer size
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectOutToStream(final OutputStream out, final int bufferSize, final int transferSize) {
+		outHandler = new StreamToStreamHandler(out, bufferSize, transferSize);
+		return this;
+	}
+	
+	
+	
+	/**
 	 * Installs a redirector to write the process <b><code>System.err</code></b> to a file
 	 * @param fileName The name of the file to write to
 	 * @param append true to append, false to overwrite
@@ -187,9 +215,34 @@ public class ProcessLauncher {
 	 * @return this launcher
 	 */
 	public ProcessLauncher redirectErrToFile(final String fileName, final boolean append) {
-		outHandler = new StreamToFileHandler(fileName, append);
+		errHandler = new StreamToFileHandler(fileName, append);
 		return this;
 	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.err</code></b> to the supplied output stream.
+	 * Uses the default buffer and transfer sizes
+	 * @param out The output stream to write to
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectErrToStream(final OutputStream out) {
+		errHandler = new StreamToStreamHandler(out);
+		return this;
+	}
+	
+	/**
+	 * Installs a redirector to write the process <b><code>System.err</code></b> to the supplied output stream.
+	 * Uses the default buffer and transfer sizes
+	 * @param out The output stream to write to
+	 * @param bufferSize The buffered output stream size
+	 * @param transferSize The transfer buffer size
+	 * @return this launcher
+	 */
+	public ProcessLauncher redirectErrToStream(final OutputStream out, final int bufferSize, final int transferSize) {
+		errHandler = new StreamToStreamHandler(out, bufferSize, transferSize);
+		return this;
+	}
+	
 	
 	/**
 	 * Executes the configured process

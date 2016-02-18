@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -67,6 +68,93 @@ public class ProcessStreamHandlers {
 			/* No Op */
 		}
 	}
+	
+	/**
+	 * <p>Title: StreamToStreamHandler</p>
+	 * <p>Description: Process stream handler to write one process output stream to a supplied output stream</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.system.ProcessStreamHandlers.StreamToStreamHandler</code></p>
+	 */
+	public static class StreamToStreamHandler implements IProcessStreamHandler {
+		/** The output stream to write to */
+		final OutputStream os;
+		/** The buffered output stream to write to */
+		final BufferedOutputStream bos;
+		/** The transfer byte array size */
+		final int baSize;
+		/** Flag set to false when the process end is signalled */
+		final AtomicBoolean running = new AtomicBoolean(true);
+		/** The reader thread */
+		protected Thread readerThread = null;
+		
+		/**
+		 * Creates a new StreamToStreamHandler
+		 * @param output The output stream to write to
+		 * @param bosSize The {@link BufferedOutputStream} buffer size in bytes
+		 * @param baSize The transfer byte array size
+		 */
+		public StreamToStreamHandler(final OutputStream output, final int bosSize, final int baSize) {
+			this.os = output;
+			this.baSize = baSize;
+			try {
+				bos = new BufferedOutputStream(os, bosSize);
+			} catch (Exception ex) {
+				throw new RuntimeException("Failed to start StreamToStreamHandler");
+			}
+		}
+		
+		/**
+		 * Creates a new StreamToStreamHandler
+		 * @param output The output stream to write to
+		 */
+		public StreamToStreamHandler(final OutputStream output) {
+			this(output, BOS_BUFFER_SIZE, BA_BUFFER_SIZE);
+		}
+		
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.system.IProcessStreamHandler#handleStream(java.io.InputStream, boolean, java.lang.Process)
+		 */
+		@Override
+		public void handleStream(final InputStream in, final boolean out, final Process process) {
+			final byte[] transfer = new byte[baSize];
+			readerThread = new Thread("StreamHandler-" + os + (out ? "-out" : "-err") + "Thread") {
+				public void run() {
+					int bytesRead = -1;
+					while(running.get()) {
+						try {
+							bytesRead = in.read(transfer);
+							if(bytesRead == -1) break;
+							bos.write(transfer, 0, bytesRead);
+						} catch (IOException iex) {
+							// TODO: what do we do here ?
+						}
+					}
+					try { bos.flush(); } catch (Exception x) {/* No Op */} 
+					try { bos.close(); } catch (Exception x) {/* No Op */}
+				}
+			};
+			readerThread.setDaemon(true);
+			readerThread.start();
+		}
+		
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.system.IProcessStreamHandler#onProcessEnd(java.lang.Process, int)
+		 */
+		@Override
+		public void onProcessEnd(final Process process, final int exitCode) {			
+			running.set(false);
+			if(readerThread!=null) {
+				try { readerThread.interrupt(); } catch (Exception x) {/* No Op */}
+			}
+		}
+		
+		
+		
+	}
+	
 	
 	/**
 	 * <p>Title: StreamToFileHandler</p>
