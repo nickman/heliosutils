@@ -21,6 +21,7 @@ package com.heliosapm.utils.collections;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -104,6 +105,21 @@ public class Props {
 				System.setProperty(key, p.getProperty(key));
 			}
 		}
+	}
+	
+	/**
+	 * Converts the passed properties array to a single map
+	 * @param props An array of properties
+	 * @return a map
+	 */
+	public static Map<String, String> asMap(final Properties...props) {
+		final Map<String, String> map = new HashMap<String, String>();
+		for(Properties p: props) {
+			for(Map.Entry<Object, Object> entry: p.entrySet()) {
+				map.put(entry.getKey().toString(), entry.getValue()!=null ? entry.getValue().toString() : null);
+			}
+		}
+		return map;
 	}
 	
 	/**
