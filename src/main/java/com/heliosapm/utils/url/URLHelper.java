@@ -492,6 +492,53 @@ public class URLHelper {
 		
 	}
 	
+	
+	/**
+	 * Writes the content read from the passed input stream to the specified file.
+	 * @param is The input stream  to read the content from
+	 * @param file The file to write to
+	 * @param append true to append, false to replace
+	 */
+	public static void writeToFile(final InputStream is, final File file, final boolean append) {
+		if(is==null) throw new IllegalArgumentException("The passed input stream was null");
+		if(file==null) throw new IllegalArgumentException("The passed file was null");
+		if(!append) try { file.delete(); } catch (Exception x) {/* No Op */}
+		if(!file.exists()) {
+			try {
+				if(!file.createNewFile()) throw new Exception();
+			} catch (Exception ex) {
+				throw new IllegalArgumentException("Failed to create the file [" + file + "]");
+			}
+		}
+		if(!file.canWrite()) {
+			throw new IllegalArgumentException("Cannot write to the file [" + file + "]");
+		}
+		FileOutputStream fos = null;
+		BufferedOutputStream bos = null;
+		BufferedInputStream bis = null;
+		final byte[] transfer = new byte[8192];
+		int bytesRead = -1;
+		try {
+			bis = new BufferedInputStream(is, 8192);
+			fos = new FileOutputStream(file, append);
+			bos = new BufferedOutputStream(fos, 8192);
+			while((bytesRead = bis.read(transfer))!=-1) {
+				bos.write(transfer, 0, bytesRead);
+			}
+		} catch (Exception ex) {
+			throw new RuntimeException("Transfer from [" + is + "] to [" + file + "] failed", ex);
+		} finally {
+			try { bis.close(); } catch (Exception x) {/* No Op */}
+			try { is.close(); } catch (Exception x) {/* No Op */}
+			try { bos.flush(); } catch (Exception x) {/* No Op */}
+			try { fos.flush(); } catch (Exception x) {/* No Op */}
+			try { bos.close(); } catch (Exception x) {/* No Op */}
+			try { fos.close(); } catch (Exception x) {/* No Op */}
+		}
+		
+	}
+	
+	
 	/**
 	 * Returns the extension of the passed URL's file
 	 * @param url The URL to get the extension of
