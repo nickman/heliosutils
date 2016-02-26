@@ -5,6 +5,7 @@
  */
 
 package jsr166e;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 import java.io.Serializable;
 
@@ -35,9 +36,27 @@ import java.io.Serializable;
  * @since 1.8
  * @author Doug Lea
  */
-public class LongAdder extends Striped64 implements Serializable, Comparable<Number> {
-    private static final long serialVersionUID = 7249069246863182397L;
-
+public class LongAdder extends Striped64 implements Serializable, Comparable<Number>, Callable<LongAdder> {
+    /**  */
+		private static final long serialVersionUID = -5359073943709220992L;
+		/** A callable that creates a new LongAdder */
+    public static final Callable<LongAdder> CALLABLE = new Callable<LongAdder>() {
+    	@Override
+    	public LongAdder call() {
+    		return new LongAdder();
+    	}
+    };
+    
+    /**
+     * <p>Creates a new AccumulatingLongAdder that accumulates up to this instance.</p>
+     * {@inheritDoc}
+     * @see java.util.concurrent.Callable#call()
+     */
+    @Override
+    public AccumulatingLongAdder call() throws Exception {    
+    	return new AccumulatingLongAdder(this);
+    }
+    
     /**
      * Version of plus for use in retryUpdate
      */
@@ -48,6 +67,8 @@ public class LongAdder extends Striped64 implements Serializable, Comparable<Num
      */
     public LongAdder() {
     }
+    
+    
 
     /**
      * Adds the given value.

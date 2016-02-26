@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -1249,5 +1250,48 @@ public class NonBlockingHashMapLong<TypeV>
       put(K,V);               // Insert with an offical put
     }
   }
+  
+  public static void main(final String[] args) {
+  	log("Test");
+  	final NonBlockingHashMapLong<String> map = new NonBlockingHashMapLong<String>();
+  	map.put(1, "One");
+  	map.put(2, "Two");
+  	final Callable<String> three = new Callable<String>(){
+  		public String call() { return "Three"; }
+  	};
+  	log("1:" + map.get(1, three));
+  	log("2:" + map.get(2, three));
+  	log("3:" + map.get(3, three));
+  }
+  
+  public static void log(Object msg) {
+  	System.out.println(msg);
+  }
+  
+  
+	public TypeV get(final long key, final Callable<TypeV> callable) {
+		TypeV t = putIfMatch(key, TOMBSTONE, TOMBSTONE);
+		while(true) {
+			if(t==null) {
+				try {
+					t = callable.call();
+				} catch (Exception ex) {
+					throw new RuntimeException("Failed to create actual value from [" + callable.getClass().getName() + "] instance", ex);
+				}
+				if(putIfMatch(key, t, TOMBSTONE)==TOMBSTONE) {  // replace
+					return t;
+				}
+				Thread.yield();
+				continue;				
+			} else if(t==TOMBSTONE) {
+				Thread.yield();
+				continue;
+			} else {
+				return t;
+			}
+		}
+	}
+  
+  
   
 }  // End NonBlockingHashMapLong class
