@@ -1268,13 +1268,14 @@ public class NonBlockingHashMapLong<TypeV>
   	System.out.println(msg);
   }
   
+  	 
   
 	public TypeV get(final long key, final Callable<TypeV> callable) {
 		TypeV t = putIfMatch(key, TOMBSTONE, TOMBSTONE);
 		while(true) {
 			if(t==null) {
 				try {
-					t = callable.call();
+					t = callable.call();					
 				} catch (Exception ex) {
 					throw new RuntimeException("Failed to create actual value from [" + callable.getClass().getName() + "] instance", ex);
 				}
