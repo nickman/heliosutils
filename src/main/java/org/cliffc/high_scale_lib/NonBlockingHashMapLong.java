@@ -1292,7 +1292,67 @@ public class NonBlockingHashMapLong<TypeV>
 			}
 		}
 	}
+	
+	/**
+	 * A <a href="http://trove4j.sourceforge.net">Trove</a> inspired interface to encapsulate non-boxing iteration
+	 * of the key/value pairs. Executes the passed procedure for each key/value entry in the map. 
+	 * @param procedure the procedure to execute
+	 * @return false if the loop over the entries terminated because the procedure returned false for some entry, otherwise true
+	 * if the procedure completed successfully.
+	 */
+	public boolean forEachEntry(final KeyObjectProcedure<TypeV> procedure) {
+		if(procedure==null) throw new IllegalArgumentException("The passed procedure was null");
+		if(isEmpty()) return true;
+		final IteratorLong iter = (IteratorLong)keySet().iterator();
+		while(iter.hasNext()) {
+			final long k = iter.nextLong();
+			if(!procedure.execute(k, get(k))) return false;
+		}
+		return true;
+	}
   
+	/**
+	 * A <a href="http://trove4j.sourceforge.net">Trove</a> inspired interface to encapsulate non-boxing iteration
+	 * of the keys. Executes the passed procedure for each key in the map. 
+	 * @param procedure the procedure to execute
+	 * @return false if the loop over the entries terminated because the procedure returned false for some entry, otherwise true
+	 * if the procedure completed successfully.
+	 */
+	public boolean forEachKey(final KeyProcedure procedure) {
+		if(procedure==null) throw new IllegalArgumentException("The passed procedure was null");
+		if(isEmpty()) return true;
+		final IteratorLong iter = (IteratorLong)keySet().iterator();
+		while(iter.hasNext()) {
+			if(!procedure.execute(iter.nextLong())) return false;
+		}
+		return true;
+	}
   
+	/**
+	 * <p>Title: KeyObjectProcedure</p>
+	 * <p>Description: A <a href="http://trove4j.sourceforge.net">Trove</a> inspired interface to encapsulate non-boxing iteration
+	 * of the key/value pairs in a NonBlockingHashMapLong</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>org.cliffc.high_scale_lib.NonBlockingHashMapLong.KeyObjectProcedure</code></p>
+	 */
+	public static interface KeyObjectProcedure<T> {
+		public boolean execute( long key, T value );
+	}
+	
+	/**
+	 * <p>Title: KeyProcedure</p>
+	 * <p>Description: A <a href="http://trove4j.sourceforge.net">Trove</a> inspired interface to encapsulate non-boxing iteration
+	 * of the keys in a NonBlockingHashMapLong</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>org.cliffc.high_scale_lib.NonBlockingHashMapLong.KeyProcedure</code></p>
+	 */
+	public static interface KeyProcedure {
+		public boolean execute( long key );
+	}
+	
+	
+	
   
 }  // End NonBlockingHashMapLong class
