@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -324,6 +325,19 @@ public class ConfigurationHelper {
 		}
 		return list.toArray(new String[list.size()]);
 	}
+	
+	/**
+	 * Returns the value defined as a string array looked up from the System properties, then Environment.
+	 * The values should be comma separated. Strips out any null or blank entries.
+	 * @param name The name of the key to lookup.
+	 * @param defaultValue The default value to return as a String array if the name is not defined.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties, then Environment. The first located match will be returned.
+	 * @return The string array or the passed default value.
+	 */
+	public static String[] getArraySystemThenEnvProperty(final String name, final Collection<String> defaultValue, final Properties...properties) {
+		return getArraySystemThenEnvProperty(name, defaultValue.toArray(new String[0]), properties); 
+	}
+	
 	
 	/**
 	 * Returns the enum member indicated by the configured value looked up in System Properties then Environment with the passed name automatically upper cased.
