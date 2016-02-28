@@ -76,7 +76,7 @@ public class AuthorizedKeysHostKeyVerifier implements ServerHostKeyVerifier {
 	}
 	
 	private void loadSysPropDefinedFiles() {
-		final String[] fileNames = ConfigurationHelper.getArraySystemThenEnvProperty(KNOWN_HOSTS_PROP_FILES, null);
+		final String[] fileNames = ConfigurationHelper.getArraySystemThenEnvProperty(KNOWN_HOSTS_PROP_FILES, (String[])null);
 		if(fileNames != null) {
 			for(String s: fileNames) {
 				addKnownHostsFile(s);
