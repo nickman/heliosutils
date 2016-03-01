@@ -16,25 +16,45 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
  */
-package com.heliosapm.shorthand.attach.vm.agent.jmxmp;
+package com.heliosapm.utils.tree;
 
-import java.lang.instrument.Instrumentation;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * <p>Title: JMXMPInstaller</p>
- * <p>Description: JavaAgent to install and start a JMXMP Connector Server.</p> 
+ * <p>Title: Tree</p>
+ * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.shorthand.attach.vm.agent.jmxmp.JMXMPInstaller</code></p>
+ * <p><code>com.heliosapm.utils.tree.Tree</code></p>
  */
-public class JMXMPInstaller {
+
+public class Tree<K, V> {
+	protected final K key;
+	protected final Map<K, TreeNode<K,V>> children = new HashMap<K, TreeNode<K, V>>();
 	
 	/**
-	 * Creates a new JMXMPInstaller
+	 * Creates a new Tree
 	 */
-	public JMXMPInstaller() {
-		// TODO Auto-generated constructor stub
+	public Tree() {
+		key = null;
 	}
 	
+	public void put(final K key) {
+		
+	}
+	
+	public class TreeNode<K, V> {
+		protected K key;
+		protected final Map<K, TreeNode<K, V>> children = new HashMap<K, TreeNode<K, V>>();
+		
+		/**
+		 * Creates a new TreeNode
+		 */
+		public TreeNode() {
+			// TODO Auto-generated constructor stub
+		}
+
+	}	
 
 }

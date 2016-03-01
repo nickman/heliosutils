@@ -320,7 +320,7 @@ public class StringHelper {
 		final int width = StringHelper.longest(map) + 3;
 		for(Entry<? extends Object, ? extends Object> entry: map.entrySet()) {
 			try {
-				b.append("\n\t").append(pad(entry.getKey().toString(), width)).append(" : ").append(entry.getValue().toString());
+				b.append(pad(entry.getKey().toString(), width)).append(" : ").append(entry.getValue().toString());
 			} catch (Exception ex) {
 				ex.printStackTrace(System.err);
 			}

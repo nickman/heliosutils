@@ -18,10 +18,10 @@ under the License.
  */
 /**
  * <p>Title: package-info</p>
- * <p>Description: JMXMP connector server installation agent</p> 
+ * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.shorthand.attach.vm.agent.jmxmp.package-info</code></p>
+ * <p><code>com.heliosapm.shorthand.attach.agent.installer.package-info</code></p>
  */
 
-package com.heliosapm.shorthand.attach.vm.agent.jmxmp;
+package com.heliosapm.shorthand.attach.agent.installer;

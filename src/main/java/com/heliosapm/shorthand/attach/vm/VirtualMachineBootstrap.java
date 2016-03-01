@@ -179,7 +179,7 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 			attachClassLoader.set(clazz.getClassLoader()==null ? classLoader : clazz.getClassLoader());
 			found.set(true);
 		} catch (Exception e) {
-			e.printStackTrace(System.err);
+//			e.printStackTrace(System.err);
 		}		
 		try {
 			Class<?> clazz = Class.forName(VM_CLASS, true, classLoader);
@@ -207,25 +207,25 @@ public class VirtualMachineBootstrap extends BaseWrappedClass {
 		//if(inClassPath()) return;
 		try {
 			Class<?> clazz = Class.forName(VM_CLASS);
-			log.info("Found AttachAPI in Standard ClassPath [" + clazz.getClassLoader() + "]");
+//			log.info("Found AttachAPI in Standard ClassPath [" + clazz.getClassLoader() + "]");
 			ClassLoader cl = clazz.getClassLoader();
 			if(cl==null) {
 				cl = ClassLoader.getSystemClassLoader();
 			}
-			log.info("Attach API ClassLoader:" + cl);
+//			log.info("Attach API ClassLoader:" + cl);
 			attachClassLoader.set(cl);
 			found.set(true);
 			BaseWrappedClass.savedState.set(null);
 			return;
 		} catch (Throwable e) {
-			log.info("Not found:" + e);
+//			log.info("Not found:" + e);
 		}
 		List<String> altLocs = new ArrayList<String>();
 		if(urlLocation!=null) {
 			altLocs.add(urlLocation);
 		}
 		for(String s: ALT_LOCS) {
-			System.out.println("ALT_LOC: [" + (JAVA_HOME + s + JAR_NAME) + "]");
+//			System.out.println("ALT_LOC: [" + (JAVA_HOME + s + JAR_NAME) + "]");
 			altLocs.add(JAVA_HOME + s + JAR_NAME);
 		}
 		for(String s: altLocs) {
