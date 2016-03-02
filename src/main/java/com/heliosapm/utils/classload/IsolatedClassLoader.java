@@ -32,10 +32,8 @@ import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Permissions;
-import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
@@ -78,9 +76,9 @@ public class IsolatedClassLoader extends ClassLoader implements IsolatedClassLoa
 			is = url.openStream();
 			jis = new JarInputStream(is, true);
 			final Manifest manifest = jis.getManifest();
-			final String resourceName = manifest.getMainAttributes().getValue("agent-core");
+			final String resourceName = manifest.getMainAttributes().getValue(manifestKey);
 			if(resourceName==null || resourceName.trim().isEmpty()) {
-				throw new Exception("Embedded JAR path not found in class path [" + url + "]");
+				throw new Exception("Embedded JAR path [" + manifestKey + "] not found in class path [" + url + "]");
 			}
 			JarEntry je = null;
 			while((je = jis.getNextJarEntry())!=null) {
@@ -91,7 +89,7 @@ public class IsolatedClassLoader extends ClassLoader implements IsolatedClassLoa
 			if(je==null) {
 				throw new Exception("Resource [" + resourceName + "] was not found in class path [" + url + "]");
 			}
-			final File jarFile = File.createTempFile("csf-agent-core", ".jar");
+			final File jarFile = File.createTempFile(manifestKey + "-stub", ".jar");
 			jarFile.deleteOnExit();
 			final URL jarFileURL = jarFile.toURI().toURL();
 			fos = new FileOutputStream(jarFile);
@@ -151,7 +149,7 @@ public class IsolatedClassLoader extends ClassLoader implements IsolatedClassLoa
 	 * @param objectName The JMX ObjectName to register the management interface with. Ignored if null.
 	 * @param urls The classpath the loader will load from
 	 */
-	public IsolatedClassLoader(final ObjectName objectName, final URL[] urls) {
+	public IsolatedClassLoader(final ObjectName objectName, final URL... urls) {
 		super(Thread.currentThread().getContextClassLoader());
 		this.objectName = objectName;
 		childClassLoader = new ChildURLClassLoader( urls, new FindClassClassLoader(this.getParent()) );
@@ -198,6 +196,14 @@ public class IsolatedClassLoader extends ClassLoader implements IsolatedClassLoa
      */
 	public void addURL(final URL url) {
 		childClassLoader.addURL(url);
+	}
+	
+	/**
+	 * Returns the designated JMX ObjectName
+	 * @return the designated JMX ObjectName or null if one was not assigned
+	 */
+	public ObjectName getObjectName() {
+		return objectName;
 	}
 	
 	/**
