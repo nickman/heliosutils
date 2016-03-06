@@ -25,7 +25,7 @@ package com.heliosapm.utils.jmx;
 public interface ManagedForkJoinPoolMXBean extends ForkJoinPoolManagement {
 	
 	/** The template for ManagedForkJoinPool JMX ObjectNames  */
-	public static final String OBJECT_NAME_TEMPLATE = "com.heliosapm.tsdblite.concurrency:service=%s,type=ForkJoinPool";
+	public static final String OBJECT_NAME_TEMPLATE = "com.heliosapm.tsdb.concurrency:service=%s,type=ForkJoinPool";
 	
 	/**
 	 * Returns the cummulative number of submitted callable tasks

@@ -69,8 +69,9 @@ public class ManagedForkJoinPool extends ForkJoinPool implements ManagedForkJoin
 	 * @param asyncMode If true, establishes local first-in-first-out scheduling mode for forked tasks that are never joined. 
 	 * This mode may be more appropriate than default locally stack-based mode in applications in which worker threads only process event-style asynchronous tasks. 
 	 * For default value, use false.
+	 * @param objectName The optional JMX ObjectName that overrides the default template
 	 */
-	public ManagedForkJoinPool(final String name, final int parallelism, final boolean asyncMode) {
+	public ManagedForkJoinPool(final String name, final int parallelism, final boolean asyncMode, final ObjectName objectName) {
 		super(
 			parallelism, 
 			new ManagedForkJoinWorkerThreadFactory(name, Thread.NORM_PRIORITY, true),  
@@ -83,9 +84,22 @@ public class ManagedForkJoinPool extends ForkJoinPool implements ManagedForkJoin
 			asyncMode
 		);
 		poolName = name;
-		objectName = JMXHelper.objectName(String.format(OBJECT_NAME_TEMPLATE, poolName));
+		this.objectName = objectName==null ? JMXHelper.objectName(String.format(OBJECT_NAME_TEMPLATE, poolName)) : objectName;
 		JMXHelper.registerMBean(this, objectName);
 	}
+	
+	/**
+	 * Creates a new ManagedForkJoinPool
+	 * @param name The name of this pool and the prefix for created threads
+	 * @param parallelism the parallelism level of the pool
+	 * @param asyncMode If true, establishes local first-in-first-out scheduling mode for forked tasks that are never joined. 
+	 * This mode may be more appropriate than default locally stack-based mode in applications in which worker threads only process event-style asynchronous tasks. 
+	 * For default value, use false.
+	 */
+	public ManagedForkJoinPool(final String name, final int parallelism, final boolean asyncMode) {
+		this(name, parallelism, asyncMode, null);
+	}
+	
 	
 	
 	@Override

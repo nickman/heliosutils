@@ -51,14 +51,15 @@ public class IntBitMaskedEnum<E extends Enum<E>>  extends EnumSupport<E> {
 	 * Acquires the IntBitMaskedEnum singleton for the passed enum type
 	 * @param enumType The enum type
 	 * @return The IntBitMaskedEnum for the passed enum type
+	 * @param <E> The enum type
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })	
-	public static IntBitMaskedEnum<? extends Enum<?>> bitMaskedEnum(final Class<? extends Enum<?>> enumType) {
+	public static <E extends Enum<E>> IntBitMaskedEnum<E> bitMaskedEnum(final Class<E> enumType) {
 		if(enumType==null) throw new IllegalArgumentException("The passed enum type was null");
-		IntBitMaskedEnum<? extends Enum<?>> x = instances.get(enumType);
+		IntBitMaskedEnum<E> x = (IntBitMaskedEnum<E>) instances.get(enumType);
 		if(x==null) {
 			synchronized(instances) {
-				x = instances.get(enumType);
+				x = (IntBitMaskedEnum<E>) instances.get(enumType);
 				if(x==null) {
 					x = new IntBitMaskedEnum(enumType);
 					instances.put(enumType, x);
