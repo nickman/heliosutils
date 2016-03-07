@@ -51,7 +51,7 @@ import com.heliosapm.utils.reflect.PrivateAccessor;
  * <p><code>com.heliosapm.utils.concurrency.ExtendedThreadManager</code></p>
  */
 
-public class ExtendedThreadManager extends NotificationBroadcasterSupport implements ExtendedThreadManagerMBean {
+public class ExtendedThreadManager extends NotificationBroadcasterSupport implements ExtendedThreadManagerMBean, ThreadMXBean {
 	private static final MBeanNotificationInfo[] notificationInfo = createMBeanInfo();
 	/** The delegate ThreadMXBean */
 	protected final ThreadMXBean delegate;
@@ -61,6 +61,9 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 	protected static final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
 	/** The ThreadMXBean object name */
 	protected static final ObjectName THREAD_MX_NAME = JMXHelper.objectName(ManagementFactory.THREAD_MXBEAN_NAME);
+	/** The extended ThreadMXBean object name */
+	protected static final ObjectName EXT_THREAD_MX_NAME = JMXHelper.objectName("java.lang:type=ExtThreading");
+	
 	/** The JMX notification type emitted when Thread Contention Monitoring is enabled */
 	public static final String NOTIF_TCM_ENABLED = "threadmxbean.tcm.enabled";
 	/** The JMX notification type emitted when Thread Contention Monitoring is disabled */
@@ -103,8 +106,8 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 		if(!installed.get()) {
 			mxb = new ExtendedThreadManager(ManagementFactory.getThreadMXBean());
 			try {
-				server.unregisterMBean(THREAD_MX_NAME);				
-				server.registerMBean(mxb, THREAD_MX_NAME);
+//				server.unregisterMBean(THREAD_MX_NAME);				
+				server.registerMBean(mxb, EXT_THREAD_MX_NAME);
 				installed.set(true);
 			} catch (Exception ex) {
 				ex.printStackTrace(System.err);
@@ -113,6 +116,26 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 		}
 		return mxb;
 	}
+	
+	/**
+	 * Installs and return the ExtendedThreadManager
+	 * @return the ExtendedThreadManager instance
+	 */
+	public static ExtendedThreadManager install(final MBeanServer mbs) {
+		if(!installed.get()) {
+			mxb = new ExtendedThreadManager(ManagementFactory.getThreadMXBean());
+			try {
+				mbs.unregisterMBean(THREAD_MX_NAME);				
+				mbs.registerMBean(mxb, THREAD_MX_NAME);
+				installed.set(true);
+			} catch (Exception ex) {
+				ex.printStackTrace(System.err);
+				throw new RuntimeException("Failed to install ExtendedThreadManager", ex);
+			}
+		}
+		return mxb;
+	}
+	
 	
 	/**
 	 * Removes the extended thread manager and restores the native version.
