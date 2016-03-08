@@ -183,8 +183,9 @@ public class StdInCommandHandler implements Runnable {
 	 * Installs a new command
 	 * @param command The command name
 	 * @param runnable The command to execute
+	 * @return this command handler
 	 */
-	public void registerCommand(final String command, final Runnable runnable) {
+	public StdInCommandHandler registerCommand(final String command, final Runnable runnable) {
 		if(command==null || command.trim().isEmpty()) throw new IllegalArgumentException("The passed command name was null");
 		if(runnable==null) throw new IllegalArgumentException("The passed runnable was null");
 		final String key = command.trim().toLowerCase();
@@ -200,6 +201,7 @@ public class StdInCommandHandler implements Runnable {
 		if(!installed) {
 			throw new IllegalStateException("Failed to install command [" + command + "]. Command already installed");
 		}
+		return this;
 	}
 	
 	/**
