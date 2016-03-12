@@ -2612,7 +2612,24 @@ while(m.find()) {
 		}
 	}
 	
+	/**
+	 * Creates and starts a JMXMP ConnectorServer for the default MBeanServer
+	 * @param bindInterface The interface to bind to
+	 * @param port The JMXMP listening port
+	 * @return The URL to access the JMXMP server on
+	 */
+	public static JMXServiceURL fireUpJMXMPServer(final String bindInterface, final int port) {
+		return fireUpJMXMPServer(bindInterface, port, getHeliosMBeanServer());
+	}
 	
+	/**
+	 * Creates and starts a JMXMP ConnectorServer for the default MBeanServer binding to 127.0.0.1
+	 * @param port The JMXMP listening port
+	 * @return The URL to access the JMXMP server on
+	 */
+	public static JMXServiceURL fireUpJMXMPServer(final int port) {
+		return fireUpJMXMPServer("127.0.0.1", port, getHeliosMBeanServer());
+	}
 	
 	/**
 	 * Creates, registers and starts a JMXConnectorServer
