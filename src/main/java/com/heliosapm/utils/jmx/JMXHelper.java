@@ -231,15 +231,26 @@ public class JMXHelper {
 			tmSupported = false;
 		}
 		THREAD_MEM_SUPPORTED = tmSupported;
-		Properties vmsupp = null;
-		try {
-			Class<?> vmsuppClazz = Class.forName(VMSUPPORT_CLASSNAME);
-			vmsupp = (Properties) vmsuppClazz.getDeclaredMethod("getAgentProperties").invoke(null); 
-		} catch (Exception ex) {
-			vmsupp = new Properties();
-		}
-		AGENT_PROPERTIES = vmsupp;
+		AGENT_PROPERTIES = getAgentProperties();
 	}
+	
+	/**
+	 * Returns the agent properties
+	 * @return the agent properties or null if reflective call failed
+	 */
+	public static Properties getAgentProperties() {
+		try {
+			Class<?> clazz = Class.forName("sun.misc.VMSupport");
+			Method m = clazz.getDeclaredMethod("getAgentProperties");
+			m.setAccessible(true);
+			Properties p = (Properties)m.invoke(null);
+			return p;
+		} catch (Throwable t) {
+			return new Properties();
+		}
+		
+	}
+	
 	
 	public static long getThreadAllocatedBytes(final long id) {
 		if(!THREAD_MEM_SUPPORTED) return -1;
