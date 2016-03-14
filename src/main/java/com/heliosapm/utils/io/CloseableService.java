@@ -73,7 +73,12 @@ public class CloseableService implements CloseableServiceMBean {
 	 * Creates a new CloseableService
 	 */
 	private CloseableService() {
-
+		Runtime.getRuntime().addShutdownHook(new Thread(){
+			@Override
+			public void run() {
+				closeAll();
+			}
+		});
 	}
 	
 	/**
