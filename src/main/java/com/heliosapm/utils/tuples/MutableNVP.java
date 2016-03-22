@@ -39,6 +39,14 @@ public class MutableNVP<K, V> extends NVP<K, V> {
 		super(key, value);		
 	}
 	
+	/**
+	 * Creates a new MutableNVP
+	 */
+	public MutableNVP() {
+		super(null, null);		
+	}
+	
+	
 	
 	/**
 	 * Sets a new key
@@ -57,13 +65,15 @@ public class MutableNVP<K, V> extends NVP<K, V> {
 	}
 	
 	/**
-	 * Sets both a new key and a new value
-	 * @param newKey The new key
-	 * @param newValue The new value
+	 * Sets the key/value pair
+	 * @param key The NVP key
+	 * @param value The NVP value
+	 * @return this NVP
 	 */
-	public void set(final K newKey, final V newValue) {
-		this.key = newKey;
-		this.value = newValue;
+	public NVP<K,V> set(final K key, final V value) {
+		this.key = key;
+		this.value = value;		
+		return this;
 	}
 	
 	
