@@ -533,9 +533,10 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 				} else {
 					if(objectName==null) {
 						objectName = JMXHelper.objectName(String.format(OBJECT_NAME_TEMPLATE, poolName));
-					} else {
-						poolName = "Pool#" + serial.incrementAndGet();
 					}
+//					else {
+//						poolName = "Pool#" + serial.incrementAndGet();
+//					}
 				}				
 			}
 			if(prestart > 0 && prestart > maximumPoolSize) {

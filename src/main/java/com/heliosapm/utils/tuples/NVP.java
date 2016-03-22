@@ -43,6 +43,26 @@ public class NVP<K,V> {
 		this.key = key;
 		this.value = value;
 	}
+	
+	/**
+	 * Creates a new NVP with null values
+	 */
+	public NVP() {
+		
+	}
+	
+	/**
+	 * Sets the key/value pair
+	 * @param key The NVP key
+	 * @param value The NVP value
+	 * @return this NVP
+	 */
+	public NVP<K,V> set(final K key, final V value) {
+		this.key = key;
+		this.value = value;		
+		return this;
+	}
+	
 
 	/**
 	 * Returns the NVP value

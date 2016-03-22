@@ -132,6 +132,18 @@ public class ThreadLocalRefCache {
 			cache.set(ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle));											
 		}
 		
+		/**
+		 * Removes and returns the referenced object for the calling thread
+		 * @return the referenced object or null if one was not present
+		 */
+		public T remove() {
+			T t = null;
+			final WeakReference<T> tref = cache.get();
+			if(tref!=null) t = tref.get();
+			cache.remove();
+			return t;
+		}
+		
 		public T get() {
 			T t = null;
 			WeakReference<T> ref = cache.get();
