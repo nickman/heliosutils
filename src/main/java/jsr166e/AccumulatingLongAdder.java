@@ -71,5 +71,16 @@ public class AccumulatingLongAdder extends LongAdder {
 		parent.increment();
 		super.increment();
 	}
+	
+	public static void main(String[] args) {
+		final LongAdder parent =  new LongAdder();
+		final AccumulatingLongAdder child = new AccumulatingLongAdder(parent);
+		child.increment();
+		log("parent: " + parent + ", child:" + child);
+	}
+	
+	public static void log(Object msg) {
+		System.out.println(msg);
+	}
 
 }
