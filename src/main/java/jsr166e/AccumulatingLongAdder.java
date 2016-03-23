@@ -52,25 +52,6 @@ public class AccumulatingLongAdder extends LongAdder {
 		super.add(x);		
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 * @see jsr166e.LongAdder#decrement()
-	 */
-	@Override
-	public void decrement() {
-		parent.decrement();
-		super.decrement();
-	}
-	
-	/**
-	 * {@inheritDoc}
-	 * @see jsr166e.LongAdder#increment()
-	 */
-	@Override
-	public void increment() {
-		parent.increment();
-		super.increment();
-	}
 	
 	public static void main(String[] args) {
 		final LongAdder parent =  new LongAdder();
