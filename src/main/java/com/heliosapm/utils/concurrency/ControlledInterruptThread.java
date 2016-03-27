@@ -18,6 +18,10 @@ under the License.
  */
 package com.heliosapm.utils.concurrency;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * <p>Title: ControlledInterruptThread</p>
  * <p>Description: A thread that can switch into un-interruptible state</p> 
@@ -27,7 +31,81 @@ package com.heliosapm.utils.concurrency;
  */
 
 public class ControlledInterruptThread extends Thread {
+	/** The interruptible state */
+	protected final AtomicBoolean interruptible = new AtomicBoolean(true);
+	/** Indicates if there was an attempt to interrupt this thread since it went into un-interruptible state */
+	protected final AtomicBoolean interrupted = new AtomicBoolean(true);
 
+	
+	
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.Thread#toString()
+	 */
+	@Override
+	public String toString() {
+		return super.toString() + "[interruptible:" +  interruptible.get() + "]";
+	}
+	
+	/**
+	 * Sets the interruptible state
+	 * @param inter true for interruptible, false otherwise 
+	 * @return this thread
+	 */
+	public ControlledInterruptThread setInterruptible(final boolean inter) {
+		if(!inter && interruptible.compareAndSet(true, false)) {
+			interrupted.set(false);
+		}
+		return this;
+	}
+	
+	/**
+	 * Indicates if any attempts to interrupt this thread were made while it was interruptible,
+	 * and resets the interrupted state
+	 * @return true if interrupted, false otherwise
+	 */
+	public boolean wasInterrupted() {
+		return interrupted.getAndSet(false);
+	}
+	
+	/**
+	 * Indicates if this thread is interruptible
+	 * @return true if this thread is interruptible, false otherwise
+	 */
+	public boolean isInterruptible() {
+		return interruptible.get();
+	}
+	
+	@Override
+	public void interrupt() {
+		if(interruptible.get()) {
+			super.interrupt();
+		} else {
+			interrupted.set(true);
+		}
+	}
+	
+	public ControlledInterruptThread runInterruptibly(final Runnable r) {
+		try {
+			setInterruptible(false);
+			r.run();
+		} finally {
+			setInterruptible(true);
+		}
+		return this;
+	}
+	
+	public <T> T callInterruptibly(final Callable<T> callable) throws Exception {
+		try {
+			setInterruptible(false);
+			return callable.call();
+		} finally {
+			setInterruptible(true);
+		}		
+	}
+	
+	
+	
 	/**
 	 * Creates a new ControlledInterruptThread
 	 */
@@ -41,7 +119,6 @@ public class ControlledInterruptThread extends Thread {
 	 */
 	public ControlledInterruptThread(final Runnable target) {
 		super(target);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -59,7 +136,6 @@ public class ControlledInterruptThread extends Thread {
 	 */
 	public ControlledInterruptThread(final ThreadGroup group, final Runnable target) {
 		super(group, target);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -69,7 +145,6 @@ public class ControlledInterruptThread extends Thread {
 	 */
 	public ControlledInterruptThread(final ThreadGroup group, final String name) {
 		super(group, name);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
@@ -79,30 +154,27 @@ public class ControlledInterruptThread extends Thread {
 	 */
 	public ControlledInterruptThread(final Runnable target, final String name) {
 		super(target, name);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
 	 * Creates a new ControlledInterruptThread
-	 * @param group
-	 * @param target
-	 * @param name
+	 * @param group The thread group this thread will belong to
+	 * @param target The runnable this thread will run
+	 * @param name The name for this thread
 	 */
-	public ControlledInterruptThread(ThreadGroup group, Runnable target, String name) {
+	public ControlledInterruptThread(final ThreadGroup group, final Runnable target, final String name) {
 		super(group, target, name);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
 	 * Creates a new ControlledInterruptThread
-	 * @param group
-	 * @param target
-	 * @param name
-	 * @param stackSize
+	 * @param group The thread group this thread will belong to
+	 * @param target The runnable this thread will run
+	 * @param name The name for this thread
+	 * @param stackSize The thread's stack size in bytes
 	 */
-	public ControlledInterruptThread(ThreadGroup group, Runnable target, String name, long stackSize) {
+	public ControlledInterruptThread(final ThreadGroup group, final Runnable target, final String name, final long stackSize) {
 		super(group, target, name, stackSize);
-		// TODO Auto-generated constructor stub
 	}
 
 }
