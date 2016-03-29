@@ -36,11 +36,13 @@ public class ThreadLocalRefCache {
 
 	private ThreadLocalRefCache() {}
 	
-	private static final Runnable onEnqueueSingle = new Runnable() {
-		public void run() {
-			System.out.println("Cleared ThreadLocal Ref");
-		}
-	};
+	private static final Runnable onEnqueueSingle(final String s) {
+		return new Runnable() {
+			public void run() {
+//				System.out.println("Cleared ThreadLocal Ref [" + s + "]");
+			}
+		};
+	}
 	
 	public static void main(String[] args) {
 		final ThreadLocalCache<StringBuilder> K = new ThreadLocalCache<StringBuilder>(new Callable<StringBuilder>(){
@@ -129,7 +131,7 @@ public class ThreadLocalRefCache {
 		}
 		
 		public void set(final T t) {
-			cache.set(ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle));											
+			cache.set(ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle(t.getClass().getSimpleName())));											
 		}
 		
 		/**
@@ -150,14 +152,14 @@ public class ThreadLocalRefCache {
 			if(ref==null) {				
 				t = make();
 				if(t==null) return null;
-				ref = ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle);
+				ref = ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle(t.getClass().getSimpleName()));
 				cache.set(ref);				
 			} else {
 				t = ref.get();
 				if(t==null) {
 					t = make();
 					if(t==null) return null;
-					ref = ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle);
+					ref = ReferenceService.getInstance().newWeakReference(t, onEnqueueSingle(t.getClass().getSimpleName()));
 					cache.set(ref);									
 				}				
 			}
