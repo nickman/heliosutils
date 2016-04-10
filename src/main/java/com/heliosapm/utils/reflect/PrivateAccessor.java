@@ -560,6 +560,23 @@ public class PrivateAccessor {
 		return method;
 	}
 	
+//	/**
+//	 * Acquires the constructor with the passed signature for the passed target class
+//	 * @param targetClass The target class
+//	 * @param signature The constructor signature
+//	 * @return the constructor
+//	 */
+//	public static <T> Constructor<T> findConstructorFromClass(Class<T> targetClass, Class<?>... signature) {
+//		try {
+//			final Constructor<T> ctor = targetClass.getConstructor(signature);
+//			ctor.setAccessible(true);
+//			return ctor;
+//		} catch (Exception ex) {
+//			throw new RuntimeException(ex);
+//		}
+//	}
+
+	
 	/**
 	 * Find the named field from the passed class or the classes parents.
 	 * @param targetClass The class to get the field from.
@@ -597,7 +614,7 @@ public class PrivateAccessor {
 	 * @param signature The types of the consructors parameters.
 	 * @return The located constructor.
 	 */
-	private static <T> Constructor<T> findConstructorFromClass(Class<T> targetClass, Class<?>...signature) {
+	public static <T> Constructor<T> findConstructorFromClass(Class<T> targetClass, Class<?>...signature) {
 		int key = invocationKey(targetClass, "CTOR", signature);
 		Constructor<T> ctor = (Constructor<T>)cacheLookup(key);
 		if(ctor==null) {
@@ -620,8 +637,10 @@ public class PrivateAccessor {
 			}			
 		}
 		if(ctor!=null) {
+			ctor.setAccessible(true);
 			addToCache(key, ctor);
 		}
+		
 		return ctor;	
 	}
 	
