@@ -242,6 +242,24 @@ public class ConfigurationHelper {
 	}
 	
 	/**
+	 * Returns the value defined as an character looked up from the Environment, then System properties.
+	 * Note that if the resolved property is a string of more than one character, the first one is accepted silently.
+	 * @param name The name of the key to lookup.
+	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid int.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
+	 * @return The located character or the passed default value.
+	 */
+	public static Character getCharSystemThenEnvProperty(String name, Character defaultValue, Properties...properties) {
+		String tmp = getSystemThenEnvProperty(name, null, properties);
+		try {
+			return tmp.charAt(0);
+		} catch (Exception e) {
+			return defaultValue;
+		}
+	}
+	
+	
+	/**
 	 * Returns the value defined as an Float looked up from the Environment, then System properties.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid int.
