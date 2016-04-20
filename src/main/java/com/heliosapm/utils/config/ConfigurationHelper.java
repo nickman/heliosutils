@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import com.heliosapm.utils.url.URLHelper;
@@ -49,7 +50,21 @@ public class ConfigurationHelper {
 	
 	/** If property names start with this, system properties and environment variables should be ignored. */
 	public static final String NOSYSENV = "tsd.";
+	
+	/** App specified properties that take presedence over sys props, but are not IN sys props */
+	private static final AtomicReference<Properties> appProperties = new AtomicReference<Properties>(null); 
 
+	/**
+	 * Sets the app properties
+	 * @param p The properties to set
+	 * @return true if the app properties were set, false if they were already set
+	 */
+	public static boolean setAppProperties(final Properties p) {
+		if(p==null) throw new IllegalArgumentException("The passed properties were null");
+		return appProperties.compareAndSet(null, p);
+	}
+	
+	
 	/**
 	 * Merges the passed properties
 	 * @param properties The properties to merge
@@ -61,6 +76,10 @@ public class ConfigurationHelper {
 			if(properties[i] != null && properties[i].size() >0) {
 				allProps.putAll(properties[i]);
 			}
+		}
+		final Properties appProps = appProperties.get();
+		if(appProps!=null) {
+			allProps.putAll(appProps);
 		}
 		return allProps;
 	}
