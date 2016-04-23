@@ -49,6 +49,9 @@ public class FluentMap<K, V> implements Map<K, V> {
 	/** The internal map type */
 	final MapType type;
 	
+	/** The set context to return */
+	Object returnRef = null;
+	
 	/** The default map type */
 	public static final MapType DEFAULT_TYPE = MapType.LINK;
 	
@@ -336,6 +339,27 @@ public class FluentMap<K, V> implements Map<K, V> {
 	public FluentMap<K, V> fputAll(final Map<? extends K, ? extends V> m) {
 		putAll(m);
 		return this;
+	}
+	
+	/**
+	 * Sets the return value used when the map is done and {@link #done()} is called
+	 * @param ref The return value
+	 * @return this map
+	 */
+	public FluentMap<K, V> context(final Object ref) {
+		if(ref==null) throw new IllegalArgumentException("The passed ref was null");
+		this.returnRef = ref;
+		return this;
+	}
+	
+	/**
+	 * Returns the set context
+	 * @return the set context
+	 * @param <T> The expected return type
+	 */
+	public <T> T done() {
+		if(returnRef==null) throw new IllegalArgumentException("No context set (need to call context(ret))");
+		return (T)returnRef;
 	}
 	
 	/**
