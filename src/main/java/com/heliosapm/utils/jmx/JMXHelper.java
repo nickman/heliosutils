@@ -308,12 +308,26 @@ public class JMXHelper {
 	 * @param url the JMXServiceURL stringy
 	 * @return a new JMXServiceURL
 	 */
-	public static JMXServiceURL serviceUrl(CharSequence url) {
+	public static JMXServiceURL serviceUrl(final CharSequence url) {
 		try {
 			return new JMXServiceURL(url.toString());
 		} catch (Exception ex) {
 			throw new RuntimeException("Failed to create JMXServiceURL for [" + url + "]", ex);
 		}
+	}
+	
+	/**
+	 * Creates a new disconnected JMXConnector 
+	 * @param url The JMXServiceURL defining the endpoint to connect to
+	 * @param environment The optional environment
+	 * @return the JMXConnector
+	 */
+	public static JMXConnector jmxConnector(final CharSequence url, final  Map<String,?> environment) {
+		try {
+			return JMXConnectorFactory.newJMXConnector(serviceUrl(url), environment!=null ? environment : new HashMap<String, Object>());
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to JMX connect to [" + url + "]", ex);
+		}		
 	}
 	
 	/**
