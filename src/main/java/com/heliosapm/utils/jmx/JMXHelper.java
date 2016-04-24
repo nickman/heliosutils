@@ -1667,9 +1667,10 @@ public class JMXHelper {
 	
 	/**
 	 * Gets an attribute value from an mbean in the Helios MBeanServer
-	 * @param on on the object name
+	 * @param on the object name
 	 * @param name the name of the attribute
 	 * @return the value of the attribute
+	 * 
 	 */
 	public static <T> T getAttribute(ObjectName on, String name) {
 		try {
@@ -1678,6 +1679,22 @@ public class JMXHelper {
 			throw new RuntimeException("Failed to get attribute", e);
 		}
 	}
+	
+	/**
+	 * Gets an attribute value from an mbean in the passed MBeanServer
+	 * @param server The MBeanServer to get the attribute from
+	 * @param on the object name
+	 * @param name the name of the attribute
+	 * @return the value of the attribute
+	 */
+	public static <T> T getAttribute(final MBeanServerConnection server, final ObjectName on, final String name) {
+		try {
+			return (T)server.getAttribute(on,name);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to get attribute", e);
+		}
+	}
+	
 	
 	/**
 	 * Gets an attribute value from an mbean in the Helios MBeanServer
