@@ -160,6 +160,10 @@ public class JMXHelper {
 	public static final ObjectName MXBEAN_GC_ON = objectName(ManagementFactory.GARBAGE_COLLECTOR_MXBEAN_DOMAIN_TYPE + ",*");
 	/** The Memory Pool MXBean ObjectName pattern */
 	public static final ObjectName MXBEAN_MEMPOOL_ON = objectName(ManagementFactory.MEMORY_POOL_MXBEAN_DOMAIN_TYPE + ",*");
+	/** The NIO Buffer MXBean ObjectName pattern */
+	public static final ObjectName MXBEAN_NIOBUFF_ON = objectName("java.nio:type=BufferPool,name=*");
+	
+	
 	
 	
 	
@@ -373,6 +377,30 @@ public class JMXHelper {
 			throw new RuntimeException("Failed to get GC ObjectNames for [" + mbs + "]", ex);
 		}
 	}
+	
+	/**
+	 * Returns the ObjectNames for the passed MBeanServer's NIO Buffer Managers
+	 * @param mbs The MBeanServer to to query
+	 * @return a set of NIO Buffer Manager MXBean ObjectNames
+	 */
+	public static Set<ObjectName> getNIOBufferMXBeans(final MBeanServerConnection mbs) {
+		try {
+			return mbs.queryNames(MXBEAN_NIOBUFF_ON, null); 
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to get NIOBuffer ObjectNames for [" + mbs + "]", ex);
+		}
+	}
+	
+	/**
+	 * Returns the ObjectNames for the default MBeanServer's NIO Buffer Managers
+	 * @param mbs The MBeanServer to to query
+	 * @return a set of NIO Buffer Managers MXBean ObjectNames
+	 */
+	public static Set<ObjectName> getNIOBufferMXBeans() {
+		return getNIOBufferMXBeans(getHeliosMBeanServer());
+	}
+	
+	
 	
 	/**
 	 * Returns the ObjectNames for the default MBeanServer's garbage collectors
