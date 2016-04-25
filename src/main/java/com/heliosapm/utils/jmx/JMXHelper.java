@@ -2290,6 +2290,13 @@ while(m.find()) {
 		return getPID(getHeliosMBeanServer());
 	}
 
+	public static int getProcessorCount(final MBeanServerConnection mbs) {
+		return (Integer)JMXHelper.getAttribute(mbs, MXBEAN_OS_ON, "AvailableProcessors");
+	}
+	
+	public static int getProcessorCount() {
+		return ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors();
+	}
 
 	/**
 	 * Creates a new visible MBeanServer
