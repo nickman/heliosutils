@@ -53,7 +53,7 @@
 		<defaultGoal>install</defaultGoal>
 		<plugins>
 
-		    <plugin>
+		<plugin>
 			<groupId>org.apache.maven.plugins</groupId>
 			<artifactId>maven-eclipse-plugin</artifactId>
 			<version>${eclipse-plugin.version}</version>
@@ -61,12 +61,9 @@
 			    <downloadJavadocs>true</downloadJavadocs>
 			    <downloadSources>true</downloadSources>
 			    <classpathContainers>
-				<classpathContainer>
-			org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7
-				</classpathContainer>
 			    </classpathContainers>
 			</configuration>
-		    </plugin>
+		</plugin>
 			
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
