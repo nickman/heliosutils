@@ -35,6 +35,8 @@ public enum Primitive {
 	BOOLEAN(8, Boolean.TYPE, Boolean.class, boolean[].class),
 	/** A byte primitive */
 	BYTE(Byte.SIZE, Byte.TYPE, Byte.class, byte[].class),
+	/** A char primitive */
+	CHAR(2, Character.TYPE, Character.class, char[].class),	
 	/** A short primitive */
 	SHORT(Short.SIZE, Short.TYPE, Short.class, short[].class),
 	/** An integer primitive */
@@ -109,6 +111,7 @@ public enum Primitive {
 	public final Class<?> arrayType;
 	/** The offset size to the data in a primitive 1 diensional array */
 	public final long addressOffset;
+	/** The upcast for this primitive */
 	public final Class<?> upcast;
 
 }
