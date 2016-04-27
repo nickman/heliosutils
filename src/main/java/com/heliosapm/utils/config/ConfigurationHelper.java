@@ -53,7 +53,7 @@ public class ConfigurationHelper {
 	
 	/** App property keys that start with this are set as system properties (minus the prefix) */
 	public static final String SYSPROP_PREFIX = "system.";
-	private static final int SYSPROP_PREFIX_LEN = SYSPROP_PREFIX.length() + 1;
+	private static final int SYSPROP_PREFIX_LEN = SYSPROP_PREFIX.length();
 	
 	
 	/** App specified properties that take presedence over sys props, but are not IN sys props */
@@ -70,8 +70,9 @@ public class ConfigurationHelper {
 		for(final String key: p.stringPropertyNames()) {
 			if(key.startsWith(SYSPROP_PREFIX)) {
 				final String value = p.getProperty(key);
-				final String sysKey = key.substring(SYSPROP_PREFIX_LEN);
+				final String sysKey = key.substring(SYSPROP_PREFIX_LEN);				
 				System.setProperty(sysKey, value);
+//				System.err.println("SET SYSPROP [" + sysKey + ":" + value + "]");
 			}
 		}
 		return wasSet;
