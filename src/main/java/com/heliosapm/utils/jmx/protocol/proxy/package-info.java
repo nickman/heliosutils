@@ -18,10 +18,11 @@ under the License.
  */
 /**
  * <p>Title: package-info</p>
- * <p>Description: Utilities for primitives</p> 
+ * <p>Description: A proxying JMX remoting protocol whereby another protocol is used
+ * to connect to an MBeanServer stub registered in another JVM.</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.utils.primitives.package-info</code></p>
+ * <p><code>com.heliosapm.utils.jmx.protocol.proxy.package-info</code></p>
  */
 
-package com.heliosapm.utils.primitives;
+package com.heliosapm.utils.jmx.protocol.proxy;

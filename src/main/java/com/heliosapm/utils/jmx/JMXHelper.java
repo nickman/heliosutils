@@ -2317,6 +2317,15 @@ while(m.find()) {
 	public static long getPID() {
 		return getPID(getHeliosMBeanServer());
 	}
+	
+	public static String getRuntimeName(final MBeanServerConnection mbs) {
+		return (String)getAttribute(mbs, ManagementFactory.RUNTIME_MXBEAN_NAME, "Name");
+	}
+	
+	public static String getRuntimeName() {
+		return getRuntimeName(getHeliosMBeanServer());
+	}
+	
 
 	public static int getProcessorCount(final MBeanServerConnection mbs) {
 		return (Integer)JMXHelper.getAttribute(mbs, MXBEAN_OS_ON, "AvailableProcessors");

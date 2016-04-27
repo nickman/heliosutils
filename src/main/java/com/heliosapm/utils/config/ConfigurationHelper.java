@@ -51,6 +51,11 @@ public class ConfigurationHelper {
 	/** If property names start with this, system properties and environment variables should be ignored. */
 	public static final String NOSYSENV = "tsd.";
 	
+	/** App property keys that start with this are set as system properties (minus the prefix) */
+	public static final String SYSPROP_PREFIX = "system.";
+	private static final int SYSPROP_PREFIX_LEN = SYSPROP_PREFIX.length() + 1;
+	
+	
 	/** App specified properties that take presedence over sys props, but are not IN sys props */
 	private static final AtomicReference<Properties> appProperties = new AtomicReference<Properties>(null); 
 
@@ -61,7 +66,15 @@ public class ConfigurationHelper {
 	 */
 	public static boolean setAppProperties(final Properties p) {
 		if(p==null) throw new IllegalArgumentException("The passed properties were null");
-		return appProperties.compareAndSet(null, p);
+		final boolean wasSet = appProperties.compareAndSet(null, p);
+		for(final String key: p.stringPropertyNames()) {
+			if(key.startsWith(SYSPROP_PREFIX)) {
+				final String value = p.getProperty(key);
+				final String sysKey = key.substring(SYSPROP_PREFIX_LEN);
+				System.setProperty(sysKey, value);
+			}
+		}
+		return wasSet;
 	}
 	
 	
