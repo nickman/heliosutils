@@ -19,6 +19,14 @@ under the License.
 package com.heliosapm.utils.enums;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
@@ -32,28 +40,77 @@ import com.heliosapm.utils.unsafe.UnsafeAdapter;
 
 public enum Primitive {
 	/** A boolean primitive */
-	BOOLEAN(8, Boolean.TYPE, Boolean.class, boolean[].class),
+	BOOLEAN(8, Boolean.TYPE, Boolean.class, boolean[].class, false, false),
 	/** A byte primitive */
-	BYTE(Byte.SIZE, Byte.TYPE, Byte.class, byte[].class),
+	BYTE(Byte.SIZE, Byte.TYPE, Byte.class, byte[].class, true, false),
 	/** A char primitive */
-	CHAR(2, Character.TYPE, Character.class, char[].class),	
+	CHAR(2, Character.TYPE, Character.class, char[].class, false, false),	
 	/** A short primitive */
-	SHORT(Short.SIZE, Short.TYPE, Short.class, short[].class),
+	SHORT(Short.SIZE, Short.TYPE, Short.class, short[].class, true, false),
 	/** An integer primitive */
-	INTEGER(Integer.SIZE, Integer.TYPE, Integer.class, int[].class),
+	INTEGER(Integer.SIZE, Integer.TYPE, Integer.class, int[].class, true, false),
 	/** A float primitive */
-	FLOAT(Float.SIZE, Float.TYPE, Float.class, float[].class),
+	FLOAT(Float.SIZE, Float.TYPE, Float.class, float[].class, true, true),
 	/** A long primitive */
-	LONG(Long.SIZE, Long.TYPE, Long.class, long[].class),
+	LONG(Long.SIZE, Long.TYPE, Long.class, long[].class, true, false),
 	/** A double primitive */
-	DOUBLE(Double.SIZE, Double.TYPE, Double.class, double[].class);
+	DOUBLE(Double.SIZE, Double.TYPE, Double.class, double[].class, true, true);
+	
+	public static final Set<Class<?>> ALL_CLASSES;
+	public static final Set<String> ALL_CLASS_NAMES;
+	public static final Set<Class<?>> ALL_NUMERIC_CLASSES;
+	public static final Set<String> ALL_NUMERIC_CLASS_NAMES;
+//	public static final Map<String, Primitive> NAME2ENUM;
+	
+	static {
+		final Primitive[] values = values();
+		final Set<Class<?>> allClasses = new HashSet<Class<?>>(values.length*2);
+		final Set<Class<?>> allNumericClasses = new HashSet<Class<?>>(values.length*2 + 4);
+		final Set<Class<?>> allNumericPrimitives = new HashSet<Class<?>>(values.length-2);
+		final Set<Class<?>> allNumericObjects = new HashSet<Class<?>>(values.length-2+4);
+		final Set<String> allClassNames = new HashSet<String>(values.length*2);
+		final Set<String> allNumericClassNames = new HashSet<String>(values.length*2 + 4);
+		
+		for(Primitive p: values) {
+			allClasses.add(p.type);
+			allClassNames.add(p.type.getName());
+			if(p.numeric) {
+				allNumericClasses.add(p.upcast);
+				allNumericClassNames.add(p.upcast.getName());	
+				allNumericPrimitives.add(p.type);
+				allNumericObjects.add(p.upcast);
+			}
+		}
+		allNumericClasses.add(AtomicInteger.class);
+		allNumericClasses.add(AtomicLong.class);
+		allNumericClasses.add(BigInteger.class);
+		allNumericClasses.add(BigDecimal.class);
+		allNumericClassNames.add(AtomicInteger.class.getName());
+		allNumericClassNames.add(AtomicLong.class.getName());
+		allNumericClassNames.add(BigInteger.class.getName());
+		allNumericClassNames.add(BigDecimal.class.getName());		
+		allNumericObjects.add(AtomicInteger.class);
+		allNumericObjects.add(AtomicLong.class);
+		allNumericObjects.add(BigInteger.class);
+		allNumericObjects.add(BigDecimal.class);
+
+		
+		
+		ALL_CLASSES = Collections.unmodifiableSet(allClasses);
+		ALL_CLASS_NAMES = Collections.unmodifiableSet(allClassNames);
+		ALL_NUMERIC_CLASSES = Collections.unmodifiableSet(allNumericClasses);
+		ALL_NUMERIC_CLASS_NAMES = Collections.unmodifiableSet(allNumericClassNames);
+		
+	}
 	
 	
-	private Primitive(int size, Class<?> type, Class<?> upcast, Class<?> arrayType) {
+	private Primitive(final int size, final Class<?> type, final Class<?> upcast, final Class<?> arrayType, final boolean numeric, final boolean floating) {
 		this.size = size/8;
 		this.type = type;
 		this.upcast = upcast;
 		this.arrayType = arrayType;
+		this.numeric = numeric;
+		this.floating = floating;
 		addressOffset = UnsafeAdapter.arrayBaseOffset(arrayType); 
 	}
 	
@@ -113,5 +170,9 @@ public enum Primitive {
 	public final long addressOffset;
 	/** The upcast for this primitive */
 	public final Class<?> upcast;
+	/** Indicates if the type is numeric */
+	public final boolean numeric;
+	/** Indicates if the type is numeric and floating */
+	public final boolean floating;
 
 }

@@ -18,18 +18,27 @@ under the License.
  */
 package com.heliosapm.utils.config;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
+import com.heliosapm.utils.lang.StringHelper;
 import com.heliosapm.utils.url.URLHelper;
+
+import sun.reflect.Reflection;
 
 /**
  * <p>Title: ConfigurationHelper</p>
@@ -108,7 +117,7 @@ public class ConfigurationHelper {
 	 * @return The located value or the default if it was not found.
 	 */
 	public static String getEnvThenSystemProperty(String name, String defaultValue, Properties...properties) {
-		
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String value = System.getenv(name.replace('.', '_'));
 		if(value==null) {			
 			value = mergeProperties(properties).getProperty(name);
@@ -116,7 +125,7 @@ public class ConfigurationHelper {
 		if(value==null) {
 			value=defaultValue;
 		}
-		return value;
+		return appendAudit(caller, name, defaultValue, value);
 	}
 	
 	/**
@@ -128,6 +137,7 @@ public class ConfigurationHelper {
 	 * @return The located value or the default if it was not found.
 	 */
 	public static String getSystemThenEnvProperty(String name, String defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		if(name==null || name.trim().isEmpty()) throw new IllegalArgumentException("The passed property name was null or empty");
 		if(name.trim().toLowerCase().startsWith(NOSYSENV)) {
 			if(properties==null || properties.length==0 || properties[0]==null) return defaultValue;
@@ -140,6 +150,7 @@ public class ConfigurationHelper {
 		if(value==null) {
 			value=defaultValue;
 		}
+		appendAudit(caller, name, defaultValue, value);
 		return value;
 	}
 	
@@ -155,15 +166,16 @@ public class ConfigurationHelper {
 	 * @return The located value or the default if it was not found.
 	 */
 	public static String[] getSystemThenEnvPropertyArray(String name, String defaultValue, Properties...properties) {
-		if(defaultValue.isEmpty()) defaultValue = EMPTY_ARRAY_TOKEN;
-		String raw = getSystemThenEnvProperty(name, defaultValue, properties);
-		if(EMPTY_ARRAY_TOKEN.equals(raw)) return EMPTY_STR_ARR; 
-		List<String> values = new ArrayList<String>();
-		for(String s: COMMA_SPLITTER.split(raw.trim())) {
-			if(s.trim().isEmpty()) continue;
-			values.add(s.trim());
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
+		String[] value = null;
+		String[] defValue = StringHelper.splitString(defaultValue, ',', true);
+		final String raw = getSystemThenEnvProperty(name, null, properties);
+		if(raw==null || raw.trim().isEmpty()) {
+			value = defValue;
+		} else {
+			value = StringHelper.splitString(raw, ',', true);
 		}
-		return values.toArray(new String[0]);
+		return appendAudit(caller, name, defValue, value); 
 	}
 
 	/**
@@ -175,19 +187,38 @@ public class ConfigurationHelper {
 	 * @return The located value or the default if it was not found.
 	 */
 	public static int[] getIntSystemThenEnvPropertyArray(String name, String defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String raw = getSystemThenEnvProperty(name, defaultValue, properties);
-		if(raw==null || raw.trim().isEmpty()) return EMPTY_INT_ARR;
-		List<Integer> values = new ArrayList<Integer>();
-		for(String s: COMMA_SPLITTER.split(raw.trim())) {
-			if(s.trim().isEmpty()) continue;
-			try { values.add(new Integer(s.trim())); } catch (Exception ex) {}
-		}		
-		if(values.isEmpty()) return EMPTY_INT_ARR;
-		int[] ints = new int[values.size()];
-		for(int i = 0; i < values.size(); i++) {
-			ints[i] = values.get(i);
+		int[] rez = null;
+		if(raw==null || raw.trim().isEmpty()) {
+			rez = EMPTY_INT_ARR;
+		} else {
+			List<Integer> values = new ArrayList<Integer>();
+			for(String s: COMMA_SPLITTER.split(raw.trim())) {
+				if(s.trim().isEmpty()) continue;
+				try { values.add(new Integer(s.trim())); } catch (Exception ex) {}
+			}		
+			if(values.isEmpty()) {
+				rez = EMPTY_INT_ARR;
+			} else {
+				rez = new int[values.size()];
+				for(int i = 0; i < values.size(); i++) {
+					rez[i] = values.get(i);
+				}
+			}
 		}
-		return ints;
+		return appendAudit(caller, name, parseToIntArr(defaultValue), rez);
+	}
+	
+	private static int[] parseToIntArr(final String intArr) {
+		if(intArr==null || intArr.trim().isEmpty()) return EMPTY_INT_ARR;
+		final String[] sarr = StringHelper.splitString(intArr, ',', true);
+		if(sarr.length==0) return EMPTY_INT_ARR;
+		final int[] iarr = new int[sarr.length];
+		for(int i = 0; i < sarr.length; i++) {
+			iarr[i] = Integer.parseInt(sarr[i].trim());
+		}
+		return iarr;
 	}
 	
 	
@@ -198,9 +229,17 @@ public class ConfigurationHelper {
 	 * @return true if the name is defined in the environment or system properties.
 	 */
 	public static boolean isDefined(String name, Properties...properties) {
-		if(System.getenv(name) != null) return true;
-		if(mergeProperties(properties).getProperty(name) != null) return true;
-		return false;		
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
+		boolean value = false;
+		if(System.getenv(name) != null) {
+			value = true;
+		} else {
+			if(mergeProperties(properties).getProperty(name) != null) {
+				value = true;
+			}
+			value = false;					
+		}
+		return appendAudit(caller, name, value, value);
 	}
 	
 	/**
@@ -210,6 +249,7 @@ public class ConfigurationHelper {
 	 * @return true if the name is defined as a valid int in the environment or system properties.
 	 */
 	public static boolean isIntDefined(String name, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getEnvThenSystemProperty(name, null, properties);
 		if(tmp==null) return false;
 		try {
@@ -227,18 +267,24 @@ public class ConfigurationHelper {
 	 * @return true if the name is defined as a valid boolean in the environment or system properties.
 	 */
 	public static boolean isBooleanDefined(String name, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getEnvThenSystemProperty(name, null, properties);
-		if(tmp==null) return false;
-		try {
-			tmp = tmp.toUpperCase();
-			if(
-					tmp.equalsIgnoreCase("TRUE") || tmp.equalsIgnoreCase("Y") || tmp.equalsIgnoreCase("YES") ||
-					tmp.equalsIgnoreCase("FALSE") || tmp.equalsIgnoreCase("N") || tmp.equalsIgnoreCase("NO")
-			) return true;
-			return false;
-		} catch (Exception e) {
-			return false;
-		}				
+		boolean value = false;
+		if(tmp==null) {
+			value = false;
+		} else {
+			try {
+				tmp = tmp.toUpperCase();
+				if(
+						tmp.equalsIgnoreCase("TRUE") || tmp.equalsIgnoreCase("Y") || tmp.equalsIgnoreCase("YES") ||
+						tmp.equalsIgnoreCase("FALSE") || tmp.equalsIgnoreCase("N") || tmp.equalsIgnoreCase("NO")
+				) value = true;
+				value = false;
+			} catch (Exception e) {
+				value = false;
+			}							
+		}
+		return appendAudit(caller, name, value, value);
 	}	
 	
 	/**
@@ -248,6 +294,7 @@ public class ConfigurationHelper {
 	 * @return true if the name is defined as a valid long in the environment or system properties.
 	 */
 	public static boolean isLongDefined(String name, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getEnvThenSystemProperty(name, null, properties);
 		if(tmp==null) return false;
 		try {
@@ -266,12 +313,15 @@ public class ConfigurationHelper {
 	 * @return The located integer or the passed default value.
 	 */
 	public static Integer getIntSystemThenEnvProperty(String name, Integer defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getSystemThenEnvProperty(name, null, properties);
+		Integer value = null;
 		try {
-			return Integer.parseInt(tmp);
+			value = Integer.parseInt(tmp);
 		} catch (Exception e) {
-			return defaultValue;
+			value = defaultValue;
 		}
+		return appendAudit(caller, name, defaultValue, value);
 	}
 	
 	/**
@@ -283,12 +333,15 @@ public class ConfigurationHelper {
 	 * @return The located character or the passed default value.
 	 */
 	public static Character getCharSystemThenEnvProperty(String name, Character defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getSystemThenEnvProperty(name, null, properties);
+		Character rez;
 		try {
-			return tmp.charAt(0);
+			rez = tmp.charAt(0);
 		} catch (Exception e) {
-			return defaultValue;
+			rez = defaultValue;
 		}
+		return appendAudit(caller, name, defaultValue, rez);
 	}
 	
 	
@@ -300,12 +353,15 @@ public class ConfigurationHelper {
 	 * @return The located float or the passed default value.
 	 */
 	public static Float getFloatSystemThenEnvProperty(String name, Float defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getSystemThenEnvProperty(name, null, properties);
+		Float value = null;
 		try {
-			return Float.parseFloat(tmp);
+			value = Float.parseFloat(tmp);
 		} catch (Exception e) {
-			return defaultValue;
+			value = defaultValue;
 		}
+		return appendAudit(caller, name, defaultValue, value);
 	}
 	
 	
@@ -317,12 +373,15 @@ public class ConfigurationHelper {
 	 * @return The located long or the passed default value.
 	 */
 	public static Long getLongSystemThenEnvProperty(String name, Long defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getSystemThenEnvProperty(name, null, properties);
+		Long value = null;
 		try {
-			return Long.parseLong(tmp);
+			value = Long.parseLong(tmp);
 		} catch (Exception e) {
-			return defaultValue;
+			value = defaultValue;
 		}
+		return appendAudit(caller, name, defaultValue, value);
 	}	
 	
 	/**
@@ -333,12 +392,19 @@ public class ConfigurationHelper {
 	 * @return The located boolean or the passed default value.
 	 */
 	public static Boolean getBooleanSystemThenEnvProperty(String name, Boolean defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		String tmp = getSystemThenEnvProperty(name, null, properties);
-		if(tmp==null) return defaultValue;
-		tmp = tmp.toUpperCase();
-		if(tmp.equalsIgnoreCase("TRUE") || tmp.equalsIgnoreCase("Y") || tmp.equalsIgnoreCase("YES")) return true;
-		if(tmp.equalsIgnoreCase("FALSE") || tmp.equalsIgnoreCase("N") || tmp.equalsIgnoreCase("NO")) return false;
-		return defaultValue;
+		final boolean rez;
+		if(tmp==null) {
+			rez = defaultValue;
+		} else {
+			tmp = tmp.toUpperCase();
+			if(tmp.equalsIgnoreCase("TRUE") || tmp.equalsIgnoreCase("Y") || tmp.equalsIgnoreCase("YES")) rez = true;
+			else if(tmp.equalsIgnoreCase("FALSE") || tmp.equalsIgnoreCase("N") || tmp.equalsIgnoreCase("NO")) rez = false;
+			else rez = defaultValue;
+
+		}
+		return appendAudit(caller, name, defaultValue, rez);
 	}
 	
 	/**
@@ -349,12 +415,16 @@ public class ConfigurationHelper {
 	 * @return The located URL or the passed default value.
 	 */
 	public static URL getURLSystemThenEnvProperty(String name, String defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		final String tmp = getSystemThenEnvProperty(name, null, properties);
+		URL value = null;
+		URL defValue = (defaultValue==null || defaultValue.trim().isEmpty()) ? null : URLHelper.toURL(defaultValue);
 		try {
-			return URLHelper.toURL(tmp);
+			value = URLHelper.toURL(tmp);
 		} catch (Exception e) {
-			return URLHelper.toURL(defaultValue);
+			value = defValue;
 		}
+		return appendAudit(caller, name, defValue, value);
 	}
 	
 	/**
@@ -366,6 +436,7 @@ public class ConfigurationHelper {
 	 * @return The string array or the passed default value.
 	 */
 	public static String[] getArraySystemThenEnvProperty(final String name, final String[] defaultValue, final Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		final String tmp = getSystemThenEnvProperty(name, "", properties).trim();
 		if(tmp==null || tmp.isEmpty()) return defaultValue;
 		final String[] arr = tmp.split(",");
@@ -374,7 +445,7 @@ public class ConfigurationHelper {
 			if(arr[i]==null || arr[i].trim().isEmpty()) continue;
 			list.add(arr[i].trim());
 		}
-		return list.toArray(new String[list.size()]);
+		return appendAudit(caller, name, defaultValue, list.toArray(new String[list.size()]));
 	}
 	
 	/**
@@ -386,7 +457,8 @@ public class ConfigurationHelper {
 	 * @return The string array or the passed default value.
 	 */
 	public static String[] getArraySystemThenEnvProperty(final String name, final Collection<String> defaultValue, final Properties...properties) {
-		return getArraySystemThenEnvProperty(name, defaultValue.toArray(new String[0]), properties); 
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;		
+		return appendAudit(caller, name, defaultValue.toArray(new String[0]), getArraySystemThenEnvProperty(name, defaultValue.toArray(new String[0]), properties));
 	}
 	
 	
@@ -399,7 +471,8 @@ public class ConfigurationHelper {
 	 * @return the configured enum member or the default if one cannot be decoded
 	 */
 	public static <E extends Enum<E>> E getEnumUpperSystemThenEnvProperty(final Class<E> enumType, final String name, final E defaultEnum, final Properties...properties) {
-		return getEnumSystemThenEnvProperty(enumType, name==null ? null : name.toUpperCase(), defaultEnum, properties);
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
+		return appendAudit(caller, name, defaultEnum, getEnumSystemThenEnvProperty(enumType, name==null ? null : name.toUpperCase(), defaultEnum, properties)); 
 	}
 	
 	/**
@@ -411,17 +484,20 @@ public class ConfigurationHelper {
 	 * @return the configured enum member or the default if one cannot be decoded
 	 */
 	public static <E extends Enum<E>> E getEnumSystemThenEnvProperty(final Class<E> enumType, final String name, final E defaultEnum, final Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		if(enumType==null) throw new IllegalArgumentException("The passed enum type was null");
+		E rez = null;
 		try {
 			final String n = getSystemThenEnvProperty(name, null, properties);			
 			if(n!=null && !n.trim().isEmpty()) {
 				final String _n = n.trim();
-				return Enum.valueOf(enumType, _n);
+				rez = Enum.valueOf(enumType, _n);
 			}
 		} catch (Exception ex) {
 			/* No Op */
 		}
-		return defaultEnum;
+		rez = defaultEnum;
+		return appendAudit(caller, name, defaultEnum, rez);
 	}
 	
 	
@@ -475,5 +551,63 @@ public class ConfigurationHelper {
 		return inst(clazz, EMPTY_SIG, EMPTY_ARGS);
 	}
 
-
+	private static final String PID = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+	private static final boolean AUDIT_ENABLED;
+	private static final SimpleDateFormat AUDIT_SDF = new SimpleDateFormat("yyyyMMdd:HHmmss.SS");
+	private static final File AUDIT_FILE = new File(System.getProperty("java.io.tmpdir") + File.separator + "configuration-audit-" + PID + ".log");
+	private static final String EOL = System.getProperty("line.separator", "\n");
+	private static final ThreadLocal<String> AUDIT_CURRENT_KEY = new ThreadLocal<String>();
+	static {
+		final boolean enabled = "true".equalsIgnoreCase(System.getProperty("config.helper.audit.enabled", "false"));
+		boolean keepEnabled = true;
+		if(!enabled) {
+			keepEnabled = false;
+		} else {
+			if(AUDIT_FILE.exists()) {
+				if(!AUDIT_FILE.delete()) {
+					keepEnabled = false;
+					System.err.println("Failed to delete Audit File [" + AUDIT_FILE + "]");
+				}
+			}
+			if(keepEnabled) {
+				try {
+					AUDIT_FILE.createNewFile();
+				} catch (Exception ex) {
+					keepEnabled = false;
+					System.err.println("Failed to create Audit File [" + AUDIT_FILE + "]: " + ex);
+				}			
+			}			
+		}		
+		AUDIT_ENABLED = keepEnabled;
+		if(AUDIT_ENABLED) {
+			System.out.println("ConfigurationHelper Audit Enabled. File: [" + AUDIT_FILE + "]");
+		}
+	}
+	
+	private static synchronized <T> T appendAudit(final Class<?> caller, final String key, final T defaultValue, final T configValue) {
+		if(caller==null || caller==ConfigurationHelper.class) return configValue;
+		FileWriter fw = null;
+		
+		final String def = defaultValue==null ? "<null>" :
+			defaultValue.getClass().isArray() ? Arrays.toString((String[])defaultValue) : defaultValue.toString();
+		final String val = configValue==null ? "<null>" :
+			configValue.getClass().isArray() ? Arrays.toString((String[])configValue) : configValue.toString();
+			
+		try {
+			fw = new FileWriter(AUDIT_FILE, true);
+			fw.append(new StringBuilder(AUDIT_SDF.format(new Date())).append(",")
+					.append(caller.getName()).append(",")
+					.append(key).append(",")
+					.append(val).append(EOL)
+			);
+			fw.flush();
+		} catch (Exception ex) {
+			System.err.println("ConfigurationHelper Audit Write Error:" + ex);
+		} finally {
+			if(fw!=null) try { fw.close(); } catch (Exception x) {/* No Op */}
+		}
+		return configValue;
+	}
+	
+	
 }

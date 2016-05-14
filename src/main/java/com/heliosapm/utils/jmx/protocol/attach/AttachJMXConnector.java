@@ -20,6 +20,7 @@ package com.heliosapm.utils.jmx.protocol.attach;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -30,6 +31,7 @@ import javax.management.ListenerNotFoundException;
 import javax.management.MBeanServerConnection;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
+import javax.management.remote.JMXConnectionNotification;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXServiceURL;
 import javax.security.auth.Subject;
@@ -65,11 +67,34 @@ public class AttachJMXConnector implements JMXConnector {
 	/** The attached vm */
 	protected VirtualMachine vm = null;
 	/** The JMXConnector to the attached JVM */
-	protected JMXConnector jmxConnector = null;
+	protected volatile JMXConnector jmxConnector = null;
 	/** The attached VM's system properties */
 	protected Properties vmSystemProperties = null;
 	/** The attached VM's agent properties */
 	protected Properties vmAgentProperties = null;
+	/** A list of listeners added before the jmxConnector was created */
+	protected final List<EarlyListener> earlyListeners = new ArrayList<AttachJMXConnector.EarlyListener>();
+	
+	
+	private class EarlyListener {
+		final NotificationListener listener;
+		final NotificationFilter filter;
+		final Object handback;
+		
+		/**
+		 * Creates a new EarlyListener
+		 * @param listener
+		 * @param filter
+		 * @param handback
+		 */
+		private EarlyListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) {
+			this.listener = listener;
+			this.filter = filter;
+			this.handback = handback;
+		}
+		
+		
+	}
 	
 	/** The PID of this JVM */
 	public static final String PID = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
@@ -77,7 +102,7 @@ public class AttachJMXConnector implements JMXConnector {
 	 * Creates a new AttachJMXConnector
 	 * @param jvmIdentifier The target JVM identifier or display name match expression
 	 */
-	public AttachJMXConnector(String jvmIdentifier) {
+	public AttachJMXConnector(final String jvmIdentifier) {
 		if(jvmIdentifier==null || jvmIdentifier.trim().isEmpty()) throw new IllegalArgumentException("The passed JVM identifier was null or empty");
 		urlPath = jvmIdentifier.trim();
 		if(urlPath.startsWith("/")) urlPath = new StringBuilder(urlPath).deleteCharAt(0).toString();
@@ -164,11 +189,20 @@ public class AttachJMXConnector implements JMXConnector {
 	@Override
 	public void connect() throws IOException {
 		attach();
-		jmxConnector = vm.getJMXConnector();
-		jvmId = vm.id();
+		synchronized(earlyListeners) {
+			jmxConnector = vm.getJMXConnector();
+			jvmId = vm.id();
+			long seq = 0L;
+			for(EarlyListener el: earlyListeners) {
+				jmxConnector.addConnectionNotificationListener(el.listener, el.filter, el.handback);
+				final JMXConnectionNotification connectNotif = new JMXConnectionNotification(JMXConnectionNotification.OPENED, this, "0", seq++, "Connected to JVM ID [" + jvmId + "]", vm);
+				el.listener.handleNotification(connectNotif, el.handback);
+			}
+			earlyListeners.clear();
+		}
+		
 		vmSystemProperties = vm.getSystemProperties();
-		vmAgentProperties = vm.getAgentProperties();
-		try { vm.detach(); } catch (Exception x) {/* No Op */}		
+		vmAgentProperties = vm.getAgentProperties();			
 	}
 
 	/**
@@ -190,41 +224,79 @@ public class AttachJMXConnector implements JMXConnector {
 		return String.format("[Attached:%s] %s", jvmId, jmxConnector.getConnectionId());
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.remote.JMXConnector#getMBeanServerConnection()
+	 */
+	@Override
 	public MBeanServerConnection getMBeanServerConnection() throws IOException {
 		return jmxConnector.getMBeanServerConnection();
 	}
 
-	public MBeanServerConnection getMBeanServerConnection(
-			Subject delegationSubject) throws IOException {
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.remote.JMXConnector#getMBeanServerConnection(javax.security.auth.Subject)
+	 */
+	@Override
+	public MBeanServerConnection getMBeanServerConnection(final Subject delegationSubject) throws IOException {
 		return jmxConnector.getMBeanServerConnection(delegationSubject);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.remote.JMXConnector#close()
+	 */
+	@Override
 	public void close() throws IOException {
-		jmxConnector.close();
+		try { jmxConnector.close(); } catch (Exception x) {/* No Op */}
+		try { vm.detach(); } catch (Exception x) {/* No Op */}
 	}
 
-	public void addConnectionNotificationListener(
-			NotificationListener listener, NotificationFilter filter,
-			Object handback) {
-		jmxConnector.addConnectionNotificationListener(listener, filter,
-				handback);
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.remote.JMXConnector#addConnectionNotificationListener(javax.management.NotificationListener, javax.management.NotificationFilter, java.lang.Object)
+	 */
+	@Override
+	public void addConnectionNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) {
+		synchronized(earlyListeners) {
+			if(jmxConnector==null) {			
+					earlyListeners.add(new EarlyListener(listener, filter, handback));			
+			} else {
+				jmxConnector.addConnectionNotificationListener(listener, filter, handback);
+			}
+		}
 	}
 
-	public void removeConnectionNotificationListener(
-			NotificationListener listener) throws ListenerNotFoundException {
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.remote.JMXConnector#removeConnectionNotificationListener(javax.management.NotificationListener)
+	 */
+	@Override
+	public void removeConnectionNotificationListener(final NotificationListener listener) throws ListenerNotFoundException {
 		jmxConnector.removeConnectionNotificationListener(listener);
 	}
 
-	public void removeConnectionNotificationListener(NotificationListener l,
-			NotificationFilter f, Object handback)
-			throws ListenerNotFoundException {
+	/**
+	 * {@inheritDoc}
+	 * @see javax.management.remote.JMXConnector#removeConnectionNotificationListener(javax.management.NotificationListener, javax.management.NotificationFilter, java.lang.Object)
+	 */
+	@Override
+	public void removeConnectionNotificationListener(final NotificationListener l, final NotificationFilter f, final Object handback) throws ListenerNotFoundException {
 		jmxConnector.removeConnectionNotificationListener(l, f, handback);
 	}
 
+	/**
+	 * Returns the vm's system properties
+	 * @return the vm's system properties
+	 */
 	public Properties getVmSystemProperties() {
 		return vmSystemProperties;
 	}
 
+	/**
+	 * Returns the vm's agent properties
+	 * @return the vm's agent properties
+	 */
 	public Properties getVmAgentProperties() {
 		return vmAgentProperties;
 	}
