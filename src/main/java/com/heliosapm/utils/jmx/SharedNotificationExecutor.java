@@ -26,7 +26,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -49,7 +48,7 @@ public class SharedNotificationExecutor implements ExecutorService {
 	
 	
 	
-	/** The MBean ObjectName for the file watcher's JMX notification thread pool */
+	/** The MBean ObjectName for the notification thread pool */
 	public static final ObjectName NOTIF_THREAD_POOL_OBJECT_NAME = JMXHelper.objectName("com.heliosapm.notifications:service=NotificationThreadPool");
 
 	/** The number of CPU cores available to the JVM */
@@ -82,10 +81,26 @@ public class SharedNotificationExecutor implements ExecutorService {
 	}
 	
 	
+	/**
+	 * Invokes a no-arg MBean operation on all object names matching the passed pattern
+	 * @param pattern The ObjectName pattern
+	 * @param query The optional query expression
+	 * @param opName The operation name to execute
+	 * @param sync true for synchronous, false for asynchronous 
+	 */
 	public void invokeOp(final ObjectName pattern, final QueryExp query, final String opName, final boolean sync) {
 		invokeOp(pattern, query, opName, new Object[]{}, new String[]{}, sync);
 	}
 	
+	/**
+	 * Invokes an MBean operation on all object names matching the passed pattern
+	 * @param pattern The ObjectName pattern
+	 * @param query The optional query expression
+	 * @param opName The operation name to execute
+	 * @param args The arguments to pass to the invocation
+	 * @param signature The operation signature
+	 * @param sync true for synchronous, false for asynchronous 
+	 */
 	public void invokeOp(final ObjectName pattern, final QueryExp query, final String opName, final Object[] args, final String[] signature, final boolean sync) {
 		if(pattern==null) throw new IllegalArgumentException("The passed ObjectName was null");
 		if(opName==null) throw new IllegalArgumentException("The passed opName was null");
@@ -129,6 +144,7 @@ public class SharedNotificationExecutor implements ExecutorService {
 	@Override
 	public void shutdown() {
 		final Thread t = new Thread("NotificationExecutorShutdownThread") {
+			@Override
 			public void run() {
 				try {
 					awaitTermination(60, TimeUnit.SECONDS);					

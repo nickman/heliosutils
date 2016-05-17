@@ -20,10 +20,10 @@ package com.heliosapm.utils.jmx.protocol.attach;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,8 +62,10 @@ public class AttachJMXConnector implements JMXConnector {
 	protected String jvmDisplayName = null;
 	/** The target JVM display name matching pattern */
 	protected Pattern displayNamePattern = null;
+	/** Indicates if the URL was determined a PID URL (true) or a wildcard against the display name URL (false) */
+	protected final boolean pidUrl;
 	/** The JMXServiceURL sap */
-	protected String urlPath = null;
+	protected final String urlPath;
 	/** The attached vm */
 	protected VirtualMachine vm = null;
 	/** The JMXConnector to the attached JVM */
@@ -72,8 +74,8 @@ public class AttachJMXConnector implements JMXConnector {
 	protected Properties vmSystemProperties = null;
 	/** The attached VM's agent properties */
 	protected Properties vmAgentProperties = null;
-	/** A list of listeners added before the jmxConnector was created */
-	protected final List<EarlyListener> earlyListeners = new ArrayList<AttachJMXConnector.EarlyListener>();
+	/** A list of listeners kept here since we have to re-add them when the connector disconnects */
+	protected final List<EarlyListener> listeners = new CopyOnWriteArrayList<AttachJMXConnector.EarlyListener>();
 	
 	
 	private class EarlyListener {
@@ -104,13 +106,16 @@ public class AttachJMXConnector implements JMXConnector {
 	 */
 	public AttachJMXConnector(final String jvmIdentifier) {
 		if(jvmIdentifier==null || jvmIdentifier.trim().isEmpty()) throw new IllegalArgumentException("The passed JVM identifier was null or empty");
-		urlPath = jvmIdentifier.trim();
-		if(urlPath.startsWith("/")) urlPath = new StringBuilder(urlPath).deleteCharAt(0).toString();
-		if(isNumber(urlPath)) {
-			jvmId = urlPath;
-		} else {			 
-			if(urlPath.startsWith("[") && urlPath.endsWith("]")) {
-				StringBuilder b = new StringBuilder(urlPath);
+		
+		String _urlPath = jvmIdentifier.trim();
+		if(_urlPath.startsWith("/")) _urlPath = new StringBuilder(_urlPath).deleteCharAt(0).toString();
+		if(isNumber(_urlPath)) {
+			jvmId = _urlPath;
+			pidUrl = true;
+		} else {
+			pidUrl = false;
+			if(_urlPath.startsWith("[") && _urlPath.endsWith("]")) {
+				StringBuilder b = new StringBuilder(_urlPath);
 				b.deleteCharAt(0);
 				b.deleteCharAt(b.length()-1);
 				displayNamePattern = Pattern.compile(b.toString());
@@ -119,6 +124,7 @@ public class AttachJMXConnector implements JMXConnector {
 			}
 		}		
 	}
+	
 	
 	
 	/**
@@ -189,16 +195,18 @@ public class AttachJMXConnector implements JMXConnector {
 	@Override
 	public void connect() throws IOException {
 		attach();
-		synchronized(earlyListeners) {
-			jmxConnector = vm.getJMXConnector();
+		jmxConnector = vm.getJMXConnector();
+		synchronized(listeners) {			
 			jvmId = vm.id();
 			long seq = 0L;
-			for(EarlyListener el: earlyListeners) {
+			for(EarlyListener el: listeners) {
 				jmxConnector.addConnectionNotificationListener(el.listener, el.filter, el.handback);
-				final JMXConnectionNotification connectNotif = new JMXConnectionNotification(JMXConnectionNotification.OPENED, this, "0", seq++, "Connected to JVM ID [" + jvmId + "]", vm);
+				final JMXConnectionNotification connectNotif = new JMXConnectionNotification(
+						JMXConnectionNotification.OPENED, 
+						vm.getJMXServiceURL() , "0", seq++, "Connected to JVM ID [" + jvmId + "]", null);
 				el.listener.handleNotification(connectNotif, el.handback);
 			}
-			earlyListeners.clear();
+			
 		}
 		
 		vmSystemProperties = vm.getSystemProperties();
@@ -258,9 +266,9 @@ public class AttachJMXConnector implements JMXConnector {
 	 */
 	@Override
 	public void addConnectionNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) {
-		synchronized(earlyListeners) {
+		synchronized(listeners) {
 			if(jmxConnector==null) {			
-					earlyListeners.add(new EarlyListener(listener, filter, handback));			
+				listeners.add(new EarlyListener(listener, filter, handback));			
 			} else {
 				jmxConnector.addConnectionNotificationListener(listener, filter, handback);
 			}
