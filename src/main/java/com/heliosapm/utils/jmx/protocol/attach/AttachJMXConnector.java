@@ -76,6 +76,16 @@ public class AttachJMXConnector implements JMXConnector {
 	protected Properties vmAgentProperties = null;
 	/** A list of listeners kept here since we have to re-add them when the connector disconnects */
 	protected final List<EarlyListener> listeners = new CopyOnWriteArrayList<AttachJMXConnector.EarlyListener>();
+	/** The system property qualifiers */
+	protected final Map<String, String> sysPropQualifiers = new HashMap<String, String>();
+	/** The agent property qualifiers */
+	protected final Map<String, String> agentPropQualifiers = new HashMap<String, String>();
+	
+	
+	/** Pattern for the full connection specifier */
+	public static final Pattern DISPLAY_PATTERN = Pattern.compile("(?:^\\[(.*?)\\])+?(?:([sa]\\:\\{\\S+=\\S+\\}))*$");
+	/** Pattern to split out any qualifiers */
+	public static final Pattern QUALIFIER_PATTERN = Pattern.compile("([sa])\\:\\{(\\S+?)=(\\S+?)\\}");
 	
 	
 	private class EarlyListener {
@@ -120,9 +130,10 @@ public class AttachJMXConnector implements JMXConnector {
 				b.deleteCharAt(b.length()-1);
 				displayNamePattern = Pattern.compile(b.toString());
 			} else {
-				jvmDisplayName = urlPath;
+				jvmDisplayName = _urlPath;
 			}
 		}		
+		urlPath = _urlPath;
 	}
 	
 	
