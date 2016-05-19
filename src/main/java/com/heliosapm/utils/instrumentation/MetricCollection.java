@@ -422,7 +422,6 @@ public enum MetricCollection implements ICollector<MetricCollection>, BitMasked 
 
 	@Override
 	public String getDescription() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

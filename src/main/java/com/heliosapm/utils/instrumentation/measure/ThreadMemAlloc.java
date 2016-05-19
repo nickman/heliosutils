@@ -28,7 +28,7 @@ import com.sun.management.ThreadMXBean;
  * <p><code>com.heliosapm.utils.instrumentation.measure.ThreadMemAlloc</code></p>
  */
 
-@SuppressWarnings("restriction")
+
 public class ThreadMemAlloc implements ThreadAllocatedBytesReader {
 	private static final ThreadMXBean TX =  (ThreadMXBean)sun.management.ManagementFactoryHelper.getThreadMXBean();
 

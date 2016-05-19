@@ -20,6 +20,7 @@ package com.heliosapm.utils.jmx.protocol.attach;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
