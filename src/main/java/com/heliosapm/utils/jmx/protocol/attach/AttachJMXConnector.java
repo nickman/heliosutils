@@ -34,11 +34,13 @@ import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.remote.JMXConnectionNotification;
 import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXProviderException;
 import javax.management.remote.JMXServiceURL;
 import javax.security.auth.Subject;
 
 import com.heliosapm.shorthand.attach.vm.VirtualMachine;
 import com.heliosapm.shorthand.attach.vm.VirtualMachineDescriptor;
+import com.heliosapm.utils.jmx.JMXHelper;
 
 
 /**
@@ -63,12 +65,10 @@ public class AttachJMXConnector implements JMXConnector {
 	protected String jvmDisplayName = null;
 	/** The target JVM display name matching pattern */
 	protected Pattern displayNamePattern = null;
-	/** Indicates if the URL was determined a PID URL (true) or a wildcard against the display name URL (false) */
-	protected final boolean pidUrl;
-	/** The JMXServiceURL sap */
-	protected final String urlPath;
 	/** The attached vm */
 	protected VirtualMachine vm = null;
+	/** The attach type determined from the sap */
+	protected final AttachType attachType;
 	/** The JMXConnector to the attached JVM */
 	protected volatile JMXConnector jmxConnector = null;
 	/** The attached VM's system properties */
@@ -81,6 +81,8 @@ public class AttachJMXConnector implements JMXConnector {
 	protected final Map<String, String> sysPropQualifiers = new HashMap<String, String>();
 	/** The agent property qualifiers */
 	protected final Map<String, String> agentPropQualifiers = new HashMap<String, String>();
+	/** The raw JVM identifier */
+	protected final String jvmIdentifier;
 	
 	
 	/** Pattern for the full connection specifier */
@@ -105,7 +107,13 @@ public class AttachJMXConnector implements JMXConnector {
 			this.filter = filter;
 			this.handback = handback;
 		}
-		
+	}
+	
+	public static enum AttachType {
+		PID,
+		DISP,
+		RGX,
+		RGXQUAL;
 		
 	}
 	
@@ -114,27 +122,50 @@ public class AttachJMXConnector implements JMXConnector {
 	/**
 	 * Creates a new AttachJMXConnector
 	 * @param jvmIdentifier The target JVM identifier or display name match expression
+	 * @throws JMXProviderException thrown if the jvm identifier supplies cannot be understood
 	 */
-	public AttachJMXConnector(final String jvmIdentifier) {
+	public AttachJMXConnector(final String jvmIdentifier) throws JMXProviderException {
 		if(jvmIdentifier==null || jvmIdentifier.trim().isEmpty()) throw new IllegalArgumentException("The passed JVM identifier was null or empty");
 		
 		String _urlPath = jvmIdentifier.trim();
+		this.jvmIdentifier = _urlPath;
 		if(_urlPath.startsWith("/")) _urlPath = new StringBuilder(_urlPath).deleteCharAt(0).toString();
 		if(isNumber(_urlPath)) {
 			jvmId = _urlPath;
-			pidUrl = true;
-		} else {
-			pidUrl = false;
-			if(_urlPath.startsWith("[") && _urlPath.endsWith("]")) {
-				StringBuilder b = new StringBuilder(_urlPath);
-				b.deleteCharAt(0);
-				b.deleteCharAt(b.length()-1);
-				displayNamePattern = Pattern.compile(b.toString());
+			attachType = AttachType.PID;
+		} else {			
+			final Matcher m = DISPLAY_PATTERN.matcher(_urlPath);
+			if(!m.matches()) {
+				attachType = AttachType.DISP;
 			} else {
-				jvmDisplayName = _urlPath;
+				final String displayMatch = m.group(1).trim();
+				final String qualifiers = m.group(2)==null ? "" : m.group(2).replace(" ", "");
+				try {
+					displayNamePattern = Pattern.compile(displayMatch);
+				} catch (Exception ex) {
+					throw new JMXProviderException("Failed to compile regex expression [" + displayMatch + "]");
+				}
+				if(qualifiers.isEmpty()) {
+					attachType = AttachType.RGX;
+				} else {
+					attachType = AttachType.RGXQUAL;
+					final Matcher qm = QUALIFIER_PATTERN.matcher(qualifiers);
+					while(qm.find()) {
+						final String qexpr = qm.group(0);
+		                final String qtype = qm.group(1);
+		                final String qkey = qm.group(2);
+		                final String qvalue = qm.group(3);
+		                if("a".equals(qtype)) {					
+		                	agentPropQualifiers.put(qkey, qvalue);
+		                } else if("s".equals(qtype)) {
+		                	sysPropQualifiers.put(qkey, qvalue);
+		                } else {
+		                	throw new JMXProviderException("Invalid qualifier type  [" + qtype + "] in qualifier expression [" + qexpr + "]");
+		                }					
+					}					
+				}
 			}
-		}		
-		urlPath = _urlPath;
+		}
 	}
 	
 	
@@ -180,7 +211,7 @@ public class AttachJMXConnector implements JMXConnector {
 				}
 			}
 		}
-		throw new RuntimeException("Failed to find any matching JVMs for [" + urlPath + "]. Available JVMs to connect to are:" + getAvailableJVMs());
+		throw new RuntimeException("Failed to find any matching JVMs for [" + jvmIdentifier + "]. Available JVMs to connect to are:" + getAvailableJVMs());
 	}
 	
 	
