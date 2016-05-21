@@ -20,20 +20,25 @@ package com.heliosapm.utils.jmx.protocol.attach;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.management.JMX;
 import javax.management.ListenerNotFoundException;
 import javax.management.MBeanServerConnection;
 import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.remote.JMXConnectionNotification;
 import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXProviderException;
 import javax.management.remote.JMXServiceURL;
 import javax.security.auth.Subject;
@@ -69,6 +74,11 @@ public class AttachJMXConnector implements JMXConnector {
 	protected VirtualMachine vm = null;
 	/** The attach type determined from the sap */
 	protected final AttachType attachType;
+	/** Indicates if this connector is connected */
+	protected final AtomicBoolean connected = new AtomicBoolean(false);
+	/** Indicates if this connector is connecting */
+	protected final AtomicBoolean connecting = new AtomicBoolean(false);
+	
 	/** The JMXConnector to the attached JVM */
 	protected volatile JMXConnector jmxConnector = null;
 	/** The attached VM's system properties */
@@ -168,6 +178,42 @@ public class AttachJMXConnector implements JMXConnector {
 		}
 	}
 	
+	public static void log(Object msg) {
+		System.out.println(msg);
+	}
+	
+	public static void main(String[] args) {
+		JMXConnector connector = null;
+		final String[][][] syskeys = {
+				{{"s", "syskey", "AAA"}}, 
+				{{"s", "syskey", "BBB"}}, 
+				{{"s", "syskey", "XXX"}}, 
+				{{"a", "agentkey", "EFG"}, {"s", "syskey", "OOP"}}
+		};
+		
+		for(String[][] syskey : syskeys) {
+			try {
+				final StringBuilder b = new StringBuilder("service:jmx:attach:///[.*GroovyStarter.*]");
+				final String propTemplate = "%s:{%s=%s}";
+				for(String[] props: syskey) {
+					b.append(String.format(propTemplate, props)).append(",");
+				}
+				JMXServiceURL jmxUrl = new JMXServiceURL(b.deleteCharAt(b.length()-1).toString());
+				log("Connecting to [" + jmxUrl + "]");
+				final long start = System.currentTimeMillis();
+				connector = JMXConnectorFactory.connect(jmxUrl);
+				MBeanServerConnection conn = connector.getMBeanServerConnection();
+				RuntimeMXBean rmx = JMX.newMBeanProxy(conn, JMXHelper.objectName(ManagementFactory.RUNTIME_MXBEAN_NAME), RuntimeMXBean.class);
+				String pid = rmx.getName().split("@")[0];
+				final long elapsed = System.currentTimeMillis() - start;
+				log("Connected [" + Arrays.deepToString(syskey) + "/" + pid + "] in [" + elapsed + "] ms.");
+			} catch (Exception ex) {
+				log("Failed to connect for syskey [" + Arrays.deepToString(syskey) + "]");				
+			} finally {
+				if(connector!=null) try { connector.close(); } catch (Exception x) {}
+			}			
+		}
+	}
 	
 	
 	/**
@@ -183,35 +229,85 @@ public class AttachJMXConnector implements JMXConnector {
 	}
 	/**
 	 * Connects to the target virtual machine
+	 * @throws IOException thrown on connection failure
 	 */
-	protected void attach() {
-		if(jvmId!=null) {
-			vm = VirtualMachine.attach(jvmId);
-			return;
-		}
-		List<VirtualMachineDescriptor> machines = VirtualMachine.list();
-		for(VirtualMachineDescriptor vmd: machines) {
-			if(PID.equals(vmd.id())) {
-				//System.err.println("Skipped PID:" + vmd.id() + " with display [" + vmd.displayName() + "]");
-				continue;  // this avoids connecting to self
-			}
-			String displayName = vmd.displayName();
-			if(jvmDisplayName!=null) {
-				if(jvmDisplayName.equals(displayName)) {
-					//System.err.println("Exact Match: Attaching to JVM:" + vmd.id() + " with display [" + vmd.displayName() + "]");
-					vm = VirtualMachine.attach(vmd.id());
-					return;
+	protected void attach() throws IOException {
+		if(!connected.get()) {
+			if(connecting.compareAndSet(false, true)) {
+				try {
+					if(attachType==AttachType.PID) {
+						vm = VirtualMachine.attach(jvmId);
+						connected.set(true);
+						return;
+					}
+					final List<VirtualMachineDescriptor> machines = VirtualMachine.list();
+					for(final VirtualMachineDescriptor vmd: machines) {
+						switch(attachType) {
+							case DISP:
+								if(jvmDisplayName.equals(vmd.displayName())) {
+									vm = vmd.provider().attachVirtualMachine(vmd.id());
+									connected.set(true);
+									return;
+								}
+								break;
+							case RGX:
+								if(displayNamePattern.matcher(vmd.displayName()).matches()) {
+									vm = vmd.provider().attachVirtualMachine(vmd.id());
+									connected.set(true);
+									return;									
+								}
+								break;
+							case RGXQUAL:
+								if(displayNamePattern.matcher(vmd.displayName()).matches()) {
+									VirtualMachine _vm = null;
+									boolean err = false;
+									try {
+										_vm = vmd.provider().attachVirtualMachine(vmd.id());
+										boolean miss = false;
+										if(!agentPropQualifiers.isEmpty()) {
+											final Properties ap = _vm.getAgentProperties();
+											for(Map.Entry<String, String> entry: agentPropQualifiers.entrySet()) {
+												if(!entry.getValue().equals(ap.getProperty(entry.getKey()))) {
+													miss = true;
+													break;
+												}
+											}
+										}
+										if(miss) break;
+										if(!sysPropQualifiers.isEmpty()) {
+											final Properties sp = _vm.getSystemProperties();
+											for(Map.Entry<String, String> entry: sysPropQualifiers.entrySet()) {
+												if(!entry.getValue().equals(sp.getProperty(entry.getKey()))) {
+													miss = true;
+													break;
+												}
+											}
+										}
+										if(miss) break;
+										// if we get here, we have a match
+										vm = _vm;
+										connected.set(true);
+										return;										
+									} catch (Exception x) {
+										err = true;
+									} finally {
+										if(err) {
+											if(_vm!=null) try { _vm.detach(); } catch (Exception x) {/* No Op */}
+										}
+									}
+								}
+								break;
+						
+						}
+					}
+				} catch (Exception ex) {
+					if(ex instanceof IOException) throw (IOException)ex;
+					throw new IOException("Failed to connect to [" + jvmIdentifier + "]", ex);
+				} finally {
+					connecting.set(false);
 				}
-			} else {
-				Matcher m = displayNamePattern.matcher(displayName);
-				if(m.matches()) {
-					//System.err.println("Pattern Match: Attaching to JVM:" + vmd.id() + " with display [" + vmd.displayName() + "]");
-					vm = VirtualMachine.attach(vmd.id());
-					return;
-				}
 			}
 		}
-		throw new RuntimeException("Failed to find any matching JVMs for [" + jvmIdentifier + "]. Available JVMs to connect to are:" + getAvailableJVMs());
 	}
 	
 	
