@@ -321,6 +321,21 @@ public class JMXHelper {
 	}
 	
 	/**
+	 * Creates, but does not connect, a new JMXConnector
+	 * @param serviceUrl The JMXServiceURL defining the endpoint to connect to
+	 * @param env The optional environment map
+	 * @return the created connector
+	 */
+	public static JMXConnector connector(final JMXServiceURL serviceUrl, final Map<String, Object> env) {
+		if(serviceUrl==null) throw new IllegalArgumentException("The passed JMXServiceURL was null");
+		try {
+			return JMXConnectorFactory.newJMXConnector(serviceUrl, env);
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to create JMXConnector for [" + serviceUrl + "]", ex);
+		}		
+	}
+	
+	/**
 	 * Creates a new disconnected JMXConnector 
 	 * @param url The JMXServiceURL defining the endpoint to connect to
 	 * @param environment The optional environment

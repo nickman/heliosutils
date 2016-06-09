@@ -362,6 +362,12 @@ public class ExposedSubscribersNotificationBroadcaster implements NotificationEm
 	 */
 	@Override
 	public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter, final Object handback) throws IllegalArgumentException {
+		// this will be a 
+		// com.sun.jmx.interceptor.DefaultMBeanServerInterceptor$ListenerWrapper@5c69bddb
+		// from jconsole
+		// but incoming listener is a 
+		// com.sun.jmx.remote.opt.internal.ArrayNotificationBuffer  (for JMXMP)
+		// com.sun.jmx.remote.internal.ArrayNotificationBuffer  (for RMI)
 		final Listener x = new Listener(listener, filter, handback);
 		subs.add(x);
 	}

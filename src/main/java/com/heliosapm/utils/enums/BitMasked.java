@@ -179,6 +179,7 @@ public interface BitMasked {
 		}
 		
 		
+		@SuppressWarnings("unchecked")
 		public static <E extends Enum<E>> E[] makeArr(final Class<E> type, final int length) {
 			return (E[]) Array.newInstance(type, length);
 		}
@@ -227,6 +228,65 @@ public interface BitMasked {
 					return makeArr(type, 0);				
 			}
 		}
+		
+		@SuppressWarnings("unchecked")
+		public static <E extends Enum<E>> E decode(final Class<E> type, final Object value) {
+			if(type==null) throw new IllegalArgumentException("The passed enum type was null");
+			if(value==null) return null;
+			if(type.isInstance(value)) return (E)value;
+			final E[] members = type.getEnumConstants(); 
+			if(members.length==0) return null;
+			final int maxIndex = members.length-1;
+			if(Number.class.isInstance(value)) {
+				final int index = ((Number)value).intValue();
+				if(index < 0 || index > maxIndex) {
+					throw new IllegalArgumentException("The supplied numeric value [" + value + "] was not a valid ordinal for enum [" + type.getName() + "]");
+				}
+				return members[((Number)value).intValue()];
+			}
+			
+			String name = value.toString().trim();
+			if(name.isEmpty()) return null;
+			if(members[0].name().equals(members[0].name().toUpperCase())) {
+				name = name.toUpperCase();
+			}
+			try {
+				return Enum.valueOf(type, name);
+			} catch (Exception ex) {
+				try {
+					final int index = Integer.parseInt(name);
+					if(index < 0 || index > maxIndex) {
+						throw new IllegalArgumentException("The supplied numeric value [" + value + "] was not a valid ordinal for enum [" + type.getName() + "]");
+					}
+					return members[index];
+				} catch (Exception ex2) {
+					throw new IllegalArgumentException("Failed to decode value [" + value + "] to a member of enum [" + type.getName() + "]");
+				}
+			}
+		}
+		
+		@SuppressWarnings("unchecked")
+		public static <E extends Enum<E>> E[] decodeArr(final Class<E> type, final boolean skipInvalid, final Object...values) {
+			if(type==null) throw new IllegalArgumentException("The passed enum type was null");
+			if(values==null || values.length==0) return (E[]) Array.newInstance(type, 0);
+			return decode(type, skipInvalid, Arrays.asList(values));
+		}
+		
+		@SuppressWarnings("unchecked")
+		public static <E extends Enum<E>> E[] decode(final Class<E> type, final boolean skipInvalid, final Collection<Object> values) {
+			if(type==null) throw new IllegalArgumentException("The passed enum type was null");
+			if(values==null || values.isEmpty()) return (E[]) Array.newInstance(type, 0);
+			final Set<E> set = EnumSet.noneOf(type);
+			for(final Object value: values) {
+				try {
+					set.add(decode(type, value));
+				} catch (Exception ex) {
+					if(!skipInvalid) throw new IllegalArgumentException("Failed to decode value [" + value + "]", ex);
+				}
+			}
+			return set.toArray((E[]) Array.newInstance(type, 0));
+		}
+		
 
 	}
 	
