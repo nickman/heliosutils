@@ -117,5 +117,43 @@ public enum XAExceptionCode {
 		return xar==null ? XA_INVALID : xar;
 	}
 	
+/*
+ORA 3113
 
+XAException.XAER_RMFAIL
+
+ORA 3114
+
+XAException.XAER_RMFAIL
+
+ORA 24756
+
+XAException.XAER_NOTA
+
+ORA 24764
+
+XAException.XA_HEURCOM
+
+ORA 24765
+
+XAException.XA_HEURRB
+
+ORA 24766
+
+XAException.XA_HEURMIX
+
+ORA 24767
+
+XAException.XA_RDONLY
+
+ORA 25351
+
+XAException.XA_RETRY
+
+all other ORA errors
+
+XAException.XAER_RMERR
+
+
+ */
 }
