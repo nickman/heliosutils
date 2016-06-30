@@ -107,8 +107,9 @@ public class StdInCommandHandler implements Runnable {
 	/**
 	 * Runs the command handler in a background thread
 	 * @param daemon true to make the thread a daemon thread, false otherwise
+	 * @return this handler
 	 */
-	public void runAsync(final boolean daemon) {
+	public StdInCommandHandler runAsync(final boolean daemon) {
 		final StdInCommandHandler handler = this;
 		final Thread t = new Thread("AsyncStdInCmdHandler") {
 			@Override
@@ -118,6 +119,16 @@ public class StdInCommandHandler implements Runnable {
 		};
 		t.setDaemon(daemon);
 		t.start();
+		return this;
+	}
+	
+	/**
+	 * Causes the calling thread to [@link {@link Thread#join()} itself until interrupted.
+	 */
+	public void join() {
+		try {
+			Thread.currentThread().join();
+		} catch (InterruptedException iex) {/* No Op */}
 	}
 	
 	/**
