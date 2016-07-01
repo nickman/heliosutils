@@ -319,9 +319,49 @@ public class Props {
 				cmds.add("-D" + key + "=" + p.getProperty(key));
 			}
 			return cmds.toArray(new String[cmds.size()]);
+		}		
+	}
+	
+	/**
+	 * Conditionally sets the key/values in the <code>from</code> properties into the <code>to</code> properties.
+	 * For each property in <code>from</code>, if the key maps to a non-null and non-empty in any of the <code>unless</code> properties, 
+	 * they pair will not be copied. If the key is bound to a non-null and non-empty value in the <code>to</code> properties, 
+	 * the pair will not be copied unless <code>overrideTo</code> is set to true. 
+	 * @param from The properties to copy from
+	 * @param to The properties to copy to
+	 * @param overrideTo true to override values in the <code>to</code> properties
+	 * @param unless An array of properties to test to see if a <code>to</code> property exists in which case the pair will not be copied.
+	 * @return true if any copies were made, false otherwise
+	 */
+	public static boolean setFromUnless(final Properties from, final Properties to, final boolean overrideTo, final Properties...unless) {
+		if(from==null) throw new IllegalArgumentException("The passed from properties was null");
+		if(to==null) throw new IllegalArgumentException("The passed to properties was null");
+		if(from.isEmpty()) return false;
+		boolean anySet = false;
+		for(final String key: from.stringPropertyNames()) {
+			if(anyContains(key, unless)) continue;
+			final String toVal = to.getProperty(key);
+			if(toVal==null || toVal.trim().isEmpty() || overrideTo) {
+				to.setProperty(key, from.getProperty(key));
+				anySet = true;
+			}
 		}
-		
-		
+		return anySet;
+	}
+	
+	/**
+	 * Determines if any of the passed properties has a non-null and non-empty value for the passed key
+	 * @param key The key to test for
+	 * @param props The properties to tes
+	 * @return true if the key is found, false otherwise
+	 */
+	public static boolean anyContains(final String key, final Properties...props) {
+		if(props==null || props.length==0) return false;
+		for(Properties p: props) {
+			final String val = p.getProperty(key);
+			if(val!=null && !val.trim().isEmpty()) return true;
+		}
+		return false;
 	}
 
 	
