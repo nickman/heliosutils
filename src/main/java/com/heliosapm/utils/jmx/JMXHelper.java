@@ -37,6 +37,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URI;
 import java.net.URL;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -2672,6 +2673,7 @@ while(m.find()) {
 	/**
 	 * Creates, registers and starts a JMXConnectorServer
 	 * @param bindInterface The interface to bind to
+	 * @param serverSocketBacklog The server socket request backlog
 	 * @param serviceURL The JMXService URL
 	 * @param server The MBeanServer to expose
 	 */
@@ -2688,13 +2690,14 @@ while(m.find()) {
 	 * @param bindInterface The interface to bind to
 	 * @param port The JMXMP listening port
 	 * @param server The MBeanServer to expose
-	 * @return The URL to access the JMXMP server on
+	 * @return The created JMXConnectorServer
 	 */
-	public static JMXServiceURL fireUpJMXMPServer(final String bindInterface, final int port, final MBeanServer server) {
+	public static JMXMPConnectorServer fireUpJMXMPServer(final String bindInterface, final int port, final MBeanServer server) {
 		try {
 			final JMXServiceURL surl = new JMXServiceURL("jmxmp", bindInterface, port);
-			final JMXConnectorServer jmxServer = JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
+			final JMXMPConnectorServer jmxServer = (JMXMPConnectorServer)JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
 			final Thread t = new Thread("JMXMPServerStarter[" + surl + "]") {
+				@Override
 				public void run() {
 					try { jmxServer.start(); log.info("Started JMXMPServer on [" + surl + "]"); } catch (Exception ex) {
 						ex.printStackTrace(System.err);
@@ -2707,7 +2710,7 @@ while(m.find()) {
 			if(!server.isRegistered(on)) {
 				server.registerMBean(jmxServer, on);
 			}
-			return jmxServer.getAddress();
+			return jmxServer;
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to start JMXServer on [" + bindInterface + ":" + port + "]", e);
 		}
@@ -2715,42 +2718,61 @@ while(m.find()) {
 	
 	/**
 	 * Creates and starts a JMXMP ConnectorServer for the default MBeanServer
+	 * @param uri A host/port URI string, e.g. <b><code>jmxmp://0.0.0.0:1892</code></b>
+	 * @return The created JMXConnectorServer
+	 */
+	public static JMXMPConnectorServer fireUpJMXMPServer(final String uri) {
+		try {
+			URI ifacePort = new URI(uri);
+			return fireUpJMXMPServer(ifacePort.getHost(), ifacePort.getPort());
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+	
+	/**
+	 * Creates and starts a JMXMP ConnectorServer for the default MBeanServer
 	 * @param bindInterface The interface to bind to
 	 * @param port The JMXMP listening port
-	 * @return The URL to access the JMXMP server on
+	 * @return The created JMXConnectorServer
 	 */
-	public static JMXServiceURL fireUpJMXMPServer(final String bindInterface, final int port) {
+	public static JMXMPConnectorServer fireUpJMXMPServer(final String bindInterface, final int port) {
 		return fireUpJMXMPServer(bindInterface, port, getHeliosMBeanServer());
 	}
 	
 	/**
 	 * Creates and starts a JMXMP ConnectorServer for the default MBeanServer binding to 127.0.0.1
 	 * @param port The JMXMP listening port
-	 * @return The URL to access the JMXMP server on
+	 * @return The created JMXConnectorServer
 	 */
-	public static JMXServiceURL fireUpJMXMPServer(final int port) {
+	public static JMXMPConnectorServer fireUpJMXMPServer(final int port) {
 		return fireUpJMXMPServer("127.0.0.1", port, getHeliosMBeanServer());
 	}
 	
 	/**
 	 * Creates, registers and starts a JMXConnectorServer
 	 * @param bindInterface The interface to bind to
+	 * @param serverSocketBacklog The server socket request backlog
 	 * @param serviceURL The JMXService URL
 	 * @param server The MBeanServer to expose
+	 * @return the started JMXConnectorServer instance
 	 */
-	public static void fireUpJMXServer(final String bindInterface, final int serverSocketBacklog, JMXServiceURL serviceURL, MBeanServer server) {
+	public static JMXConnectorServer fireUpJMXServer(final String bindInterface, final int serverSocketBacklog, JMXServiceURL serviceURL, MBeanServer server) {
 		try {
 			Map<String, Object> env = Collections.singletonMap("jmx.remote.rmi.server.socket.factory", (Object)new RMISocketFactory(){
+				@Override
 				public ServerSocket createServerSocket(int port) throws IOException {
 					return new ServerSocket(port, serverSocketBacklog, InetAddress.getByName(bindInterface));
 				}
+				@Override
 				public Socket createSocket(String host, int port) throws IOException {
 					return new Socket(host, port);
 				}
 			});
 			JMXConnectorServer jmxServer = JMXConnectorServerFactory.newJMXConnectorServer(serviceURL, env, server);
-			server.registerMBean(jmxServer, JMXHelper.objectName("org.helios.netty:service=JMXConnectorServer,url=" + ObjectName.quote(serviceURL.toString())));
+			server.registerMBean(jmxServer, JMXHelper.objectName("com.heliosapm.jmx:service=JMXConnectorServer,url=" + ObjectName.quote(serviceURL.toString())));
 			jmxServer.start();
+			return jmxServer;
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to start JMXServer on [" + serviceURL + "]", e);
 		}
