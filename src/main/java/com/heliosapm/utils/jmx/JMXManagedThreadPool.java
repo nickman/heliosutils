@@ -150,10 +150,27 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 	 * @param publishJMX If true, publishes the management interface
 	 */
 	public JMXManagedThreadPool(ObjectName objectName, String poolName, int corePoolSize, int maximumPoolSize, int queueSize, long keepAliveTimeMs, int metricWindowSize, int metricDefaultPercentile, boolean publishJMX) {
+		this(null, objectName, poolName, corePoolSize, maximumPoolSize, queueSize, keepAliveTimeMs, metricWindowSize, metricDefaultPercentile, publishJMX);		
+	}
+	
+	/**
+	 * Creates a new JMXManagedThreadPool
+	 * @param threadFactory An optional thread factory to create this pool's threads
+	 * @param objectName The JMX ObjectName for this pool's MBean 
+	 * @param poolName The pool name
+	 * @param corePoolSize  the number of threads to keep in the pool, even if they are idle.
+	 * @param maximumPoolSize the maximum number of threads to allow in the pool.
+	 * @param queueSize The maximum number of pending tasks to queue
+	 * @param keepAliveTimeMs when the number of threads is greater than the core, this is the maximum time in ms. that excess idle threads will wait for new tasks before terminating.
+	 * @param metricWindowSize The maximum size of the metrics sliding window
+	 * @param metricDefaultPercentile The default percentile reported in the metrics management  
+	 * @param publishJMX If true, publishes the management interface
+	 */
+	public JMXManagedThreadPool(final ThreadFactory threadFactory, ObjectName objectName, String poolName, int corePoolSize, int maximumPoolSize, int queueSize, long keepAliveTimeMs, int metricWindowSize, int metricDefaultPercentile, boolean publishJMX) {
 		super(corePoolSize, maximumPoolSize, keepAliveTimeMs, TimeUnit.MILLISECONDS, 
 				queueSize==1 ? new SynchronousQueue<Runnable>() : new ArrayBlockingQueue<Runnable>(queueSize, false));
 		this.threadGroup = new ThreadGroup(poolName + "ThreadGroup");
-		setThreadFactory(this);
+		setThreadFactory(threadFactory==null ? this : threadFactory);
 		setRejectedExecutionHandler(this);		
 		this.objectName = objectName;
 		this.poolName = poolName;
@@ -167,6 +184,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 			System.err.println("Created JMX Managed Thread Pool [" + poolName + "]");
 		}
 	}
+	
 	
 	/**
 	 * {@inheritDoc}
@@ -513,6 +531,7 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 		private int metricDefaultPercentile = 99;
 		private boolean publishJMX = true;
 		private int prestart = 0;
+		private ThreadFactory threadFactory = null;
 		private Thread.UncaughtExceptionHandler uncaughtHandler = null;
 		private RejectedExecutionHandler rejectionHandler = null; 
 		
@@ -567,8 +586,20 @@ public class JMXManagedThreadPool extends ThreadPoolExecutor implements ThreadFa
 			this.objectName = objectName;
 			return this;
 		}
+		
 		/**
-		 * Sets 
+		 * Sets the managed thread pool's thread factory
+		 * @param threadFactory The thread factory the pool will use
+		 * @return this builder
+		 */
+		public JMXManagedThreadPoolBuilder threadFactory(final ThreadFactory threadFactory) {
+			if(threadFactory==null) throw new IllegalArgumentException("The passed ThreadFactory was null");
+			this.threadFactory = threadFactory;
+			return this;
+		}
+		
+		/**
+		 * Sets the pool name 
 		 * @param poolName the poolName to set
 		 * @return this builder
 		 */
