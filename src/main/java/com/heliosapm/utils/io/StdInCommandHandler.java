@@ -43,6 +43,12 @@ public class StdInCommandHandler implements Runnable {
 	/** The std in polling thread */
 	private final Thread stdInThread;
 	
+	/** The self joined thread */
+	private Thread joinedThread = null;
+	
+	/** The name of the shutdown hook handler */
+	private final AtomicReference<String> shutdownHookHandler = new AtomicReference<String>(null); 
+	
 	private final AtomicReference<Runnable> unhandled = new AtomicReference<Runnable>(null);
 	private static final ThreadLocal<String> unhandledCommandName = new ThreadLocal<String>(); 
 	
@@ -90,15 +96,30 @@ public class StdInCommandHandler implements Runnable {
 		commands.put("/", new Runnable(){
 			@Override
 			public void run() {
+				final String shutdownCommand = shutdownHookHandler.get();
 				final StringBuilder b = new StringBuilder("\nStdIn Commands:\n==============\n");
 				for(String name: commands.keySet()) {
-					b.append(name).append("\n");
+					b.append(name);
+					if(name.equals(shutdownCommand)) {
+						b.append("\t** Shutdown Hooked");
+					}
+					b.append("\n");
 				}
 				b.append("==============");
 				System.out.println(b.toString());
 			}
 		});
-		
+		final Thread sdHook = new Thread("StdInCommandHandlerShutdownHook") {
+			public void run() {
+				final String shutdownCommand = shutdownHookHandler.get();
+				if(shutdownCommand!=null) {
+					if(joinedThread != null) joinedThread.interrupt();
+					final Runnable r = commands.get(shutdownCommand.trim().toLowerCase());
+					if(r!=null) r.run();
+				}
+			}
+		};
+		Runtime.getRuntime().addShutdownHook(sdHook);
 		stdInThread = new Thread(this, "StdInCommandHandlerThread");
 		stdInThread.setDaemon(true);
 		stdInThread.start();
@@ -127,8 +148,12 @@ public class StdInCommandHandler implements Runnable {
 	 */
 	public void join() {
 		try {
+			if(Thread.interrupted()) Thread.interrupted();
+			joinedThread = Thread.currentThread();
 			Thread.currentThread().join();
-		} catch (InterruptedException iex) {/* No Op */}
+		} catch (InterruptedException iex) {
+			if(Thread.interrupted()) Thread.interrupted();
+		}
 	}
 	
 	/**
@@ -181,6 +206,29 @@ public class StdInCommandHandler implements Runnable {
 			if(br!=null) try { br.close(); } catch (Exception x) {/* No Op */}
 		}
 	}
+	
+	/**
+	 * Sets a command to be run by a shutdown hook
+	 * @param cmd The name of the command to be run
+	 * @return this command handler
+	 */
+	public StdInCommandHandler shutdownHook(final String cmd) {
+		if(cmd==null || cmd.trim().isEmpty()) throw new IllegalArgumentException("The command was null or empty");
+		if(!commands.containsKey(cmd.trim().toLowerCase())) {
+			throw new IllegalArgumentException("The command [" + cmd + "] is not registered");
+		}
+		shutdownHookHandler.set(cmd.trim().toLowerCase());
+		return this;
+	}
+	
+	/**
+	 * Sets <b><code>exit</code></b> as the command to be run by a shutdown hook
+	 * @return this command handler
+	 */
+	public StdInCommandHandler shutdownHook() {
+		return shutdownHook("exit");
+	}
+
 	
 	/**
 	 * Returns the unhandled command name.
