@@ -365,6 +365,32 @@ public class Props {
 	}
 
 	
+	/**
+	 * Scans the passed source properties for any property keys starting with the passed prefix and copies any matching to the target which is returned.
+	 * @param prefix The prefix to match
+	 * @param source The source propereties to copy from
+	 * @param removePrefix If true, the prefix is removed from the key before adding to the target
+	 * @param removeSource if true, matching properties are removed from the source
+	 * @return the target properties
+	 */
+	public static Properties extract(final String prefix, final Properties source, final boolean removePrefix, final boolean removeSource) {
+		if(prefix==null || prefix.trim().isEmpty()) throw new IllegalArgumentException("The passed prefix was null or empty");
+		if(source==null) throw new IllegalArgumentException("The passed source properties was null");
+		final String _prefix = prefix.trim();
+		final int len = _prefix.length();
+		final Properties p = new Properties();
+		if(!source.isEmpty()) {
+			for(final String key: source.stringPropertyNames()) {
+				if(key.startsWith(prefix)) {
+					final String newKey = removePrefix ? key.substring(len) : key;
+					p.setProperty(newKey, source.getProperty(key));
+					if(removeSource) source.remove(key);
+				}
+			}
+		}
+		return p;
+	}
+	
 	private Props() {}
 
 }

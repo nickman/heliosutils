@@ -14,6 +14,8 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
@@ -482,12 +484,12 @@ public class URLHelper {
 		} catch (Exception ex) {
 			throw new RuntimeException("Transfer from [" + source + "] to [" + file + "] failed", ex);
 		} finally {
-			try { bis.close(); } catch (Exception x) {/* No Op */}
-			try { is.close(); } catch (Exception x) {/* No Op */}
-			try { bos.flush(); } catch (Exception x) {/* No Op */}
-			try { fos.flush(); } catch (Exception x) {/* No Op */}
-			try { bos.close(); } catch (Exception x) {/* No Op */}
-			try { fos.close(); } catch (Exception x) {/* No Op */}
+			if(bis!=null) try { bis.close(); } catch (Exception x) {/* No Op */}
+			if(is!=null) try { is.close(); } catch (Exception x) {/* No Op */}
+			if(bos!=null) try { bos.flush(); } catch (Exception x) {/* No Op */}
+			if(fos!=null) try { fos.flush(); } catch (Exception x) {/* No Op */}
+			if(bos!=null) try { bos.close(); } catch (Exception x) {/* No Op */}
+			if(fos!=null) try { fos.close(); } catch (Exception x) {/* No Op */}
 		}
 		
 	}
@@ -637,6 +639,77 @@ public class URLHelper {
 		return getExtension(toURL(new File(f)), defaultValue);		
 	}
 	
-
+	/**
+	 * Computes an MD5 message digest hash on the content contained in the named URL
+	 * @param fileOrUrl The name of a file or URL to read from
+	 * @return the MD5 message digest hash of the content
+	 */
+	public static byte[] hashMD5(final CharSequence fileOrUrl) {
+		return hash("MD5", fileOrUrl);
+	}
+	
+	/**
+	 * Computes a SHA message digest hash on the content contained in the named URL
+	 * @param fileOrUrl The name of a file or URL to read from
+	 * @return the SHA message digest hash of the content
+	 */
+	public static byte[] hashSHA(final CharSequence fileOrUrl) {
+		return hash("SHA", fileOrUrl);
+	}
+	
+	/**
+	 * Computes a SHA256 message digest hash on the content contained in the named URL
+	 * @param fileOrUrl The name of a file or URL to read from
+	 * @return the SHA256 message digest hash of the content
+	 */
+	public static byte[] hashSHA256(final CharSequence fileOrUrl) {
+		return hash("SHA256", fileOrUrl);
+	}
+	
+	/**
+	 * Computes a SHA512 message digest hash on the content contained in the named URL
+	 * @param fileOrUrl The name of a file or URL to read from
+	 * @return the SHA512 message digest hash of the content
+	 */
+	public static byte[] hashSHA512(final CharSequence fileOrUrl) {
+		return hash("SHA512", fileOrUrl);
+	}
+	
+	/**
+	 * Computes a message digest hash on the content contained in the named URL
+	 * @param algo The name of the message digest algorithm (e.g. <b><code>MD5</code></b> or <b><code>SHA</code></b>) 
+	 * @param fileOrUrl The name of a file or URL to read from
+	 * @return the message digest hash of the content
+	 */
+	public static byte[] hash(final String algo, final CharSequence fileOrUrl) {
+		if(algo==null || algo.trim().isEmpty()) throw new IllegalArgumentException("The passed algo was null or empty");
+		if(fileOrUrl==null) throw new IllegalArgumentException("The passed fileOrUrl was null");
+		final String urlStr = fileOrUrl.toString().trim();
+		if(urlStr.isEmpty()) throw new IllegalArgumentException("The passed fileOrUrl was empty");		
+		InputStream is = null;
+		BufferedInputStream bis = null;
+		DigestInputStream dis = null;		
+		final MessageDigest md;
+		try {
+			md = MessageDigest.getInstance(algo.trim());
+		} catch (Exception ex) {
+			throw new IllegalArgumentException("Failed to get MessageDigest for algorithm [" + algo + "]", ex);
+		}
+		try {			
+			final byte[] buff = new byte[8092];
+			final URL url = toURL(urlStr);
+			is = url.openStream();
+			bis = new BufferedInputStream(is, 8092);
+			dis = new DigestInputStream(bis, md);			
+			while(dis.read(buff)!=-1) {/* No Op */}
+			return md.digest();
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to calc " + algo + " for [" + fileOrUrl + "]", ex);
+		} finally {
+			if(dis!=null) try { dis.close(); } catch (Exception x) {/* No Op */}
+			if(bis!=null) try { bis.close(); } catch (Exception x) {/* No Op */}
+			if(bis!=null) try { bis.close(); } catch (Exception x) {/* No Op */}
+		}
+	}
 
 }
