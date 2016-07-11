@@ -376,7 +376,7 @@ public class Props {
 	public static Properties extract(final String prefix, final Properties source, final boolean removePrefix, final boolean removeSource) {
 		if(prefix==null || prefix.trim().isEmpty()) throw new IllegalArgumentException("The passed prefix was null or empty");
 		if(source==null) throw new IllegalArgumentException("The passed source properties was null");
-		final String _prefix = prefix.trim();
+		final String _prefix = prefix.trim().endsWith(".") ? prefix.trim() : (prefix.trim() + ".");
 		final int len = _prefix.length();
 		final Properties p = new Properties();
 		if(!source.isEmpty()) {
