@@ -493,6 +493,7 @@ public class ConfigurationHelper {
 				final String _n = n.trim();
 				rez = Enum.valueOf(enumType, _n);
 			}
+			return appendAudit(caller, name, defaultEnum, rez);
 		} catch (Exception ex) {
 			/* No Op */
 		}
