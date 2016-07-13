@@ -445,6 +445,25 @@ public class Props {
 		return p;
 	}
 	
+	/**
+	 * Looks up the value for the passed key in the passed properties and appends the passed append value and optional delimeter.
+	 * @param key The property key
+	 * @param append The value to append
+	 * @param delim The optional delimeter between the existing value and the append 
+	 * @param p the properties to modify
+	 */
+	public static void appendToValue(final String key, final String append, final String delim, final Properties p) {
+		if(key==null || key.trim().isEmpty()) throw new IllegalArgumentException("The passed key was null or empty");
+		if(p==null) throw new IllegalArgumentException("The passed properties was null");
+		if(append==null || append.trim().isEmpty()) return;
+		final String _key = key.trim();
+		final String _delim = (delim==null || delim.trim().isEmpty()) ? "" : p.containsKey(_key) ? delim.trim() : "";
+		p.setProperty(_key, new StringBuilder(p.getProperty(_key, ""))
+			.append(_delim)
+			.append(append)
+			.toString());
+	}
+	
 	
 	private Props() {}
 
