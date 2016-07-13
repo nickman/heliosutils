@@ -484,7 +484,7 @@ public class ConfigurationHelper {
 	 * @return the configured enum member or the default if one cannot be decoded
 	 */
 	public static <E extends Enum<E>> E getEnumSystemThenEnvProperty(final Class<E> enumType, final String name, final E defaultEnum, final Properties...properties) {
-		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
+ 		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		if(enumType==null) throw new IllegalArgumentException("The passed enum type was null");
 		E rez = null;
 		try {
@@ -492,8 +492,8 @@ public class ConfigurationHelper {
 			if(n!=null && !n.trim().isEmpty()) {
 				final String _n = n.trim();
 				rez = Enum.valueOf(enumType, _n);
-			}
-			return appendAudit(caller, name, defaultEnum, rez);
+				return appendAudit(caller, name, defaultEnum, rez);
+			}			
 		} catch (Exception ex) {
 			/* No Op */
 		}
