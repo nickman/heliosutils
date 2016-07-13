@@ -391,6 +391,61 @@ public class Props {
 		return p;
 	}
 	
+	/**
+	 * Returns the environment variables as lowercased properties with dashes replaced as dots
+	 * @return property equivalents for environment variables 
+	 */
+	public static Properties env() {
+		final Properties p = new Properties();
+		for(Map.Entry<String, String> entry: System.getenv().entrySet()) {
+			p.put(entry.getKey().toLowerCase().replace('-', '.'), entry.getValue());
+		}
+		return p;
+	}
+	
+	public static Properties scan(final String prefix, final Properties...props) {
+		if(prefix==null || prefix.trim().isEmpty()) throw new IllegalArgumentException("The passed prefix was null or empty");
+		if(props.length==0) return null;
+		final Map<String, String> capture = new HashMap<String, String>();
+		for(Properties p: props) {
+			if(p==null || p.isEmpty()) continue;
+			for(String key: p.stringPropertyNames()) {
+				if(key.indexOf(prefix)==0)  {
+					if(capture.containsKey(key)) continue;
+					capture.put(key, p.getProperty(key));
+				}
+			}
+		}
+		final Properties extracted = new Properties();
+		extracted.putAll(capture);
+		return extracted;
+	}
+	
+	/**
+	 * Scans the passed source properties, system properties, then environment for any property keys starting with the passed prefix and copies any matching to the target which is returned.
+	 * @param prefix The prefix to match
+	 * @param source The source propereties to copy from
+	 * @param removePrefix If true, the prefix is removed from the key before adding to the target
+	 * @return the target properties
+	 */
+	public static Properties extractOrEnv(final String prefix, final Properties source, final boolean removePrefix) {
+		if(prefix==null || prefix.trim().isEmpty()) throw new IllegalArgumentException("The passed prefix was null or empty");
+		
+		final String _prefix = prefix.trim().endsWith(".") ? prefix.trim() : (prefix.trim() + ".");
+		final int len = _prefix.length();
+		final Properties p = scan(_prefix, source, System.getProperties(), env());
+		final Properties p2 = new Properties();
+		if(removePrefix && !p.isEmpty()) {
+			for(final String key: p.stringPropertyNames()) {
+				final String newKey = removePrefix ? key.substring(len) : key;
+				p2.put(newKey, p.getProperty(key));
+			}
+			return p2;
+		}
+		return p;
+	}
+	
+	
 	private Props() {}
 
 }
