@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.*;
 import sun.misc.Unsafe;
@@ -496,6 +497,30 @@ public class NonBlockingHashMap<TypeK, TypeV>
     assert !(V instanceof Prime); // Never return a Prime
     return (TypeV)V;
   }
+  
+	public TypeV get(final Object key, final Callable<TypeV> callable) {
+		TypeV t = putIfMatch(key, TOMBSTONE, TOMBSTONE);
+		while(true) {
+			if(t==null) {
+				try {
+					t = callable.call();					
+				} catch (Exception ex) {
+					throw new RuntimeException("Failed to create actual value from [" + callable.getClass().getName() + "] instance", ex);
+				}
+				if(putIfMatch(key, t, TOMBSTONE)==TOMBSTONE) {  // replace
+					return t;
+				}
+				Thread.yield();
+				continue;				
+			} else if(t==TOMBSTONE) {
+				Thread.yield();
+				continue;
+			} else {
+				return t;
+			}
+		}
+	}
+  
 
   private static final Object get_impl( final NonBlockingHashMap topmap, final Object[] kvs, final Object key, final int fullhash ) {
     final int len     = len  (kvs); // Count of key/value pairs, reads kvs.length
