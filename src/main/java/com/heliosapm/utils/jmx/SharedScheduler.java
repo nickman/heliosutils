@@ -18,6 +18,7 @@ under the License.
  */
 package com.heliosapm.utils.jmx;
 
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.List;
@@ -213,6 +214,33 @@ public class SharedScheduler implements ScheduledExecutorService {
 	public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
 		return scheduler.scheduleAtFixedRate(command, initialDelay, period, unit);
 	}
+	
+	/**
+	 * Schedules the passed callable for repeating execution on a fixed delay
+	 * @param command The callable to execute
+	 * @param initialDelay The initial delay
+	 * @param period The delay
+	 * @param unit The delay unit
+	 * @param exHanlder An optional exception handler. If not supplied, any exception will throw a runtime exception
+	 * @return the handle to the schedule
+	 */
+	public ScheduledFuture<?> scheduleWithFixedDelay(final Callable<?> command, final long initialDelay, final long period, final TimeUnit unit, final UncaughtExceptionHandler exHandler) {
+		final Runnable r = new Runnable() {
+			public void run() {
+				try {
+					command.call();
+				} catch (Exception ex) {
+					if(exHandler==null) {
+						throw new RuntimeException(ex);
+					} else {
+						exHandler.uncaughtException(Thread.currentThread(), ex);
+					}
+				}
+			}
+		};
+		return scheduler.scheduleWithFixedDelay(r, initialDelay, period, unit);
+	}
+	
 
 
 	/**

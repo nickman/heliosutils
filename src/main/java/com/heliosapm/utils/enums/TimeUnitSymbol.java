@@ -54,6 +54,7 @@ public enum TimeUnitSymbol {
 	DAYS(TimeUnit.DAYS, "d");
 
 	public static final Pattern PERIOD_PATTERN;
+	public static final String PERIODS;
 	
 	public static void main(String[] args) {
 		for(TimeUnitSymbol tus: values()) {
@@ -62,7 +63,8 @@ public enum TimeUnitSymbol {
 		for(TimeUnitSymbol tus: values()) {
 			System.out.print(tus.shortName + "|");
 		}
-
+		System.out.println("");
+		System.out.println(PERIODS);
 	}
 	
 	private TimeUnitSymbol(final TimeUnit unit, final String shortName) {
@@ -90,7 +92,8 @@ public enum TimeUnitSymbol {
 			}
 			b.append(tus.shortName);
 		}
-		PERIOD_PATTERN = Pattern.compile("(\\d++)([" + b.toString() + "]){1}?", Pattern.CASE_INSENSITIVE);
+		PERIODS = b.toString();
+		PERIOD_PATTERN = Pattern.compile("(\\d++)([" + PERIODS + "]){1}?", Pattern.CASE_INSENSITIVE);
 		SYMBOL4UNIT = Collections.unmodifiableMap(umap);
 		SHORT2UNIT = Collections.unmodifiableMap(smap);
 	}
