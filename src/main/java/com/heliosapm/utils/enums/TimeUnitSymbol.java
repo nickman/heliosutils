@@ -115,7 +115,7 @@ public enum TimeUnitSymbol {
 		final Matcher m = PERIOD_PATTERN.matcher(value.trim());
 		if(!m.matches()) throw new IllegalArgumentException("The passed value [" + value + "] was not a valid time period");
 		final long t = Long.parseLong(m.group(1).trim());
-		final TimeUnitSymbol tus = valueOf(m.group(2).trim().toLowerCase());
+		final TimeUnitSymbol tus = SHORT2UNIT.get(m.group(2).trim().toLowerCase());
 		return new NVP<Long, TimeUnitSymbol>(t, tus);
 	}
 	
