@@ -319,8 +319,9 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	
 	/**
 	 * {@inheritDoc}
-	 * @see org.helios.jmx.util.reference.ReferenceServiceMXBean#resetStats()
+	 * @see com.heliosapm.utils.ref.ReferenceServiceMXBean#resetStats()
 	 */
+	@Override
 	public void resetStats() {		
 		clearingErrors.reset();
 		clearedRefCount.reset();
@@ -401,13 +402,18 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	
 	/**
 	 * {@inheritDoc}
-	 * @see org.helios.jmx.util.reference.ReferenceServiceMXBean#getCountsByTypes()
+	 * @see com.heliosapm.utils.ref.ReferenceServiceMXBean#getCountsByTypes()
 	 */
 	@Override
 	public ReferenceTypeCountMBean[] getCountsByTypes() {
 		return countsByType.values().toArray(new ReferenceTypeCountMBean[0]);
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.ref.ReferenceServiceMXBean#getCountTT()
+	 */
+	@Override
 	public Map<String, ReferenceTypeCountMBean> getCountTT() {
 		return new HashMap<String, ReferenceTypeCountMBean>(countsByType);
 	}
@@ -458,6 +464,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 			}
 		});
 		phantomRefs.put(sysId, pref);
+		updateTypeCount(referent.getClass().getName());
 		return pref;
 
 	}
@@ -483,6 +490,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 			}
 		});
 		weakRefs.put(sysId, wref);
+		updateTypeCount(referent.getClass().getName());
 		return wref;
 	}
 	
@@ -524,6 +532,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 			}
 		});
 		softRefs.put(sysId, wref);
+		updateTypeCount(referent.getClass().getName());
 		return wref;
 		
 	}
