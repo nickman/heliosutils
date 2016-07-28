@@ -153,7 +153,15 @@ public class JMXManagedScheduler extends ScheduledThreadPoolExecutor implements 
 	 */
 	@Override
 	public Thread newThread(Runnable r) {
-		Thread t = new Thread(threadGroup, r, poolName + "Thread#" + threadSerial.incrementAndGet());
+		Thread t = new Thread(threadGroup, r, poolName + "Thread#" + threadSerial.incrementAndGet()) {
+//			@Override
+//			public void interrupt() {
+//				final Thread t = Thread.currentThread();
+//				System.err.println("JMXManagedSchedulerThread interrupted by [" + t + "]. Stack trace:");
+//				new Throwable().printStackTrace(System.err);
+//				super.interrupt();
+//			}			
+		};
 		t.setDaemon(true);
 		return t;
 	}

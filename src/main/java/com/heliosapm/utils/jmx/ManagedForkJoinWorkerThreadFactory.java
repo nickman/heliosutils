@@ -79,6 +79,14 @@ public class ManagedForkJoinWorkerThreadFactory implements ForkJoinWorkerThreadF
 			
 		}
 		
+//		@Override
+//		public void interrupt() {
+//			final Thread t = Thread.currentThread();
+//			System.err.println("ManagedForkJoinWorkerThread interrupted by [" + t + "]. Stack trace:");
+//			new Throwable().printStackTrace(System.err);
+//			super.interrupt();
+//		}
+		
 		@Override
 		public int getPoolIndex() {			
 			return id;
