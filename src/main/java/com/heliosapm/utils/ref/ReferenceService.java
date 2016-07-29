@@ -311,8 +311,9 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	
 	/**
 	 * {@inheritDoc}
-	 * @see org.helios.jmx.util.reference.ReferenceServiceMXBean#getClearedRefCount()
+	 * @see com.heliosapm.utils.ref.ReferenceServiceMXBean#getClearedRefCount()
 	 */
+	@Override
 	public long getClearedRefCount() {
 		return clearedRefCount.longValue();
 	}
@@ -481,10 +482,12 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 		if(onEnqueueTask!=null) {
 			checkForLink(referent, onEnqueueTask);
 		}
-		final long sysId = weakRefIdSerial.incrementAndGet();		
+		final long sysId = weakRefIdSerial.incrementAndGet();
+		final String name = referent.getClass().getName();
 		final WeakReference<T> wref = (WeakReference<T>)new WeakReferenceWrapper(referent, new Runnable(){
 			@Override
 			public void run() {
+				System.err.println("### Enqueued WeakRef for [" + name + "]");
 				weakRefs.remove(sysId);
 				if(onEnqueueTask!=null) onEnqueueTask.run();
 			}

@@ -20,6 +20,7 @@ package com.heliosapm.utils.jmx;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.management.ManagementFactory;
+import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -221,10 +222,21 @@ public class SharedScheduler implements ScheduledExecutorService {
 	 * @param initialDelay The initial delay
 	 * @param period The delay
 	 * @param unit The delay unit
-	 * @param exHanlder An optional exception handler. If not supplied, any exception will throw a runtime exception
+	 * @param exHandler An optional exception handler. If not supplied, any exception will throw a runtime exception
 	 * @return the handle to the schedule
 	 */
 	public ScheduledFuture<?> scheduleWithFixedDelay(final Callable<?> command, final long initialDelay, final long period, final TimeUnit unit, final UncaughtExceptionHandler exHandler) {
+		final UncaughtExceptionHandler ueh = new UncaughtExceptionHandler() {
+			final WeakReference<UncaughtExceptionHandler> ref = new WeakReference<UncaughtExceptionHandler>(exHandler);
+			@Override
+			public void uncaughtException(final Thread t, final Throwable e) {
+				UncaughtExceptionHandler handler = ref.get();
+				if(handler!=null) {
+					handler.uncaughtException(t, e);
+				}
+				handler = null;
+			}
+		};
 		final Runnable r = new Runnable() {
 			public void run() {
 				try {
@@ -233,7 +245,7 @@ public class SharedScheduler implements ScheduledExecutorService {
 					if(exHandler==null) {
 						throw new RuntimeException(ex);
 					} else {
-						exHandler.uncaughtException(Thread.currentThread(), ex);
+						ueh.uncaughtException(Thread.currentThread(), ex);
 					}
 				}
 			}
