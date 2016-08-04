@@ -20,6 +20,7 @@ package com.heliosapm.utils.reflect;
 
 import java.io.PrintStream;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -30,6 +31,8 @@ import java.security.PrivilegedAction;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.heliosapm.utils.ref.ReferenceService;
 
 /**
  * <p>Title: PrivateAccessor</p>
@@ -43,7 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PrivateAccessor {
 	/** The accessible object cache */
-	protected static Map<Integer, SoftReference<AccessibleObject>> accessibleObjects = new ConcurrentHashMap<Integer, SoftReference<AccessibleObject>>();
+	protected static Map<Integer, WeakReference<AccessibleObject>> accessibleObjects = new ConcurrentHashMap<Integer, WeakReference<AccessibleObject>>();
 	/** Logging DEBUG flag */
 	protected static AtomicBoolean DEBUG = new AtomicBoolean(false);
 	/** Debug Stream */
@@ -58,7 +61,7 @@ public class PrivateAccessor {
 	 * @return The cached accessible object or null if not found, or gc'ed. 
 	 */
 	protected static AccessibleObject cacheLookup(int key) {
-		SoftReference<AccessibleObject> sr = accessibleObjects.get(key);
+		WeakReference<AccessibleObject> sr = accessibleObjects.get(key);
 		if(sr==null) return null;
 		AccessibleObject ao = sr.get();
 		if(ao==null) {
@@ -74,10 +77,18 @@ public class PrivateAccessor {
 	 */
 	protected static void addToCache(int key, AccessibleObject ao) {
 		if(ao==null) throw new IllegalArgumentException("AccessibleObject to cache was null");
-		SoftReference<AccessibleObject> sr = new SoftReference<AccessibleObject>(ao);
+		WeakReference<AccessibleObject> sr = ReferenceService.getInstance().newWeakReference(ao, null);
 		accessibleObjects.put(key, sr);
 	}
 	
+	/**
+	 * Attempts to create a new instance of the passed class
+	 * @param clazz The class to instantiate an object from
+	 * @param arguments The ctor arguments
+	 * @param signature The ctor signature
+	 * @return the instantiated object
+	 * @param <T> the class [type]
+	 */
 	public static <T> T createNewInstance(final Class<T> clazz, final Object[] arguments, final  Class<?>...signature) {
 		if(clazz==null) throw new IllegalArgumentException("The passed class was null");
 		try {
@@ -108,18 +119,16 @@ public class PrivateAccessor {
 			if(method==null) {
 				elog(null, "The method [" , methodName , "] was not found in the class [" , clazz.getName() , "]");
 				throw new RuntimeException("The method [" + methodName + "] was not found in the class [" + clazz.getName() + "]");
-			} else {
-				method.setAccessible(true);
-				addToCache(key, method);
 			}
+			method.setAccessible(true);
+			addToCache(key, method);
 		}
 		try {
 			if(isDebug()) log("[PrivateAccessor] Invoking [" , method , argsToString(arguments) , "].");
 			if(Modifier.isStatic(method.getModifiers())) {
 				return method.invoke(null, arguments);
-			} else {
-				return method.invoke(targetObject, arguments);
 			}
+			return method.invoke(targetObject, arguments);
 		} catch (Exception e) {
 			elog(e, "Invocation Exception calling method [" , method.toGenericString() , "] in the class [" , clazz.getName() , "] with arguments:" , argsToIndentedString(arguments));
 			throw new RuntimeException("Invocation Exception calling method [" + method.toGenericString() + "] in the class [" + clazz.getName() + "] with arguments:" + argsToIndentedString(arguments), e);
@@ -228,7 +237,7 @@ public class PrivateAccessor {
 		int key = invocationKey(clazz, fieldName);
 		Field field = (Field)cacheLookup(key);
 		if(field==null) {
-			field = findFieldFromClass(clazz, fieldName);
+			field = getFieldFromClass(clazz, fieldName);
 			if(field==null) {
 				elog(null, "The field [" , fieldName , "] was not found in instance of the class [" , clazz.getName() , "]");
 				throw new RuntimeException("The field [" + fieldName + "] was not found in instance of the class [" + clazz.getName() + "]");
@@ -305,7 +314,7 @@ public class PrivateAccessor {
 		int key = invocationKey(clazz, fieldName);
 		Field field = (Field)cacheLookup(key);
 		if(field==null) {
-			field = findFieldFromClass(clazz, fieldName);
+			field = getFieldFromClass(clazz, fieldName);
 			if(field==null) {
 				elog(null, "The field [" , fieldName , "] was not found in instance of the class [" , clazz.getName() , "]");
 				throw new RuntimeException("The field [" + fieldName + "] was not found in instance of the class [" + clazz.getName() + "]");
@@ -335,42 +344,73 @@ public class PrivateAccessor {
 		int key = invocationKey(clazz, fieldName);
 		Field field = (Field)cacheLookup(key);
 		if(field==null) {
-			field = findFieldFromClass(clazz, fieldName);
+			field = getFieldFromClass(clazz, fieldName);
 			if(field==null) {
 				elog(null, "The field [" , fieldName , "] was not found in instance of the class [" , clazz.getName() , "]");
 				throw new RuntimeException("The field [" + fieldName + "] was not found in instance of the class [" + clazz.getName() + "]");
-			} else {
-				field.setAccessible(true);
-				addToCache(key, field);
 			}
+			field.setAccessible(true);
+			addToCache(key, field);
 		}
 		return field;
     }
     
+	/**
+	 * Find the named field from the passed class or the classes parents.
+	 * @param targetClass The class to get the field from.
+	 * @param fieldName The name of the field.
+	 * @return The named field.
+	 */
+	public static Field getFieldFromClass(final Class<?> targetClass, final String fieldName) {
+		if(targetClass==null) throw new IllegalArgumentException("Target Class Was Null");
+		if(fieldName==null || fieldName.trim().isEmpty()) throw new IllegalArgumentException("Field Name Was Null Or Empty");
+		final String _fieldName = fieldName.trim();
+		final int key = invocationKey(targetClass, _fieldName);
+		Field field = (Field)cacheLookup(key);
+		Class<?> clazz = targetClass;
+		while(field==null) {		
+			try {
+				// try declared field
+				field = clazz.getDeclaredField(fieldName);
+			} catch (NoSuchFieldException e) {
+				// try field
+				try {
+					field = clazz.getField(fieldName);
+				} catch (NoSuchFieldException e2) {/* No Op */}
+			}
+			if(field!=null) break;
+			clazz = clazz.getSuperclass();
+			if(clazz==null || java.lang.Object.class.equals(clazz)) {
+				break;
+			}					
+		}
+		if(field==null) throw new RuntimeException("The field [" + _fieldName + "] was not found in the class [" + targetClass.getName() + "]");
+		field.setAccessible(true);
+		addToCache(key, field);
+		return field;	
+	}
     
 	
 	
 	/**
 	 * Reads the value from a static field in a class.
 	 * @param targetClass The class from which read the static field.
-	 * @param targetObject The target object from which to read the field value.
 	 * @param fieldName The name of the field to read.
 	 * @return The value of the field.
 	 */
 	public static Object getStaticFieldValue(Class<?> targetClass, String fieldName) {		
 		if(targetClass==null) throw new IllegalArgumentException("Target Class Was Null");
 		if(isDebug()) log("PrivateAccessor Accessing Static Field [" , fieldName , "] in class [" , targetClass.getName() , "]");
-		int key = invocationKey(targetClass, fieldName);
+		final int key = invocationKey(targetClass, fieldName);
 		Field field = (Field)cacheLookup(key);
 		if(field==null) {
-			field = findFieldFromClass(targetClass, fieldName);
+			field = getFieldFromClass(targetClass, fieldName);
 			if(field==null) {
 				elog(null, "The field [" , fieldName , "] was not found in the class [" , targetClass.getName() , "]");
 				throw new RuntimeException("The field [" + fieldName + "] was not found in the class [" + targetClass.getName() + "]");
-			} else {
-				field.setAccessible(true);
-				addToCache(key, field);
 			}
+			field.setAccessible(true);
+			addToCache(key, field);
 		}
 		try {			
 			return field.get(null);
@@ -392,7 +432,7 @@ public class PrivateAccessor {
 		int key = invocationKey(targetClass, fieldName);
 		Field field = (Field)cacheLookup(key);
 		if(field==null) {
-			field = findFieldFromClass(targetClass, fieldName);
+			field = getFieldFromClass(targetClass, fieldName);
 			if(field==null) {
 				elog(null, "The field [" , fieldName , "] was not found in the class [" , targetClass.getName() , "]");
 				throw new RuntimeException("The field [" + fieldName + "] was not found in the class [" + targetClass.getName() + "]");
@@ -577,36 +617,6 @@ public class PrivateAccessor {
 //	}
 
 	
-	/**
-	 * Find the named field from the passed class or the classes parents.
-	 * @param targetClass The class to get the field from.
-	 * @param fieldName The name of the field.
-	 * @return The named field.
-	 */
-	private static Field findFieldFromClass(Class<?> targetClass, String fieldName) {
-		Field field = null;
-		Class<?> clazz = targetClass;
-		while(field==null) {		
-			try {
-				// try declared field
-				field = clazz.getDeclaredField(fieldName);
-			} catch (NoSuchFieldException e) {
-				// try field
-				try {
-					field = clazz.getField(fieldName);
-				} catch (NoSuchFieldException e2) {}
-			}
-			if(field!=null) break;
-			else {
-				clazz = clazz.getSuperclass();
-				if(clazz==null || java.lang.Object.class.equals(clazz)) {
-					break;
-				}
-			}					
-		}
-		field.setAccessible(true);
-		return field;	
-	}
 	
 	/**
 	 * Finds a constructor from the passed class or its parents.
