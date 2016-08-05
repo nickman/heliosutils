@@ -249,8 +249,13 @@ public class URLHelper {
 //				System.out.println("URL from File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
 				return toURL(new File(token(urlStr.toString())).getAbsoluteFile());
 			}
+			if(isValidURL(urlStr)) {
+				return new URL(urlStr.toString().trim());
+			}
+			final URL url = Thread.currentThread().getContextClassLoader().getResource(urlStr.toString().trim());
+			if(url!=null) return url;
 //			System.err.println("NOT A File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
-			return new URL(nvl(urlStr, "Passed string was null").toString());
+			throw new Exception("No conversion was successful");
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to create URL from string [" + urlStr + "]", e);
 		}
@@ -317,14 +322,26 @@ public class URLHelper {
 	 * @param urlStr The URL string to test
 	 * @return true if is valid, false if invalid or null
 	 */
-	public static boolean isValidURL(CharSequence urlStr) {
+	public static boolean isValidURL(final CharSequence urlStr) {
 		if(urlStr==null) return false;
 		try {
 			if(isFile(urlStr)) return true;			
-			new URL(urlStr.toString());
-			return true;
+			return urlOrNull(urlStr) != null;			
 		} catch (Exception e) {
 			return false;
+		}
+	}
+	
+	/**
+	 * Creates a URL from the passed stringy, or null if the stringy was null or an invalid URL representation
+	 * @param urlStr The stringy to build the URL from
+	 * @return a URL or null
+	 */
+	public static URL urlOrNull(final CharSequence urlStr) {
+		try {
+			return new URL(urlStr.toString().trim());
+		} catch (Exception ex) {
+			return null;
 		}
 	}
 	

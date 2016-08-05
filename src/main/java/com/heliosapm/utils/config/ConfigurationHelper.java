@@ -439,7 +439,7 @@ public class ConfigurationHelper {
 		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
 		final String tmp = getSystemThenEnvProperty(name, "", properties).trim();
 		if(tmp==null || tmp.isEmpty()) return defaultValue;
-		final String[] arr = tmp.split(",");
+		final String[] arr = StringHelper.splitString(tmp, ',', true);
 		final List<String> list = new ArrayList<String>(arr.length);
 		for(int i = 0; i < arr.length; i++) {
 			if(arr[i]==null || arr[i].trim().isEmpty()) continue;

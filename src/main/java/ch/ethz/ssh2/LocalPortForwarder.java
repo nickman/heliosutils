@@ -34,6 +34,9 @@ import jsr166e.LongAdder;
  */
 public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 {
+	/** An empty and inert LocalPortForwarder for use as a placeholder */
+	public static final LocalPortForwarder PLACEHOLDER = new LocalPortForwarder();
+	
 	final ChannelManager cm;
 
 	final String host_to_connect;
@@ -49,7 +52,18 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	final AtomicBoolean open = new AtomicBoolean(false);
 	final AtomicBoolean clean = new AtomicBoolean(true);
 	final ObjectName objectName;
-	final AtomicReference<ScheduledFuture<?>> handle = new AtomicReference<ScheduledFuture<?>>(null); 
+	final AtomicReference<ScheduledFuture<?>> handle = new AtomicReference<ScheduledFuture<?>>(null);
+	
+	private LocalPortForwarder() {
+		cm = null;
+		host_to_connect = null;
+		port_to_connect = -1;
+		lat = null;
+		bytesUp = null;
+		bytesDown = null;
+		accepts = null;
+		objectName = null;
+	}
 
 	LocalPortForwarder(ChannelManager cm, int local_port, String host_to_connect, int port_to_connect) throws IOException
 	{
