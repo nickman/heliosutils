@@ -33,11 +33,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.heliosapm.utils.config.ConfigurationHelper;
 
 /**
  * <p>Title: StringHelper</p>
@@ -64,6 +67,9 @@ public class StringHelper {
 	/** pattern match for a shebang */
 	public static final Pattern SHEBANG = Pattern.compile("#!/.*$");
 	
+	/** Sys prop substitution pattern */
+	public static final Pattern SYS_PROP_PATTERN = Pattern.compile("\\$\\{(.*?)(?::(.*?))??\\}");
+	
 	
 	/** The ThreadMXBean */
 	protected static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
@@ -88,6 +94,27 @@ public class StringHelper {
 				b.append(line).append(EOL);
 			}
 		}
+		return b.toString();
+	}
+	
+	/**
+	 * Replace all sysprop tokens in the passed stringy with the resolved property value.
+	 * @param cs The stringy to rewrite
+	 * @param props Optional properties to resolve properties from
+	 * @return the resolved string
+	 */
+	public static String resolveTokens(final CharSequence cs, final Properties...props) {
+		if(cs==null) return null;
+		final Matcher m = SYS_PROP_PATTERN.matcher(cs);
+		final StringBuffer b = new StringBuffer();
+		while(m.find()) {
+			//"\\$\\{(.*?)(?::(.*?))??\\}"
+			final String key = m.group(1);
+			final String def = m.group(2);
+			m.appendReplacement(b, ConfigurationHelper.getSystemThenEnvProperty(key, def, props));
+			
+		}
+		m.appendTail(b);
 		return b.toString();
 	}
 	
@@ -752,8 +779,13 @@ public class StringHelper {
 	}
 	
 	public static void main(String[] args) {
-		log("TOK Test");
-		log(replaceNumericTokens("gc.${1}=name=${0},service=GCMonitor", splitString("Scavenge.time", '.')));
+//		log("TOK Test");
+//		log(replaceNumericTokens("gc.${1}=name=${0},service=GCMonitor", splitString("Scavenge.time", '.')));
+		String v = "My home directory is: [${user.home:none}].";
+		log(resolveTokens(v));
+		v = "My home directory is: [${user.xhome:none}].";
+		log(resolveTokens(v));
+		
 	}
 	
 	public static void log(Object msg) {

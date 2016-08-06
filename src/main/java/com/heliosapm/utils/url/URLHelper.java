@@ -2,7 +2,6 @@ package com.heliosapm.utils.url;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,6 +19,7 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 import com.heliosapm.utils.config.TokenAwareProperties;
+import com.heliosapm.utils.lang.StringHelper;
 
 /**
  * <p>Title: URLHelper</p>
@@ -157,7 +157,59 @@ public class URLHelper {
 	 * @return a string representing the text read from the passed URL
 	 */
 	public static String getTextFromURL(URL url, int timeout) {
-		return getTextFromURL(url, timeout, timeout);
+		return getTextFromURL(url, timeout, defaultReadTimeout());
+	}
+	
+	/**
+	 * Reads the content of a URL as a StringBuilder
+	 * @param url The url to get the chars from
+	 * @param cTimeout The connect timeout in ms.
+	 * @param rTimeout The read timeout in ms.
+	 * @return a StringBuilder representing the characters read from the passed URL
+	 */
+	public static StringBuilder getStrBuffFromURL(final URL url, final int cTimeout, final int rTimeout) {
+		StringBuilder b = new StringBuilder();
+		InputStreamReader isr = null;
+		InputStream is = null;
+		URLConnection connection = null;
+		try {
+			connection = url.openConnection();
+			connection.setConnectTimeout(cTimeout);
+			connection.setReadTimeout(rTimeout);
+			connection.connect();
+			is = connection.getInputStream();
+			isr = new InputStreamReader(is, UTF8);
+			final char[] cbuff = new char[128];
+			int charsRead = -1;
+			while((charsRead = isr.read(cbuff))!=-1) {
+				b.append(cbuff, 0, charsRead);
+			}
+			return b;			
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to read source of [" + url + "]", e);
+		} finally {
+			if(isr!=null) try { isr.close(); } catch (Exception e) {/* No Op */}
+			if(is!=null) try { is.close(); } catch (Exception e) {/* No Op */}
+		}		
+	}
+	
+	/**
+	 * Reads the content of a URL as a StringBuilder using the default read timeout
+	 * @param url The url to get the chars from
+	 * @param cTimeout The connect timeout in ms.
+	 * @return a StringBuilder representing the characters read from the passed URL
+	 */
+	public static StringBuilder getStrBuffFromURL(final URL url, final int cTimeout) {
+		return getStrBuffFromURL(url, cTimeout, defaultReadTimeout());
+	}
+	
+	/**
+	 * Reads the content of a URL as a StringBuilder using the default connect and read timeout
+	 * @param url The url to get the chars from
+	 * @return a StringBuilder representing the characters read from the passed URL
+	 */
+	public static StringBuilder getStrBuffFromURL(final URL url) {
+		return getStrBuffFromURL(url, defaultConnectTimeout(), defaultReadTimeout());
 	}
 	
 	/**
@@ -168,31 +220,7 @@ public class URLHelper {
 	 * @return a string representing the text read from the passed URL
 	 */
 	public static String getTextFromURL(URL url, int cTimeout, int rTimeout) {
-		StringBuilder b = new StringBuilder();
-		InputStreamReader isr = null;
-		BufferedReader br = null;
-		InputStream is = null;
-		URLConnection connection = null;
-		try {
-			connection = url.openConnection();
-			connection.setConnectTimeout(cTimeout);
-			connection.setReadTimeout(rTimeout);
-			connection.connect();
-			is = connection.getInputStream();
-			isr = new InputStreamReader(is);
-			br = new BufferedReader(isr);
-			String line = null;
-			while((line=br.readLine())!=null) {
-				b.append(line).append(EOL);
-			}
-			return b.toString();			
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to read source of [" + url + "]", e);
-		} finally {
-			if(br!=null) try { br.close(); } catch (Exception e) {/* No Op */}
-			if(isr!=null) try { isr.close(); } catch (Exception e) {/* No Op */}
-			if(is!=null) try { is.close(); } catch (Exception e) {/* No Op */}
-		}
+		return getStrBuffFromURL(url, cTimeout, rTimeout).toString();
 	}
 	
 	/**
@@ -239,11 +267,12 @@ public class URLHelper {
 	
 	/**
 	 * Creates a URL from the passed string 
-	 * @param urlStr A char sequence containing a URL representation
+	 * @param urlstr A char sequence containing a URL representation
 	 * @return a URL
 	 */
-	public static URL toURL(final CharSequence urlStr) {
-		if(urlStr==null || urlStr.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed URL stringy was null or empty");
+	public static URL toURL(final CharSequence urlstr) {
+		if(urlstr==null || urlstr.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed URL stringy was null or empty");
+		final String urlStr = StringHelper.resolveTokens(urlstr);
 		try {
 			if(isFile(urlStr)) {
 //				System.out.println("URL from File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");

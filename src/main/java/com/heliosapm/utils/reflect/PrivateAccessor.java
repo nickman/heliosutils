@@ -225,13 +225,33 @@ public class PrivateAccessor {
 	}
 	
 	/**
+	 * Sets the value in a field of an object
+	 * @param targetObject The target object to set the value in
+	 * @param field The field to set the value in
+	 * @param value The value to set
+	 */
+	public static void setFieldValue(final Object targetObject, final Field field, final Object value) {
+		if(targetObject==null) throw new IllegalArgumentException("Target Object Was Null");
+		if(field==null) throw new IllegalArgumentException("Field Was Null");
+		if(!field.isAccessible()) {
+			field.setAccessible(true);
+		}
+		try {
+			field.set(targetObject, value);
+		} catch (Exception e) {
+			throw new RuntimeException("Exception setting field [" + field.getName() + "] in an instance of class [" + field.getDeclaringClass().getName() + "]", e);
+		}
+	}
+	
+	/**
 	 * Sets the value of a field in an object.
-	 * @param targetObject
-	 * @param fieldName
-	 * @param value
+	 * @param targetObject The target object to set the value in
+	 * @param fieldName The name of the field to set the value in
+	 * @param value The value to set
 	 */
 	public static void setFieldValue(Object targetObject, String fieldName, Object value) {
 		if(targetObject==null) throw new IllegalArgumentException("Target Object Was Null");		
+		if(fieldName==null || fieldName.trim().isEmpty()) throw new IllegalArgumentException("Field name was null or empty");
 		Class<?> clazz = targetObject.getClass();
 		if(isDebug()) log("PrivateAccessor Accessing Field [" , fieldName , "] in instance of [" , clazz.getName() , "]");
 		int key = invocationKey(clazz, fieldName);
@@ -246,13 +266,7 @@ public class PrivateAccessor {
 				addToCache(key, field);
 			}
 		}
-		try {			
-			field.set(targetObject, value);
-		} catch (Exception e) {
-			elog(e, "Exception setting field [" , fieldName , "] in instance of the class [" , clazz.getName() , "]");
-			throw new RuntimeException("Exception setting field [" + fieldName + "] in the class [" + clazz.getName() + "]", e);
-		}		
-		
+		setFieldValue(targetObject, field, value);
 	}
 	
 	/**
