@@ -69,6 +69,8 @@ public class StringHelper {
 	
 	/** Sys prop substitution pattern */
 	public static final Pattern SYS_PROP_PATTERN = Pattern.compile("\\$\\{(.*?)(?::(.*?))??\\}");
+	/** Custom substitution pattern */
+	public static final String CUSTOM_EXTRACT_PATTERN = "\\$%s\\{(.*?)*?\\}";
 	
 	
 	/** The ThreadMXBean */

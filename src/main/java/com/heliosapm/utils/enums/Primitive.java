@@ -22,6 +22,7 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -60,6 +61,7 @@ public enum Primitive {
 	public static final Set<String> ALL_CLASS_NAMES;
 	public static final Set<Class<?>> ALL_NUMERIC_CLASSES;
 	public static final Set<String> ALL_NUMERIC_CLASS_NAMES;
+	public static final Map<String, Class<?>> PRIMNAME2PRIMCLASS;
 //	public static final Map<String, Primitive> NAME2ENUM;
 	
 	static {
@@ -70,10 +72,12 @@ public enum Primitive {
 		final Set<Class<?>> allNumericObjects = new HashSet<Class<?>>(values.length-2+4);
 		final Set<String> allClassNames = new HashSet<String>(values.length*2);
 		final Set<String> allNumericClassNames = new HashSet<String>(values.length*2 + 4);
+		final Map<String, Class<?>> primName2primClass = new HashMap<String, Class<?>>(values.length);
 		
 		for(Primitive p: values) {
 			allClasses.add(p.type);
 			allClassNames.add(p.type.getName());
+			primName2primClass.put(p.type.getName(), p.type);
 			if(p.numeric) {
 				allNumericClasses.add(p.upcast);
 				allNumericClassNames.add(p.upcast.getName());	
@@ -100,6 +104,7 @@ public enum Primitive {
 		ALL_CLASS_NAMES = Collections.unmodifiableSet(allClassNames);
 		ALL_NUMERIC_CLASSES = Collections.unmodifiableSet(allNumericClasses);
 		ALL_NUMERIC_CLASS_NAMES = Collections.unmodifiableSet(allNumericClassNames);
+		PRIMNAME2PRIMCLASS = Collections.unmodifiableMap(primName2primClass);
 		
 	}
 	
