@@ -437,17 +437,23 @@ public class SharedScheduler implements ScheduledExecutorService {
 	}
 
 
+	/**
+	 * {@inheritDoc}
+	 * @see java.util.concurrent.ExecutorService#awaitTermination(long, java.util.concurrent.TimeUnit)
+	 */
 	@Override
-	public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
+		return scheduler.awaitTermination(timeout, unit);
 	}
 
 
+	/**
+	 * {@inheritDoc}
+	 * @see java.util.concurrent.ScheduledExecutorService#schedule(java.util.concurrent.Callable, long, java.util.concurrent.TimeUnit)
+	 */
 	@Override
-	public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-		// TODO Auto-generated method stub
-		return null;
+	public <V> ScheduledFuture<V> schedule(final Callable<V> callable, final long delay, final TimeUnit unit) {
+		return scheduler.schedule(callable, delay, unit);
 	}
 
 }
