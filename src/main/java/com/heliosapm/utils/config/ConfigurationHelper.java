@@ -64,6 +64,11 @@ public class ConfigurationHelper {
 	public static final String SYSPROP_PREFIX = "system.";
 	private static final int SYSPROP_PREFIX_LEN = SYSPROP_PREFIX.length();
 	
+	/** The system property where the PID is recorded when the ConfigurationHelper is initialized */
+	public static final String PID_SYS_PROP = "jvm.pid";
+	/** The system property where the number of cores is recorded when the ConfigurationHelper is initialized */
+	public static final String CORES_SYS_PROP = "jvm.cores";
+	
 	
 	/** App specified properties that take presedence over sys props, but are not IN sys props */
 	private static final AtomicReference<Properties> appProperties = new AtomicReference<Properties>(null); 
@@ -559,6 +564,8 @@ public class ConfigurationHelper {
 	private static final String EOL = System.getProperty("line.separator", "\n");
 	private static final ThreadLocal<String> AUDIT_CURRENT_KEY = new ThreadLocal<String>();
 	static {
+		System.setProperty(PID_SYS_PROP, PID);
+		System.setProperty(CORES_SYS_PROP, "" + Runtime.getRuntime().availableProcessors());
 		final boolean enabled = "true".equalsIgnoreCase(System.getProperty("config.helper.audit.enabled", "false"));
 		boolean keepEnabled = true;
 		if(!enabled) {

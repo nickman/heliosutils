@@ -113,7 +113,11 @@ public class StringHelper {
 			//"\\$\\{(.*?)(?::(.*?))??\\}"
 			final String key = m.group(1);
 			final String def = m.group(2);
-			m.appendReplacement(b, ConfigurationHelper.getSystemThenEnvProperty(key, def, props));
+			try {
+				m.appendReplacement(b, ConfigurationHelper.getSystemThenEnvProperty((key==null ? "" : key), (def==null ? "" : def), props));
+			} catch (Exception ex) {
+				throw new RuntimeException("Resolved failed", ex);
+			}
 			
 		}
 		m.appendTail(b);

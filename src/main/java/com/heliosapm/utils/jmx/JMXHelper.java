@@ -69,6 +69,7 @@ import java.util.regex.Pattern;
 
 import javax.management.Attribute;
 import javax.management.AttributeList;
+import javax.management.InstanceNotFoundException;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanNotificationInfo;
@@ -1215,6 +1216,8 @@ public class JMXHelper {
 	public static void unregisterMBean(final MBeanServerConnection server, final ObjectName objectName) {
 		try {
 			server.unregisterMBean(objectName);
+		} catch(InstanceNotFoundException inex) {
+			/* No Op */
 		} catch(Exception e) {
 			if(isDebugAgentLoaded()) System.err.println("Failed to unregister MBean [" + objectName + "]:" + e);			
 		}		
