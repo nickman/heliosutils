@@ -113,9 +113,10 @@ public class StdInCommandHandler implements Runnable {
 			public void run() {
 				final String shutdownCommand = shutdownHookHandler.get();
 				if(shutdownCommand!=null) {
-					if(joinedThread != null) joinedThread.interrupt();
-					final Runnable r = commands.get(shutdownCommand.trim().toLowerCase());
-					if(r!=null) r.run();
+					
+//					if(joinedThread != null) joinedThread.interrupt();
+//					final Runnable r = commands.get(shutdownCommand.trim().toLowerCase());
+//					if(r!=null) r.run();
 				}
 			}
 		};
