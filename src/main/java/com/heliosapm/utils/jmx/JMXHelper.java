@@ -60,6 +60,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -2709,6 +2711,7 @@ while(m.find()) {
 					try { 
 						jmxServer.start();
 						log.info("Started JMXMPServer on [" + surl + "]");
+						latch.countDown();
 						System.setProperty("jmxmp.server.url", jmxServer.getAddress().toString());
 						getAgentProperties().setProperty("jmxmp.server.url", jmxServer.getAddress().toString());
 					} catch (Exception ex) {
@@ -2718,7 +2721,13 @@ while(m.find()) {
 			};
 			t.setDaemon(true);
 			t.start();
-			latch.await();
+			try {
+				if(!latch.await(5, TimeUnit.SECONDS)) {
+					throw new TimeoutException("Timeout waiting on JMXMP Server to start for [" + surl + "]");
+				}
+			} catch (InterruptedException iex) {
+				throw iex;
+			}
 			final ObjectName on = JMXHelper.objectName(JMXMPConnectorServer.class);
 			if(!server.isRegistered(on)) {
 				server.registerMBean(jmxServer, on);
@@ -2745,11 +2754,10 @@ while(m.find()) {
 		if(index==-1) {
 			final int port = Integer.parseInt(_uri);
 			return fireUpJMXMPServer(port);
-		} else {
-			final String bind = _uri.substring(0, index);
-			final int port = Integer.parseInt(_uri.substring(index+1));
-			return fireUpJMXMPServer(bind, port);
 		}
+		final String bind = _uri.substring(0, index);
+		final int port = Integer.parseInt(_uri.substring(index+1));
+		return fireUpJMXMPServer(bind, port);
 	}
 	
 	/**
