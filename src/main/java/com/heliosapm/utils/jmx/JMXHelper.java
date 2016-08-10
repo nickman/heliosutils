@@ -59,6 +59,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -105,6 +106,7 @@ import com.heliosapm.utils.enums.EnumSupport.EnumCardinality;
 import com.heliosapm.utils.io.CloseableService;
 import com.heliosapm.utils.lang.StringHelper;
 import com.heliosapm.utils.reflect.PrivateAccessor;
+import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: JMXHelper</p>
@@ -2699,16 +2701,24 @@ while(m.find()) {
 		try {
 			final JMXServiceURL surl = new JMXServiceURL("jmxmp", bindInterface, port);
 			final JMXMPConnectorServer jmxServer = (JMXMPConnectorServer)JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
+			final CountDownLatch latch = new CountDownLatch(1);
+			final Throwable[] ex = new Throwable[1];
 			final Thread t = new Thread("JMXMPServerStarter[" + surl + "]") {
 				@Override
 				public void run() {
-					try { jmxServer.start(); log.info("Started JMXMPServer on [" + surl + "]"); } catch (Exception ex) {
+					try { 
+						jmxServer.start();
+						log.info("Started JMXMPServer on [" + surl + "]");
+						System.setProperty("jmxmp.server.url", jmxServer.getAddress().toString());
+						getAgentProperties().setProperty("jmxmp.server.url", jmxServer.getAddress().toString());
+					} catch (Exception ex) {
 						ex.printStackTrace(System.err);
 					}
 				}
 			};
 			t.setDaemon(true);
 			t.start();
+			latch.await();
 			final ObjectName on = JMXHelper.objectName(JMXMPConnectorServer.class);
 			if(!server.isRegistered(on)) {
 				server.registerMBean(jmxServer, on);
@@ -2725,11 +2735,20 @@ while(m.find()) {
 	 * @return The created JMXConnectorServer
 	 */
 	public static JMXMPConnectorServer fireUpJMXMPServer(final String uri) {
-		try {
-			URI ifacePort = new URI(uri);
-			return fireUpJMXMPServer(ifacePort.getHost(), ifacePort.getPort());
-		} catch (Exception ex) {
-			return null;
+		if(uri==null || uri.trim().isEmpty()) throw new IllegalArgumentException("The passed URI was null or empty");
+		final String _uri = uri.replace(" ", "");
+		if(_uri.contains("://")) {
+			URI ifacePort = URLHelper.toURI(_uri);
+			return fireUpJMXMPServer(ifacePort.getHost(), ifacePort.getPort());			
+		}
+		final int index = _uri.indexOf(':');
+		if(index==-1) {
+			final int port = Integer.parseInt(_uri);
+			return fireUpJMXMPServer(port);
+		} else {
+			final String bind = _uri.substring(0, index);
+			final int port = Integer.parseInt(_uri.substring(index+1));
+			return fireUpJMXMPServer(bind, port);
 		}
 	}
 	
