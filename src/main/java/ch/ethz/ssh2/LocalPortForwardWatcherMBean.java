@@ -31,6 +31,8 @@ public interface LocalPortForwardWatcherMBean {
 	public String getRemoteHost();
 	
 	public int getRemotePort();
+	
+	public int getLocalPort();
 
 	
 	public long getBytesUp();

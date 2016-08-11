@@ -41,6 +41,9 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 
 	private final String host;
 	private final int port;
+	private final int localPort;
+	private final LocalPortForwarder lpf;
+	
 	private final ObjectName objectName;
 	
 	private final LongAdder opens = new LongAdder();
@@ -53,14 +56,14 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 
 	
 	
-	public static LocalPortForwardWatcher getInstance(final String host, final int port) {
-		final String key = host + ":" + port;
+	public static LocalPortForwardWatcher getInstance(final LocalPortForwarder lpf) {
+		final String key = lpf.getHost() + ":" + lpf.getPort();
 		LocalPortForwardWatcher watcher = watchers.get(key);
 		if(watcher==null) {
 			synchronized(watchers) {
 				watcher = watchers.get(key);
 				if(watcher==null) {
-					watcher = new LocalPortForwardWatcher(host, port);
+					watcher = new LocalPortForwardWatcher(lpf);
 					watchers.put(key, watcher);
 				}
 			}
@@ -71,14 +74,16 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 	/**
 	 * Creates a new LocalPortForwardWatcher
 	 */
-	private LocalPortForwardWatcher(final String host, final int port) {
-		this.host = host;
-		this.port = port;
+	private LocalPortForwardWatcher(final LocalPortForwarder lpf) {		
+		this.host = lpf.getHost();
+		this.port = lpf.getPort();
+		this.lpf = lpf;
 		objectName = JMXHelper.objectName(new StringBuilder("com.heliosapm.ssh:service=LocalPortForwards,remoteHost=")
 		.append(this.host)
-		.append(",localPort=").append(this.port)
+		.append(",remotePort=").append(this.port)
 		);
 		JMXHelper.registerMBean(this, objectName);
+		this.localPort = lpf.getLocalPort();
 	}
 	
 	void incrementOpens() {
@@ -103,6 +108,9 @@ public class LocalPortForwardWatcher implements LocalPortForwardWatcherMBean {
 		return port;
 	}
 
+	public int getLocalPort() {
+		return lpf.getLocalPort();
+	}
 	
 	public long getBytesUp() {
 		return bytesUp.longValue();

@@ -71,7 +71,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
 		
-		final LocalPortForwardWatcher watcher = LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect);
+		final LocalPortForwardWatcher watcher = LocalPortForwardWatcher.getInstance(this);
 		bytesUp = watcher.getBytesUpAccumulator();
 		bytesDown = watcher.getBytesDownAccumulator();
 		accepts = watcher.getAcceptsAccumulator();		
@@ -89,7 +89,8 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 		this.host_to_connect = host_to_connect;
 		this.port_to_connect = port_to_connect;
 		
-		final LocalPortForwardWatcher watcher = LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect);
+		
+		final LocalPortForwardWatcher watcher = LocalPortForwardWatcher.getInstance(this);
 		bytesUp = watcher.getBytesUpAccumulator();
 		bytesDown = watcher.getBytesDownAccumulator();
 		accepts = watcher.getAcceptsAccumulator();		
@@ -137,6 +138,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 		return (InetSocketAddress) lat.getServerSocket().getLocalSocketAddress();
 	}
 	
+	@Override
 	public void run() {
 		try { 
 			clean.set(false); 
@@ -154,10 +156,11 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	 */
 	public void close() throws IOException 	{
 		if(open.compareAndSet(true, false)) {
-			LocalPortForwardWatcher.getInstance(host_to_connect, port_to_connect).incrementCloses();
+			LocalPortForwardWatcher.getInstance(this).incrementCloses();
 			try { lat.stopWorking(); } catch (Exception x) {/* No Op */}
 			open.set(false);		
 			handle.set(SSHService.getInstance().schedule(new Runnable(){
+				@Override
 				public void run() {
 					final ScheduledFuture<?> h = handle.getAndSet(null);
 					if(h!=null && !h.isCancelled()) {
@@ -168,21 +171,25 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 		}
 	}
 	
+	@Override
 	public String getAcceptThreadState() {
 		if(lat==null) return "NULL";
 		return lat.getState().name();
 	}
 	
+	@Override
 	public String getAcceptThreadName() {
 		if(lat==null) return "NULL";
 		return lat.getName();		
 	}
 	
+	@Override
 	public long getAcceptThreadId() {
 		if(lat==null) return -1L;;
 		return lat.getId();		
 	}
 	
+	@Override
 	public boolean isServerSocketBound() {
 		if(lat==null) return false;
 		ServerSocket ss = lat.getServerSocket();
@@ -190,6 +197,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 		return ss.isBound();		
 	}
 	
+	@Override
 	public boolean isServerSocketClosed() {
 		if(lat==null) return true;
 		ServerSocket ss = lat.getServerSocket();
@@ -204,6 +212,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	 * Returns the remote host
 	 * @return the remote host
 	 */
+	@Override
 	public String getHost() {
 		return host_to_connect;
 	}
@@ -212,6 +221,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	 * Returns the local bind interface
 	 * @return the local bind interface
 	 */
+	@Override
 	public String getLocalIface() {
 		return (lat!=null && lat.getServerSocket()!=null && lat.getServerSocket().getLocalSocketAddress()!=null) ?
 					 ((InetSocketAddress)lat.getServerSocket().getLocalSocketAddress()).getHostString() : null;
@@ -221,6 +231,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	 * Returns the local listening port
 	 * @return the local listening port
 	 */
+	@Override
 	public int getLocalPort() {
 		return (lat!=null && lat.getServerSocket()!=null && lat.getServerSocket().getLocalSocketAddress()!=null) ?
 					 ((InetSocketAddress)lat.getServerSocket().getLocalSocketAddress()).getPort() : -1;
@@ -229,30 +240,45 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 	//lat.getServerSocket().getLocalSocketAddress()
 	
 	/**
+	 * {@inheritDoc}
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "LocalPortForward[" + getLocalIface() + ":" + getLocalPort() + "--->" + host_to_connect + ":" + port_to_connect;
+	}
+	
+	/**
 	 * Returns 
 	 * @return the port_to_connect
 	 */
+	@Override
 	public int getPort() {
 		return port_to_connect;
 	}
 	
+	@Override
 	public boolean isOpen() {
 		return open.get();
 	}
 	
+	@Override
 	public long getBytesUp() {
 		return lat.getBytesUp();
 	}
 	
+	@Override
 	public long getBytesDown() {
 		return lat.getBytesDown();
 	}
 	
+	@Override
 	public long getAccepts() {
 		return lat.getAccepts();
 	}
 	
 	
+	@Override
 	public long getTimeTillUnregister() {
 		final ScheduledFuture<?> h = handle.get();
 		return h==null ? -1L : h.getDelay(TimeUnit.SECONDS);
