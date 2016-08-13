@@ -57,6 +57,7 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 		this.port_to_connect = port_to_connect;
 
 		ss = new ServerSocket(local_port);		
+		
 		this.onStop = onStop;
 		this.bytesDown = bytesDown;
 		this.bytesUp = bytesUp;
@@ -108,6 +109,11 @@ public class LocalAcceptThread extends Thread implements IChannelWorkerThread
 			try
 			{
 				s = ss.accept();
+				s.setTcpNoDelay(true);
+				s.setKeepAlive(true);
+				s.setSoTimeout(30000);
+				s.setReceiveBufferSize(186240 * 2);
+				s.setSendBufferSize(186240 * 2);
 				accepts.increment();
 			}
 			catch (IOException e)

@@ -145,6 +145,11 @@ public class FileFilterBuilder {
 		return size(minTime, Long.MAX_VALUE);
 	}
 	
+	public FileFilterBuilder linkedFile(final FileFilter...filters) {
+		enabledFilters.put(Filter.LINK, filters);
+		return this;
+	}
+	
 	public FileFilterBuilder shouldBeFile() {
 		enabledFilters.put(Filter.TYPE, new Object[]{FileType.FILE});
 		return this;				

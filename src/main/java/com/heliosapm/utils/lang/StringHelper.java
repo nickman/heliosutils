@@ -106,23 +106,39 @@ public class StringHelper {
 	 * @return the resolved string
 	 */
 	public static String resolveTokens(final CharSequence cs, final Properties...props) {
+		return resolveTokens(null, cs, props);
+	}
+	
+	/**
+	 * Replace all sysprop tokens in the passed stringy with the resolved property value.
+	 * @param updateProperties Any resolved properties will added to this properties
+	 * @param cs The stringy to rewrite
+	 * @param props Optional properties to resolve properties from
+	 * @return the resolved string
+	 */
+	public static String resolveTokens(final Properties updateProperties, final CharSequence cs, final Properties...props) {
 		if(cs==null) return null;
 		final Matcher m = SYS_PROP_PATTERN.matcher(cs);
 		final StringBuffer b = new StringBuffer();
 		while(m.find()) {
-			//"\\$\\{(.*?)(?::(.*?))??\\}"
 			final String key = m.group(1);
 			final String def = m.group(2);
 			try {
-				m.appendReplacement(b, ConfigurationHelper.getSystemThenEnvProperty((key==null ? "" : key), (def==null ? "" : def), props));
+				final String resolved =  ConfigurationHelper.getSystemThenEnvProperty((key==null ? "" : key), (def==null ? "" : def), props);
+				if(resolved!=null && !resolved.trim().isEmpty()) {
+					m.appendReplacement(b, resolved);
+					if(updateProperties!=null) {
+						updateProperties.setProperty(key, resolved);
+					}
+				}
 			} catch (Exception ex) {
 				throw new RuntimeException("Resolved failed", ex);
-			}
-			
+			}			
 		}
 		m.appendTail(b);
 		return b.toString();
 	}
+	
 	
 	/**
 	 * Generates a logging string as an indented banner

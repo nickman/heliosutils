@@ -283,7 +283,10 @@ public class PrivateAccessor {
 		return AccessController.doPrivileged(new PrivilegedAction<Object>() {
             public Object run() {
                 try {
-					return field.get(staticField ? null : targetObject);
+                	if(staticField) {
+                		return field.get(null);
+                	}
+                	return field.get(targetObject);
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to get value from field [" + field.getDeclaringClass().getName() + "." + field.getName() + "]", e);
 				}

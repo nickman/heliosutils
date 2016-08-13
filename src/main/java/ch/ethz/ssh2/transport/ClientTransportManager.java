@@ -60,6 +60,12 @@ public class ClientTransportManager extends TransportManager {
 
         InetAddress addr = createInetAddress(hostname);
         sock.connect(new InetSocketAddress(addr, port), connectTimeout);
+		sock.setTcpNoDelay(true);
+		sock.setKeepAlive(true);
+		sock.setSoTimeout(30000);
+		sock.setReceiveBufferSize(186240 * 2);
+		sock.setSendBufferSize(186240 * 2);
+        
     }
 
     /**

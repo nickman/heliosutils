@@ -18,9 +18,11 @@ under the License.
  */
 package com.heliosapm.utils.file;
 
+import java.io.File;
 import java.io.FileFilter;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import com.heliosapm.utils.file.Filters.ContainsNameFileFilter;
@@ -30,6 +32,7 @@ import com.heliosapm.utils.file.Filters.FileMod;
 import com.heliosapm.utils.file.Filters.FileModFileFilter;
 import com.heliosapm.utils.file.Filters.FileType;
 import com.heliosapm.utils.file.Filters.FileTypeFileFilter;
+import com.heliosapm.utils.file.Filters.LinkFileFileFilterFactory;
 import com.heliosapm.utils.file.Filters.RegexNameFileFilter;
 import com.heliosapm.utils.file.Filters.SizeRangeFileFilter;
 import com.heliosapm.utils.file.Filters.StartsWithNameFileFilter;
@@ -61,7 +64,9 @@ public enum Filter implements FileFilterFactory {
 	/** Matches against the file size. Args are: {@link FileType}. (see {@link FileTypeFileFilter}) */
 	TYPE(new FileTypeFileFilter()),
 	/** Matches against the file size. Args are: {@link FileMod} array. (see {@link FileModFileFilter}) */
-	MOD(new FileModFileFilter());
+	MOD(new FileModFileFilter()),
+	/** Matches against link files. Args are an optional array of {@link FileFilter}s to apply to the linked file) */
+	LINK(new LinkFileFileFilterFactory());
 	
 	/** A set of the filters employing the case-insen boolean as arg[1] */
 	public static final Set<Filter> CASE_FILTERS = Collections.unmodifiableSet(EnumSet.of(PATTERN, ENDSWITH, STARTSWITH, CONTAINS));

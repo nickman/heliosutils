@@ -21,12 +21,15 @@ package com.heliosapm.utils.file;
 import java.io.File;
 import java.io.FileFilter;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 import com.heliosapm.utils.enums.BitMasked;
+import com.heliosapm.utils.url.URLHelper;
 
 /**
  * <p>Title: Filters</p>
@@ -247,6 +250,139 @@ public abstract class Filters {
 			};
 		}
 	}
+	
+	public static class AllCustomFileFilterFactory implements FileFilterFactory {
+		final LinkedHashSet<FileFilter> filters = new LinkedHashSet<FileFilter>();
+		@Override
+		public FileFilter create(final Object... args) {
+			if(args!=null) {
+				for(Object o: args) {
+					if(o==null) continue;
+					if(FileFilter.class.isInstance(o)) {
+						filters.add((FileFilter)o);
+					}
+				}
+			}
+			return new FileFilter() {
+				@Override
+				public boolean accept(final File pathname) {
+					for(FileFilter ff: filters) {
+						if(!ff.accept(pathname)) return false;
+					}
+					return true;
+				}
+			};
+		}
+		
+	}
+	
+	public static class AnyCustomFileFilterFactory implements FileFilterFactory {
+		final LinkedHashSet<FileFilter> filters = new LinkedHashSet<FileFilter>();
+		@Override
+		public FileFilter create(final Object... args) {
+			if(args!=null) {
+				for(Object o: args) {
+					if(o==null) continue;
+					if(FileFilter.class.isInstance(o)) {
+						filters.add((FileFilter)o);
+					}
+				}
+			}
+			return new FileFilter() {
+				@Override
+				public boolean accept(final File pathname) {
+					for(FileFilter ff: filters) {
+						if(ff.accept(pathname)) return true;
+					}
+					return false;
+				}
+			};
+		}
+		
+	}
+	
+	
+	/**
+	 * <p>Title: LinkFileFileFilterFactory</p>
+	 * <p>Description: Factory for filters that filter in link files</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.file.Filters.LinkFileFileFilterFactory</code></p>
+	 */
+	public static class LinkFileFileFilterFactory implements FileFilterFactory {
+		static final FileFilter ff = new FileFilter() {
+			@Override
+			public boolean accept(final File f) {
+				return isLinkFile(f);
+			}
+		};
+		static final AllCustomFileFilterFactory factory = new AllCustomFileFilterFactory();
+		/**
+		 * {@inheritDoc}
+		 * @see com.heliosapm.utils.file.FileFilterFactory#create(java.lang.Object[])
+		 */
+		@Override
+		public FileFilter create(final Object... args) {
+			if(args==null || args.length==0) return ff;
+			final FileFilter acff = factory.create(args);
+			return new FileFilter() {
+				@Override
+				public boolean accept(final File f) {
+					return isLinkFile(f) && acff.accept(readLink(f));
+				}				
+			};
+		}
+	}
+	
+	/** Platform line separator */
+	public static final String EOL = System.getProperty("line.separator");
+	/** The pattern to extract the target link file from */
+	public static final Pattern LINK_PATTERN = Pattern.compile("LINK:(.*?)(?:$EOL)*?", Pattern.CASE_INSENSITIVE);
+	/** The pattern to match a link file */
+	public static final Pattern LINK_FILE_PATTERN = Pattern.compile(".*\\.lnk$", Pattern.CASE_INSENSITIVE);
+	
+	
+	/**
+	 * Indicates if the passed file exists and is a valid link file
+	 * @param file The file to test
+	 * @return true if the passed file exists and is a valid link file
+	 */
+	public static boolean isLinkFile(final File file) {
+		if(file==null) return false;
+		try {
+			final Matcher m = LINK_FILE_PATTERN.matcher(file.getName());
+			 return m.matches() && readLink(file.getAbsolutePath())!=null;
+		} catch (IllegalArgumentException iax) {
+			return false;
+		}
+	}
+	
+	/**
+	 * Returns the target file for the passed file name
+	 * @param linkFile The file name or URL of a link file
+	 * @return the target file
+	 */
+	protected static File readLink(final CharSequence linkFile) {
+		if(linkFile==null) throw new IllegalArgumentException("The passed link file name was null");
+		final String line = URLHelper.getTextFromURL(linkFile).trim();
+		final Matcher m = LINK_PATTERN.matcher(line);
+		if(!m.matches()) throw new IllegalArgumentException("Failed to find link pattern in link file [" + linkFile + "]");
+		final String target = m.group(1);
+		final File f = new File(target);
+		if(f.exists() && f.isFile()) return f;
+		throw new IllegalArgumentException("Link file [" + linkFile + "] pointed to unreadable target [" + f + "]");
+	}
+	
+	/**
+	 * Returns the target file for the passed file name
+	 * @param linkFile The file name or URL of a link file
+	 * @return the target file
+	 */
+	protected static File readLink(final File linkFile) {
+		if(linkFile==null) throw new IllegalArgumentException("The passed link file was null");
+		return readLink(linkFile.toPath().normalize().toFile().getAbsolutePath());
+	}
+	
 	
 	/**
 	 * <p>Title: StartsWithNameFileFilter</p>
