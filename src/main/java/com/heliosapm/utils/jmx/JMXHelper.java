@@ -184,14 +184,40 @@ public class JMXHelper {
 	/** The legacy debug agent library */
 	public static final String LEGACY_AGENT_LIB = "-Xrunjdwp:";
 	
-	/** The ObjectName of the hotspot internals MBean */
-	public static final ObjectName HOTSPOT_INTERNAL_ON = objectName("sun.management:type=HotspotMemory");
+	/** The ObjectName of the hotspot internals registrar MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_ON = objectName("sun.management:type=HotspotInternal");
+
+	/** The ObjectName of the hotspot internals memory MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_MEMORY = objectName("sun.management:type=HotspotMemory");
+	/** The ObjectName of the hotspot internals classloading MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_CLASSLOAD = objectName("sun.management:type=HotspotClassLoading");
+	/** The ObjectName of the hotspot internals compilation MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_COMPILATION = objectName("sun.management:type=HotspotCompilation");
+	/** The ObjectName of the hotspot internals runtime MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_RUNTIME = objectName("sun.management:type=HotspotRuntime");
+	/** The ObjectName of the hotspot internals threading MBean */
+	public static final ObjectName HOTSPOT_INTERNAL_THREADING = objectName("sun.management:type=HotspotThreading");
 
 	/** The class name of the hotspot internals MBean */
 	public static final String HOTSPOT_INTERNAL_CLASS_NAME = "sun.management.HotspotInternal";
 
 	/** The system property where one might find the MBeanServerBuilder class name */
 	public static final String BUILDER_CLASS_NAME_PROP = "javax.management.builder.initial";
+	
+	/** The Hotspot runtime mbean attribute names for safepoints */
+	public static final Set<String> HOTSPOT_RUNTIME_ATTRS = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+			"SafepointCount", "SafepointSyncTime", "TotalSafepointTime"
+	)));
+	
+	/** The Hotspot classloading mbean attribute names for classloading stats */
+	public static final Set<String> HOTSPOT_CLASSLOAD_ATTRS = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+			"ClassInitializationTime", "ClassLoadingTime", "ClassVerificationTime", "InitializedClassCount", "LoadedClassSize", "MethodDataSize", "UnloadedClassSize"
+	)));
+	
+	/** The Hotspot compilation mbean attribute names for compilation stats */
+	public static final Set<String> HOTSPOT_COMPILATION_ATTRS = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+			"BailoutCompileCount", "CompiledMethodCodeSize", "CompiledMethodSize", "CompilerThreadCount", "InvalidatedCompileCount", "TotalCompileCount"
+	)));
 	
 	
 	/**
@@ -1389,7 +1415,7 @@ public class JMXHelper {
 	 * Returns a String->Object Map of the named attributes from the Mbean.
 	 * @param on The object name of the MBean.
 	 * @param server The MBeanServerConnection the MBean is registered in. If this is null, uses the helios mbean server
-	 * @param attributes An collection of attribute names to retrieve. If this is null or empty, retrieves all the names
+	 * @param attributeNames An collection of attribute names to retrieve. If this is null or empty, retrieves all the names
 	 * @return A name value map of the requested attributes.
 	 */
 	public static Map<String, Object> getAttributes(ObjectName on, MBeanServerConnection server, Collection<String> attributeNames) {
