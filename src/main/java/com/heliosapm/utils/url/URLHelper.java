@@ -246,6 +246,28 @@ public class URLHelper {
 		return new File(token(urlStr)).exists();
 	}
 	
+	/**
+	 * Determines if the passed stringy represents an existing file name that is a file, not a directory
+	 * @param urlStr The stringy to test
+	 * @return true if the passed stringy represents an existing file name, false otherwise
+	 */
+	public static boolean isFileFile(final CharSequence urlStr) {
+		if(urlStr==null || urlStr.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed URL stringy was null or empty");
+		final File f = new File(token(urlStr));
+		return f.exists() && f.isFile();
+	}
+	
+	/**
+	 * Determines if the passed stringy represents an existing file name that is a directory, not a file
+	 * @param urlStr The stringy to test
+	 * @return true if the passed stringy represents an existing directory name, false otherwise
+	 */
+	public static boolean isDirectory(final CharSequence urlStr) {
+		if(urlStr==null || urlStr.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed URL stringy was null or empty");
+		final File f = new File(token(urlStr));
+		return f.exists() && f.isDirectory();
+	}
+	
 	public static String token(final CharSequence name) {
 		if(name==null || name.toString().trim().isEmpty()) throw new IllegalArgumentException("The passed name was null or empty");
 		String s = name.toString().trim();
