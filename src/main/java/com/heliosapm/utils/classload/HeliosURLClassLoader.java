@@ -29,21 +29,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.management.ObjectName;
 
-import jsr166e.LongAdder;
-
 import com.heliosapm.shorthand.attach.vm.agent.LocalAgentInstaller;
 import com.heliosapm.utils.jmx.JMXHelper;
-import com.heliosapm.utils.ref.MBeanProxy;
+import com.heliosapm.utils.ref.MBeanProxyBuilder;
 import com.heliosapm.utils.ref.ReferenceService;
 import com.heliosapm.utils.ref.ReferenceService.ReferenceType;
-import com.heliosapm.utils.reflect.PrivateAccessor;
+
+import jsr166e.LongAdder;
 
 /**
  * <p>Title: HeliosURLClassLoader</p>
@@ -106,7 +104,7 @@ public class HeliosURLClassLoader extends URLClassLoader implements HeliosURLCla
 					final String name = loader.getName();
 					final ObjectName loaderObjectName = JMXHelper.objectName(OBJECT_NAME + loader.name);
 					loader.objectName = loaderObjectName;
-					MBeanProxy.register(ReferenceType.WEAK, loaderObjectName, HeliosURLClassLoaderMBean.class, loader);
+					MBeanProxyBuilder.register(ReferenceType.WEAK, loaderObjectName, HeliosURLClassLoaderMBean.class, loader);
 					loaders.put(key, ReferenceService.getInstance().newWeakReference(loader, weakRefTask(loaderObjectName, name)));
 							//new HeliosURLClassLoaderWeakReference(loader.getName(), loader));
 					return;

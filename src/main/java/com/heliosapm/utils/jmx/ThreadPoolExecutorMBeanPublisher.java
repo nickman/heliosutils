@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.management.ObjectName;
 
-import com.heliosapm.utils.ref.MBeanProxy;
+import com.heliosapm.utils.ref.MBeanProxyBuilder;
 import com.heliosapm.utils.ref.ReferenceService.ReferenceType;
 
 /**
@@ -60,7 +60,7 @@ public class ThreadPoolExecutorMBeanPublisher implements ThreadPoolExecutorMBean
 	public static void publishWeak(final ObjectName objectName, final ThreadPoolExecutor threadPoolExecutor) {
 		if(JMXHelper.isRegistered(objectName)) throw new RuntimeException("The ObjectName [" + objectName + "] is already registered");
 		final ThreadPoolExecutorMBeanPublisher tpm = new ThreadPoolExecutorMBeanPublisher(threadPoolExecutor);
-		MBeanProxy.register(ReferenceType.WEAK, objectName, ThreadPoolExecutorMBeanPublisherMBean.class, tpm); 				
+		MBeanProxyBuilder.register(ReferenceType.WEAK, objectName, ThreadPoolExecutorMBeanPublisherMBean.class, tpm); 				
 	}
 
 	

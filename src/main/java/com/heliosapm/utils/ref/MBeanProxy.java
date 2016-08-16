@@ -22,16 +22,13 @@ import java.lang.ref.Reference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.JMException;
 import javax.management.MBeanRegistration;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
-import javax.management.StandardMBean;
 
-import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.ref.ReferenceService.ReferenceType;
 
 /**
@@ -40,7 +37,7 @@ import com.heliosapm.utils.ref.ReferenceService.ReferenceType;
  * <p>Company: Helios Development Group LLC</p>
  * @author Kohsuke Kawaguchi
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>org.helios.jmx.util.reference.MBeanProxy</code></p>
+ * <p><code>com.heliosapm.utils.ref.MBeanProxy</code></p>
  */
 public class MBeanProxy implements InvocationHandler, MBeanRegistration, ReferenceRunnable {
 	
@@ -51,13 +48,13 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	/** The ObjectName of the registered MBean */
 	private ObjectName name;
 	/** The proxy for the MBean */
-	private Object proxy = null;
+	Object proxy = null;
 	/** The class name of the referent */
 	private String rname;
 	
 	
 	
-	private MBeanProxy(ReferenceType refType, Object realObject) {
+	MBeanProxy(ReferenceType refType, Object realObject) {
 		this.real = ReferenceService.getInstance().newReference(refType, realObject, this);
 		this.rname = realObject.getClass().getName();
 	}
@@ -79,7 +76,7 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	
 	/**
 	 * {@inheritDoc}
-	 * @see org.helios.jmx.util.reference.ReferenceRunnable#getClearedRunnable()
+	 * @see com.heliosapm.utils.ref.ReferenceRunnable#getClearedRunnable()
 	 */
 	@Override
 	public Runnable getClearedRunnable() {
@@ -87,82 +84,7 @@ public class MBeanProxy implements InvocationHandler, MBeanRegistration, Referen
 	}
 
 	
-	/**
-	 * Creates a proxy MBean and registers it to the server, overriding the
-	 * existing mbean if necessary.
-	 * @param refType The reference type to store the actual impl
-	 * @param server MBean will be registered to this server.
-	 * @param name The name under which the MBean will be registered
-	 * @param mbeanInterface MBean interface to be exposed
-	 * @param object MBean instance to be exposed
-	 */
-	public static <T> void register(ReferenceType refType, MBeanServer server, ObjectName name, Class<T> mbeanInterface, T object) {
-		try {
-			MBeanProxy mbeanProxy = new MBeanProxy(refType, object);
-			T proxy = mbeanInterface.cast(Proxy.newProxyInstance(
-					mbeanInterface.getClassLoader(), new Class[] { mbeanInterface,
-							MBeanRegistration.class }, mbeanProxy));
-			mbeanProxy.proxy = proxy;
 	
-			if (server.isRegistered(name)) {
-				try {
-					server.unregisterMBean(name);
-				} catch (JMException e) {
-					// if we fail to unregister, try to register ours anyway.
-					// maybe a GC kicked in in-between.
-				}
-			}
-	
-			// since the proxy class has random names like '$Proxy1',
-			// we need to use StandardMBean to designate a management interface
-			server.registerMBean(new StandardMBean(proxy, mbeanInterface), name);
-		} catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-
-	/**
-	 * Creates a proxy MBean and registers it to the default MBeanServer, overriding the
-	 * existing mbean if necessary.
-	 * @param refType The reference type to store the actual impl
-	 * @param name The name under which the MBean will be registered
-	 * @param mbeanInterface MBean interface to be exposed
-	 * @param object MBean instance to be exposed
-	 */
-	public static <T> void register(ReferenceType refType, ObjectName name, Class<T> mbeanInterface, T object)  {
-		try {
-			register(refType, JMXHelper.getHeliosMBeanServer(), name, mbeanInterface, object);
-		} catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-	
-	/**
-	 * Creates and returns an MBean proxy without registering it
-	 * @param refType THe reference type
-	 * @param mbeanInterface The MBean interface
-	 * @param object The MBean impl
-	 * @param proxyInterfaces Additional interfaces implemented by the proxy
-	 * @return the MBean proxy which can be registered
-	 */
-	public static MBeanProxy proxyMBean(ReferenceType refType, Class<?> mbeanInterface, Object object, Class<?>... proxyInterfaces)  {
-		MBeanProxy mbeanProxy = new MBeanProxy(refType, object);
-		Class<?>[] proxyifaces = new Class[proxyInterfaces.length + 2];
-		proxyifaces[0] = mbeanInterface;
-		proxyifaces[1] = MBeanRegistration.class;
-		for(int i = 0; i < proxyInterfaces.length; i++) {
-			proxyifaces[i+2] = proxyInterfaces[i];
-		}
-//		StringBuilder b = new StringBuilder("\n\tMBean Ifaces:");
-//		for(Class c: proxyifaces) {
-//			b.append("\n\t").append(c.getName());
-//		}
-//		System.out.println(b.append("\n"));
-		Object proxy = mbeanInterface.cast(Proxy.newProxyInstance(
-				mbeanInterface.getClassLoader(), proxyifaces, mbeanProxy));
-		mbeanProxy.proxy = proxy;
-		return mbeanProxy;
-	}
 
 	/**
 	 * Returns the JMX registerable proxy instance
