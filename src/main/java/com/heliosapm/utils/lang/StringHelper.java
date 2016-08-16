@@ -18,6 +18,7 @@ under the License.
  */
 package com.heliosapm.utils.lang;
 
+import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -72,6 +73,9 @@ public class StringHelper {
 	/** Custom substitution pattern */
 	public static final String CUSTOM_EXTRACT_PATTERN = "\\$%s\\{(.*?)*?\\}";
 	
+	/** Indicates if this platform uses backslashes for file separators */
+	public static final boolean BACK_SLASH_FILESEP = java.io.File.separator.equals("\\");
+	
 	
 	/** The ThreadMXBean */
 	protected static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
@@ -109,6 +113,21 @@ public class StringHelper {
 		return resolveTokens(null, cs, props);
 	}
 	
+	public static void main(String[] args) {
+//		log("TOK Test");
+//		log(replaceNumericTokens("gc.${1}=name=${0},service=GCMonitor", splitString("Scavenge.time", '.')));
+		String v = "My home directory is: [${user.home:none}].";
+		log(resolveTokens(v));
+		v = "My home directory is: [${user.xhome:none}].";
+		log(resolveTokens(v));
+		
+	}
+	
+//	public static final Pattern BACKSLASH_PATTERN = Pattern.compile("(?!^\\\\)\\\\(?!\\\\)");
+//	public static final Pattern BACKSLASH_PATTERN = Pattern.compile("(?<!\\)\\(?!\\)");
+	
+//	public static final Pattern BACKSLASH_PATTERN = Pattern.compile("\\\\");
+	
 	/**
 	 * Replace all sysprop tokens in the passed stringy with the resolved property value.
 	 * @param updateProperties Any resolved properties will added to this properties
@@ -124,8 +143,12 @@ public class StringHelper {
 			final String key = m.group(1);
 			final String def = m.group(2);
 			try {
-				final String resolved =  ConfigurationHelper.getSystemThenEnvProperty((key==null ? "" : key), (def==null ? "" : def), props);
+				String resolved =  ConfigurationHelper.getSystemThenEnvProperty((key==null ? "" : key), (def==null ? "" : def), props);
+				// if BACK_SLASH_FILESEP is true, they will be removed on append replacement, so we need to escape them
 				if(resolved!=null && !resolved.trim().isEmpty()) {
+					if(BACK_SLASH_FILESEP) {
+						resolved = resolved.replace("\\", "/");
+					}
 					m.appendReplacement(b, resolved);
 					if(updateProperties!=null) {
 						updateProperties.setProperty(key, resolved);
@@ -800,15 +823,6 @@ public class StringHelper {
 		return b.toString();
 	}
 	
-	public static void main(String[] args) {
-//		log("TOK Test");
-//		log(replaceNumericTokens("gc.${1}=name=${0},service=GCMonitor", splitString("Scavenge.time", '.')));
-		String v = "My home directory is: [${user.home:none}].";
-		log(resolveTokens(v));
-		v = "My home directory is: [${user.xhome:none}].";
-		log(resolveTokens(v));
-		
-	}
 	
 	public static void log(Object msg) {
 		System.out.println(msg);
