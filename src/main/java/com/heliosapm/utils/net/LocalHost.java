@@ -48,6 +48,19 @@ public class LocalHost {
 	public static final String HOST = ManagementFactory.getRuntimeMXBean().getName().split("@")[1];
     /** The system prop key for the RMI host name as provided to remote stubs */
 	public static final String RMI_HOSTNAME = "java.rmi.server.hostname";
+	
+	/** The local wildcard address (<b><code>0.0.0.0</code></b>) */
+	public static final InetAddress LOCAL_WILDCARD;
+	
+	static {
+		InetAddress wc = null;
+		try {
+			wc = InetAddress.getByName("0.0.0.0");
+		} catch (Exception ex) {
+			wc = null;
+		}
+		LOCAL_WILDCARD = wc;
+	}
 
 
 	/**
