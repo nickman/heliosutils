@@ -82,6 +82,24 @@ public class SocketUtil {
 		return acquirePorts(LocalHost.LOCAL_WILDCARD, 1, 1);
 	}
 	
+	/**
+	 * Creates a pre-assigned bound port
+	 * @param port the pre-assigned port
+	 * @return the pre-assigned bound port
+	 */
+	public static BoundPort preAssigned(final int port) {
+		if(port < 1 || port > 65535) throw new IllegalArgumentException("Invalid port:" + port);
+		return new BoundPort(port);
+	}
+	
+	
+	public static void main(String[] args) {
+		AcquiredPorts ap = acquirePorts(2);
+		for(int i = 0; i < 4; i++) {
+			System.out.println("Port:" + ap.nextPort());
+		}
+	}
+	
 	
 	/**
 	 * <p>Title: BoundPort</p>
@@ -100,6 +118,11 @@ public class SocketUtil {
 			port = ss.getLocalPort();
 		}
 		
+		private BoundPort(final int port) {
+			this.port = port;
+			ss = null;
+		}
+		
 		/**
 		 * Returns the port without releasing the bound socket
 		 * @return the unavailable port
@@ -113,6 +136,7 @@ public class SocketUtil {
 		 * @return the available port
 		 */
 		public int getPort() {
+			if(ss==null) return port;
 			if(open.compareAndSet(true, false)) {
 				try {
 					ss.close();
@@ -124,6 +148,11 @@ public class SocketUtil {
 			return port;
 		}
 		
+		/**
+		 * {@inheritDoc}
+		 * @see java.io.Closeable#close()
+		 */
+		@Override
 		public void close() throws IOException {
 			if(!open.get()) {
 				try { ss.close(); } catch (Exception x) {/* No Op */}
@@ -161,16 +190,15 @@ public class SocketUtil {
 	 */
 	public static class AcquiredPorts implements Closeable {
 		private final ConcurrentSkipListMap<Integer, BoundPort> sockets;
-		private final Iterator<Integer> portIter;
+		private Iterator<Integer> portIter;
 		private final InetSocketAddress bindSocketAddress;
 		private final int refill;
 		
 		private AcquiredPorts(final InetAddress bindAddress, final int size, final int refill) {			
-			sockets = new ConcurrentSkipListMap<Integer, BoundPort>();
-			portIter = sockets.keySet().iterator();
+			sockets = new ConcurrentSkipListMap<Integer, BoundPort>();			
 			this.refill = refill;
 			bindSocketAddress = new InetSocketAddress(bindAddress, 0);
-			fill(size);
+			fill(size);			
 		}
 		
 		private void fill(final int howMany) {
@@ -179,8 +207,13 @@ public class SocketUtil {
 				final BoundPort bp = new BoundPort(ss);
 				sockets.put(bp.peekPort(), bp);
 			}			
+			portIter = sockets.keySet().iterator();
 		}
 		
+		/**
+		 * {@inheritDoc}
+		 * @see java.io.Closeable#close()
+		 */
 		@Override
 		public void close() throws IOException {
 			while(!sockets.isEmpty()) {
@@ -214,7 +247,7 @@ public class SocketUtil {
 				final BoundPort bp = sockets.remove(socketKey);
 				return bp.getPort();				
 			} catch (Exception ex) {
-				throw new RuntimeException("Failed to refill bound socket pool. No sockets available.");
+				throw new RuntimeException("Failed to refill bound socket pool. No sockets available.", ex);
 			}
 		}
 		
@@ -234,7 +267,7 @@ public class SocketUtil {
 				final int socketKey = portIter.next();
 				return sockets.remove(socketKey);
 			} catch (Exception ex) {
-				throw new RuntimeException("Failed to refill bound socket pool. No sockets available.");
+				throw new RuntimeException("Failed to refill bound socket pool. No sockets available.", ex);
 			}			
 		}
 
