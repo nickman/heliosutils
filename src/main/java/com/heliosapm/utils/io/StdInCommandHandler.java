@@ -239,6 +239,7 @@ public class StdInCommandHandler implements Runnable {
 	public String getUnhandledCommandName() {
 		return unhandledCommandName.get();
 	}
+
 	/**
 	 * Installs a new command
 	 * @param command The command name
@@ -260,6 +261,20 @@ public class StdInCommandHandler implements Runnable {
 		}
 		if(!installed) {
 			throw new IllegalStateException("Failed to install command [" + command + "]. Command already installed");
+		}
+		return this;
+	}
+	
+	/**
+	 * Installs a new command if not already installed
+	 * @param command The command name
+	 * @param runnable The command to execute
+	 * @return this command handler
+	 */
+	public StdInCommandHandler registerCommandIfNotInstalled(final String command, final Runnable runnable) {
+		final String key = command.trim().toLowerCase();
+		if(!commands.containsKey(key)) {
+			registerCommand(key, runnable);
 		}
 		return this;
 	}
