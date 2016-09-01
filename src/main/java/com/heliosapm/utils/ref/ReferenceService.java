@@ -118,12 +118,14 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	};
 	
 	/** The ref service JMX ObjectName */
-	public static final ObjectName OBJECT_NAME = JMXHelper.objectName(ReferenceService.class);
+	public final ObjectName OBJECT_NAME;
 	/** The ref service's thread pool JMX ObjectName */
-	public static final ObjectName THREAD_POOL_OBJECT_NAME = JMXHelper.objectName(new StringBuilder(OBJECT_NAME.toString()).append("ThreadPool"));
+	public final ObjectName THREAD_POOL_OBJECT_NAME;
 	
 	public static final CompositeType REF_TYPE_COUNT;
 	public static final TabularType TABULAR_REF_TYPE_COUNT;
+	
+	
 	
 	
 	
@@ -133,6 +135,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	private static final Field referentField;
 	
 	static {
+		
 		Field f = null;
 		Field r = null;
 		try {
@@ -224,11 +227,16 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 			synchronized(lock) {
 				if(instance==null) {
 					instance = new ReferenceService();
-					
-					instance.threadPool = new JMXManagedThreadPool(THREAD_POOL_OBJECT_NAME, "ReferenceService", 2, 10, 5000, 60000, 100, 99, false);
+					instance.threadPool = new JMXManagedThreadPool(instance.THREAD_POOL_OBJECT_NAME, "ReferenceService", 2, 10, 5000, 60000, 100, 99, false);
 					instance.threadPool.setRejectedExecutionHandler(new JMXManagedThreadPool.CallerRunsPolicy());					
-					JMXHelper.registerMBean(instance, OBJECT_NAME);
-					JMXHelper.registerMBean(instance.threadPool, THREAD_POOL_OBJECT_NAME);
+					JMXHelper.registerMBean(instance, instance.OBJECT_NAME);
+					JMXHelper.registerMBean(instance.threadPool, instance.THREAD_POOL_OBJECT_NAME);
+					
+					
+//					instance.threadPool = new JMXManagedThreadPool(THREAD_POOL_OBJECT_NAME, "ReferenceService", 2, 10, 5000, 60000, 100, 99, false);
+//					instance.threadPool.setRejectedExecutionHandler(new JMXManagedThreadPool.CallerRunsPolicy());					
+//					JMXHelper.registerMBean(instance, OBJECT_NAME);
+//					JMXHelper.registerMBean(instance.threadPool, THREAD_POOL_OBJECT_NAME);
 				}
 			}
 		}
@@ -286,10 +294,17 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 	/**
 	 * Creates a new ReferenceService
 	 */
-	private ReferenceService() {		
+	private ReferenceService() {
+		try {
+			OBJECT_NAME = ObjectName.getInstance("com.heliosapm.utils.ref:service=ReferenceService");
+			THREAD_POOL_OBJECT_NAME = ObjectName.getInstance(new StringBuilder(OBJECT_NAME.toString()).append("ThreadPool").toString());
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
 		refQueueThread = new Thread(this, getClass().getSimpleName() + "RefQueueThread");
 		refQueueThread.setDaemon(true);
-		refQueueThread.start();		
+		refQueueThread.start();
+		
 	}
 	
 
