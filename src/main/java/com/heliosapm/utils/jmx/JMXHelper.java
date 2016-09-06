@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -1142,6 +1143,28 @@ public class JMXHelper {
 		}
 	}
 
+	/**
+	 * Creates a new JMX object name from the passed domain and properties.
+	 * The properties will be sorted according to the passed sorter.
+	 * @param domain A string type representing the ObjectName domain
+	 * @param properties A hash X of the Object name's properties
+	 * @param sorter The sorter that determines the order of the properties in the ObjectName 
+	 * @return an ObjectName the created ObjectName
+	 */
+	public static ObjectName objectName(CharSequence domain, Map<String, String> properties, final Comparator<String> sorter) {
+		final Map<String, String> map = new TreeMap<String, String>(sorter);
+		map.putAll(properties);
+		try {
+			final StringBuilder b = new StringBuilder(domain).append(":");
+			for(Map.Entry<String, String> entry: map.entrySet()) {
+				b.append(entry.getKey()).append("=").append(entry.getValue()).append(",");
+			}
+			return new ObjectName(b.deleteCharAt(b.length()-1).toString());
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to create ordered ObjectName for [" + domain + ":" + properties + "]", ex);
+		}
+	}
+	
 	
 	/**
 	 * Creates a new JMX object name.
@@ -2728,7 +2751,8 @@ while(m.find()) {
 	public static JMXMPConnectorServer fireUpJMXMPServer(final String bindInterface, final int port, final MBeanServer server) {
 		try {
 			final JMXServiceURL surl = new JMXServiceURL("jmxmp", bindInterface, port);
-			final JMXMPConnectorServer jmxServer = (JMXMPConnectorServer)JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
+			final JMXMPConnectorServer jmxServer = new JMXMPConnectorServer(surl, null, server); 
+					//(JMXMPConnectorServer)JMXConnectorServerFactory.newJMXConnectorServer(surl, null, server);
 			final CountDownLatch latch = new CountDownLatch(1);
 			final Throwable[] ex = new Throwable[1];
 			final Thread t = new Thread("JMXMPServerStarter[" + surl + "]") {
