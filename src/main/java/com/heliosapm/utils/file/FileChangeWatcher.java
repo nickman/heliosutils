@@ -175,9 +175,10 @@ public class FileChangeWatcher extends Thread {
 				}
 			}
 		}
-		if(fire) {
+		if(fire) {			
 			for(File f: copy) {
 				if(!f.exists()) {
+					trackedFiles.remove(f);
 					fireEvent(FileChangeEvent.DELETED, f);
 				}
 			}
