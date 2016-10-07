@@ -58,7 +58,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.security.Principal;
 import java.util.Iterator;
 import java.util.Map;
@@ -146,9 +149,11 @@ public class SocketConnection implements SocketConnectionIf, MessageConnection {
 
 				state = CONNECTING;
 				stateLock.notifyAll();
-		
+			
 				if (sock == null) {
-				    sock = new Socket(addr, port);
+					sock = new Socket();
+					// Configure socket options
+				    sock.connect(new InetSocketAddress(addr, port));
 				}
 
 			replaceStreams(

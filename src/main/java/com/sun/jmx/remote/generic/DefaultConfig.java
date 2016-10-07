@@ -237,6 +237,43 @@ public class DefaultConfig {
      */
     public static final String CLIENT_SYNCHRO_MESSAGE_CONNECTION =
 	"com.sun.jmx.remote.generic.synchro.client";
+    
+    /**
+     * <p>Name of the attribute that specifies whether or not we set
+     * set keep alive on the client socket. Its default value is false</p>
+     */
+    public final static String CLIENT_KEEP_ALIVE = "jmx.client.socket.keepalive";
+
+    /**
+     * <p>Name of the attribute that specifies the receive buffer size.
+     * Its default value is platform dependent (Windows: 8192) </p>
+     */
+    public final static String CLIENT_RECEIVE_BUFF = "jmx.client.socket.recbuff";
+
+    /**
+     * <p>Name of the attribute that specifies the send buffer size.
+     * Its default value is platform dependent (Windows: 8192) </p>
+     */
+    public final static String CLIENT_SEND_BUFF = "jmx.client.socket.sendbuff";
+    
+    /**
+     * <p>Name of the attribute that specifies the SO_REUSEADDR socket option.
+     * Its default value is platform dependent (Windows: false) </p>
+     */
+    public final static String CLIENT_REUSE_ADDR = "jmx.client.socket.reuseaddr";
+    
+    /**
+     * <p>Name of the attribute that specifies if tcpnodelay (nagle's algorithm).
+     * is disabled. Its default value is false, meaning nagle is in effect. </p>
+     */
+    public final static String CLIENT_TCP_NODELAY = "jmx.client.socket.tcpnodelay";
+    
+    /**
+     * <p>Name of the attribute that specifies an SO_TIMEOUT meaning a timeout
+     * on socket blocking time in millis. Its default value is 0 (infinite)</p>
+     */
+    public final static String CLIENT_SO_TIMEOUT = "jmx.client.socket.sotimeout";
+    
 
     /** 
      * Returns a <code>ClientSynchroMessageConnection</code> object
