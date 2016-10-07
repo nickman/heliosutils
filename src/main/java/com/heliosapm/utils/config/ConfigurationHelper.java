@@ -311,7 +311,7 @@ public class ConfigurationHelper {
 	}
 	
 	/**
-	 * Returns the value defined as an Integer looked up from the Environment, then System properties.
+	 * Returns the value defined as an Integer looked up from System properties, then the environment.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid int.
 	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
@@ -330,7 +330,7 @@ public class ConfigurationHelper {
 	}
 	
 	/**
-	 * Returns the value defined as an character looked up from the Environment, then System properties.
+	 * Returns the value defined as an character looked up from System properties, then the environment.
 	 * Note that if the resolved property is a string of more than one character, the first one is accepted silently.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid int.
@@ -351,7 +351,7 @@ public class ConfigurationHelper {
 	
 	
 	/**
-	 * Returns the value defined as an Float looked up from the Environment, then System properties.
+	 * Returns the value defined as an Float looked up from System properties, then the environment.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid int.
 	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
@@ -371,7 +371,7 @@ public class ConfigurationHelper {
 	
 	
 	/**
-	 * Returns the value defined as a Long looked up from the Environment, then System properties.
+	 * Returns the value defined as a Long looked up from System properties, then the environment.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid long.
 	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
@@ -387,10 +387,30 @@ public class ConfigurationHelper {
 			value = defaultValue;
 		}
 		return appendAudit(caller, name, defaultValue, value);
-	}	
+	}
 	
 	/**
-	 * Returns the value defined as a Boolean looked up from the Environment, then System properties.
+	 * Returns the value defined as a Double looked up from System properties, then the environment.
+	 * @param name The name of the key to lookup.
+	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid double.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
+	 * @return The located double or the passed default value.
+	 */
+	public static Double getDoubleSystemThenEnvProperty(String name, Double defaultValue, Properties...properties) {
+		final Class<?> caller = AUDIT_ENABLED ? Reflection.getCallerClass() : null;
+		String tmp = getSystemThenEnvProperty(name, null, properties);
+		Double value = null;
+		try {
+			value = Double.parseDouble(tmp);
+		} catch (Exception e) {
+			value = defaultValue;
+		}
+		return appendAudit(caller, name, defaultValue, value);
+	}	
+	
+	
+	/**
+	 * Returns the value defined as a Boolean looked up from System properties, then the environment.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return if the name is not defined or the value is not a valid boolean.
 	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
@@ -413,7 +433,7 @@ public class ConfigurationHelper {
 	}
 	
 	/**
-	 * Returns the value defined as a URL looked up from the Environment, then System properties.
+	 * Returns the value defined as a URL looked up from System properties, then the environment.
 	 * @param name The name of the key to lookup.
 	 * @param defaultValue The default value to return as a URL if the name is not defined or the value is not a valid URL.
 	 * @param properties An array of properties to search in. If empty or null, will search system properties. The first located match will be returned.
@@ -618,4 +638,111 @@ public class ConfigurationHelper {
 	}
 	
 	
+	/**
+	 * Locates the command line argument named <b><code>--&lt;name&gt;</code></b> at index <b><code>n</code></b>
+	 * and if available, returns the argument at index <b><code>n+1</code></b>. 
+	 * @param name The name to search the arguments for. Case insensitive.
+	 * @param defaultValue The default value to return if the named argument is not found.
+	 * @param args The arguments to search
+	 * @return the value for the specified command line argument or the default value if not found
+	 */
+	public static String getCmdLine(final String name, final String defaultValue, final String...args) {
+		if(name==null || name.trim().isEmpty()) throw new IllegalArgumentException("The passed argument name was null or empty");
+		if(args.length==0) return null;
+		final String _name = "--" + name.trim().toLowerCase();
+		final int maxIndex = args.length;		
+		for(int i = 0; i < args.length; i++) {
+			if(_name.equals(args[i]) && i < maxIndex) {
+				return args[i+1];
+			}
+			if(_name.startsWith(args[i])) {
+				final int index = _name.indexOf('=');
+				if(index!=-1) {
+					return args[i].substring(index+1).trim();
+				}
+			}			
+		}
+		return defaultValue;
+	}
+	
+	/**
+	 * Locates the command line argument named <b><code>--&lt;name&gt;</code></b> at index <b><code>n</code></b>
+	 * and if available, returns the argument at index <b><code>n+1</code></b>. 
+	 * @param name The name to search the arguments for. Case insensitive.
+	 * @param throwOnConversionErr Defines what happens if the conversion of the argument value string fails 
+	 * where true will throw, false will return the default.
+	 * @param defaultValue The default value to return if the named argument is not found.
+	 * @param args The arguments to search
+	 * @return the value for the specified command line argument or the default value if not found
+	 */
+	public static int getCmdLine(final String name, final boolean throwOnConversionErr, final int defaultValue, final String...args) {
+		final String value = getCmdLine(name, String.valueOf(defaultValue));
+		try {
+			return Integer.parseInt(value);
+		} catch (Exception ex) {
+			if(throwOnConversionErr) throw new IllegalArgumentException("Cannot convert [value] to an int");
+			return defaultValue;
+		}
+	}
+	
+	/**
+	 * Locates the command line argument named <b><code>--&lt;name&gt;</code></b> at index <b><code>n</code></b>
+	 * and if available, returns the argument at index <b><code>n+1</code></b>. 
+	 * @param name The name to search the arguments for. Case insensitive.
+	 * @param throwOnConversionErr Defines what happens if the conversion of the argument value string fails 
+	 * where true will throw, false will return the default.
+	 * @param defaultValue The default value to return if the named argument is not found.
+	 * @param args The arguments to search
+	 * @return the value for the specified command line argument or the default value if not found
+	 */
+	public static long getCmdLine(final String name, final boolean throwOnConversionErr, final long defaultValue, final String...args) {
+		final String value = getCmdLine(name, String.valueOf(defaultValue));
+		try {
+			return Long.parseLong(value);
+		} catch (Exception ex) {
+			if(throwOnConversionErr) throw new IllegalArgumentException("Cannot convert [value] to a long");
+			return defaultValue;
+		}
+	}
+	
+	/**
+	 * Locates the command line argument named <b><code>--&lt;name&gt;</code></b> at index <b><code>n</code></b>
+	 * and if available, returns the argument at index <b><code>n+1</code></b>. 
+	 * @param name The name to search the arguments for. Case insensitive.
+	 * @param throwOnConversionErr Defines what happens if the conversion of the argument value string fails 
+	 * where true will throw, false will return the default.
+	 * @param defaultValue The default value to return if the named argument is not found.
+	 * @param args The arguments to search
+	 * @return the value for the specified command line argument or the default value if not found
+	 */
+	public static String[] getCmdLine(final String name, final boolean throwOnConversionErr, final String[] defaultValue, final String...args) {
+		final String value = getCmdLine(name, null);
+		if(value==null) return defaultValue;
+		return StringHelper.splitString(value, ',', true);
+	}
+	
+	/**
+	 * Locates the command line argument named <b><code>--&lt;name&gt;</code></b>.
+	 * If found, returns true, otherwise returns false. 
+	 * @param name The name to search the arguments for. Case insensitive.
+	 * @param args The arguments to search
+	 * @return true if the named argument was found, false otherwise
+	 */
+	public static boolean getBooleanCmdLine(final String name, final String...args) {
+		if(name==null || name.trim().isEmpty()) throw new IllegalArgumentException("The passed argument name was null or empty");
+		if(args.length==0) return false;
+		final String _name = "--" + name.trim().toLowerCase();
+		final int maxIndex = args.length;		
+		for(int i = 0; i < args.length; i++) {
+			if(_name.equals(args[i]) && i < maxIndex) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
 }
+
+
+
