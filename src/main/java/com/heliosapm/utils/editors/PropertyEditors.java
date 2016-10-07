@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.heliosapm.utils.lang.StringHelper;
 import com.heliosapm.utils.url.URLHelper;
 
 /**
@@ -100,11 +101,46 @@ public class PropertyEditors {
 		}
 	}
 	
+	/**
+	 * <p>Title: StringArrayEditor</p>
+	 * <p>Description: String array property editor</p> 
+	 * <p>Company: Helios Development Group LLC</p>
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>com.heliosapm.utils.editors.PropertyEditor.StringArrayEditor</code></p>
+	 */
+	public static class StringArrayEditor extends PropertyEditorSupport {
+		/**
+		 * {@inheritDoc}
+		 * @see java.beans.PropertyEditorSupport#setAsText(java.lang.String)
+		 */
+		@Override
+		public void setAsText(final String text) throws IllegalArgumentException {
+			if(text==null || text.trim().isEmpty()) {
+				setValue(null);
+			} else {
+				setValue(StringHelper.splitString(text.trim(), ',', true));
+			}
+		}
+		
+		@Override
+		public String getAsText() {			
+			return StringHelper.fastConcatAndDelim(true, ",", (String[])getValue());
+		}
+	}
 	
-	static {
+	public static void register() {
 		PropertyEditorManager.registerEditor(URL.class, URLEditor.class);
 		PropertyEditorManager.registerEditor(URL[].class, URLArrayEditor.class);
+		PropertyEditorManager.registerEditor(String[].class, StringArrayEditor.class);
 	}
+	
+	static {
+		register();
+	}
+	
+
+	
+	
 
 
 }
