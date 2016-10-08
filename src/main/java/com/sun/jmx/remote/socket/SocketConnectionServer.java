@@ -133,7 +133,7 @@ public class SocketConnectionServer implements MessageConnectionServer {
 	 * serves to check that the address in the URL is a valid
 	 * local address. */
 	if (wildcard) {
-	    ss = new ServerSocket(0, DEFAULT_BACKLOG, InetAddress.getByName(host));
+	    ss = new ServerSocket(0, DefaultConfig.getServerBacklog(env), InetAddress.getByName(host));
 
 	    ss.close();
 	}
@@ -159,6 +159,7 @@ public class SocketConnectionServer implements MessageConnectionServer {
 	if ( o != null && DefaultConfig.getServerReuseAddress(newEnv)) {
 	    try {
 		Class cc = ServerSocket.class;
+		Constructor ctor = cc.getConstructor(int.class, int.class);
 		Method m1 = cc.getMethod("setReuseAddress", new Class[]
 		    {boolean.class});
 
@@ -167,12 +168,13 @@ public class SocketConnectionServer implements MessageConnectionServer {
 
 
 		ss = (ServerSocket)cc.newInstance();
+				//ctor.newInstance(port, DefaultConfig.getServerBacklog(env));
 
 		// setReusAddress
 		m1.invoke(ss, new Object[] {Boolean.TRUE});
 
 		// bind
-		m2.invoke(ss, new Object[] {o, new Integer(DEFAULT_BACKLOG)});
+		m2.invoke(ss, new Object[] {o, new Integer(DefaultConfig.getServerBacklog(env))});
 	    } catch (RuntimeException re) {
 		throw re;
 	    } catch (Exception e) {
@@ -187,6 +189,12 @@ public class SocketConnectionServer implements MessageConnectionServer {
 			e = (Exception)t;
 		    }
 		}
+		
+		ss.setReceiveBufferSize(DefaultConfig.getServerReceiveBufferSize(env));
+		ss.setReuseAddress(DefaultConfig.isServerReuseAddress(env));
+		ss.setSoTimeout(DefaultConfig.getServerSoTimeout(env));
+		
+
 
 		/* possible: ClassNotFoundException,
 		   NoSuchMethodException,
@@ -201,9 +209,9 @@ public class SocketConnectionServer implements MessageConnectionServer {
 	    }
 	} else { // 1.3 or earlier or not reuse address 
 	    if (wildcard) {
-		ss = new ServerSocket(port, DEFAULT_BACKLOG);
+		ss = new ServerSocket(port, DefaultConfig.getServerBacklog(env));
 	    } else {
-		ss = new ServerSocket(port, DEFAULT_BACKLOG, InetAddress.getByName(host));
+		ss = new ServerSocket(port, DefaultConfig.getServerBacklog(env), InetAddress.getByName(host));
 	    }
 	}
 

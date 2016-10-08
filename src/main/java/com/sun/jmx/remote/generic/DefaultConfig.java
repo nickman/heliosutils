@@ -50,18 +50,11 @@
 
 package com.sun.jmx.remote.generic;
 
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Map;
 
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.InstanceNotFoundException;
-
-import javax.management.remote.JMXConnectorFactory;
-
-import com.sun.jmx.remote.generic.ServerAdmin;
-import com.sun.jmx.remote.generic.SynchroMessageConnection;
-import com.sun.jmx.remote.generic.SynchroMessageConnectionServer;
-
+import com.heliosapm.utils.config.ConfigurationHelper;
 import com.sun.jmx.remote.opt.util.EnvHelp;
 
 public class DefaultConfig {
@@ -228,33 +221,74 @@ public class DefaultConfig {
 
 	return ret;
     }
+    
 
-    /**
-     * <p>Name of the attribute that specifies a
-     * <code>ClientSynchroMessageConnection</code> object.  The value
-     * associated with this attribute is a
-     * <code>ClientSynchroMessageConnection</code> object</p>
-     */
-    public static final String CLIENT_SYNCHRO_MESSAGE_CONNECTION =
-	"com.sun.jmx.remote.generic.synchro.client";
+    // ===============================================================================
+    //		CLIENT SOCKET OPTIONS
+    // ===============================================================================
+    
     
     /**
      * <p>Name of the attribute that specifies whether or not we set
      * set keep alive on the client socket. Its default value is false</p>
      */
     public final static String CLIENT_KEEP_ALIVE = "jmx.client.socket.keepalive";
+    
+    
+    /**
+     * Returns the <b>socket keep alive</b> for a client socket connection.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the socket keep alive
+     */
+    public static boolean isClientKeepAlive(final Map<String, ?> env) {
+    	final Object v = env.get(CLIENT_KEEP_ALIVE);
+    	if(v!=null) return "true".equals(v.toString().trim().toLowerCase());
+    	return ConfigurationHelper.getBooleanSystemThenEnvProperty(CLIENT_KEEP_ALIVE, SocketDefaults.clientKeepAlive());
+    }
+
 
     /**
      * <p>Name of the attribute that specifies the receive buffer size.
-     * Its default value is platform dependent (Windows: 8192) </p>
+     * Its default value is platform dependent (Windows: 8192, Linux: 43690) </p>
      */
     public final static String CLIENT_RECEIVE_BUFF = "jmx.client.socket.recbuff";
+    
+    /**
+     * Returns the <b>socket receive buffer size in bytes</b> for a client socket connection.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the socket receive buffer size in bytes
+     */
+    public static int getClientReceiveBufferSize(final Map<String, ?> env) {
+    	try {
+    		final Object v = env.get(CLIENT_RECEIVE_BUFF);
+    		if(v!=null) return Number.class.isInstance(v) ? ((Number)v).intValue() : new Double(v.toString().trim()).intValue();
+    	} catch (Exception x) {/* No Op */}
+    	return ConfigurationHelper.getIntSystemThenEnvProperty(CLIENT_RECEIVE_BUFF, SocketDefaults.clientReceiveBufferSize());
+    }
+    
 
     /**
      * <p>Name of the attribute that specifies the send buffer size.
-     * Its default value is platform dependent (Windows: 8192) </p>
+     * Its default value is platform dependent (Windows: 8192, Linux: 8192) </p>
      */
     public final static String CLIENT_SEND_BUFF = "jmx.client.socket.sendbuff";
+    
+    /**
+     * Returns the <b>socket send buffer size in bytes</b> for a client socket connection.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the socket send buffer size in bytes
+     */
+    public static int getClientSendBufferSize(final Map<String, ?> env) {
+    	try {
+    		final Object v = env.get(CLIENT_SEND_BUFF);
+    		if(v!=null) return Number.class.isInstance(v) ? ((Number)v).intValue() : new Double(v.toString().trim()).intValue();
+    	} catch (Exception x) {/* No Op */}
+    	return ConfigurationHelper.getIntSystemThenEnvProperty(CLIENT_SEND_BUFF, SocketDefaults.clientSendBufferSize());
+    }
+    
     
     /**
      * <p>Name of the attribute that specifies the SO_REUSEADDR socket option.
@@ -263,10 +297,36 @@ public class DefaultConfig {
     public final static String CLIENT_REUSE_ADDR = "jmx.client.socket.reuseaddr";
     
     /**
+     * Returns the <b>socket reuse address</b> for a client socket connection.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the socket reuse address
+     */
+    public static boolean isClientReuseAddress(final Map<String, ?> env) {
+    	final Object v = env.get(CLIENT_REUSE_ADDR);
+    	if(v!=null) return "true".equals(v.toString().trim().toLowerCase());
+    	return ConfigurationHelper.getBooleanSystemThenEnvProperty(CLIENT_REUSE_ADDR, SocketDefaults.clientReuseAddress());
+    }
+    
+    
+    /**
      * <p>Name of the attribute that specifies if tcpnodelay (nagle's algorithm).
      * is disabled. Its default value is false, meaning nagle is in effect. </p>
      */
     public final static String CLIENT_TCP_NODELAY = "jmx.client.socket.tcpnodelay";
+    
+    /**
+     * Returns the <b>socket tcp no delay</b> for a client socket connection.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the socket tcp no delay
+     */
+    public static boolean isClientTcpNoDelay(final Map<String, ?> env) {
+    	final Object v = env.get(CLIENT_TCP_NODELAY);
+    	if(v!=null) return "true".equals(v.toString().trim().toLowerCase());
+    	return ConfigurationHelper.getBooleanSystemThenEnvProperty(CLIENT_TCP_NODELAY, SocketDefaults.clientTcpNoDelay());
+    }
+    
     
     /**
      * <p>Name of the attribute that specifies an SO_TIMEOUT meaning a timeout
@@ -274,6 +334,115 @@ public class DefaultConfig {
      */
     public final static String CLIENT_SO_TIMEOUT = "jmx.client.socket.sotimeout";
     
+    /**
+     * Returns the <b>socket so timeout in millis</b> for a client socket connection.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the socket so timeout in millis
+     */
+    public static int getClientSoTimeout(final Map<String, ?> env) {
+    	try {
+    		final Object v = env.get(CLIENT_SO_TIMEOUT);
+    		if(v!=null) return Number.class.isInstance(v) ? ((Number)v).intValue() : new Double(v.toString().trim()).intValue();
+    	} catch (Exception x) {/* No Op */}
+    	return ConfigurationHelper.getIntSystemThenEnvProperty(CLIENT_SO_TIMEOUT, SocketDefaults.clientSoTimeout());
+    }
+    
+
+    // ===============================================================================
+    //		SERVER SOCKET OPTIONS
+    // ===============================================================================
+    
+    /**
+     * <p>Name of the attribute that specifies the server side accepted socket receive buffer size.
+     * Its default value is platform dependent (Windows: 8192, Linux: 43690) </p>
+     */
+    public final static String SERVER_RECEIVE_BUFF = "jmx.server.socket.recbuff";
+
+    /**
+     * Returns the <b>socket receive buffer size in bytes</b> for a server accepted socket.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the server accepted socket receive buffer size in bytes
+     */
+    public static int getServerReceiveBufferSize(final Map<String, ?> env) {
+    	try {
+    		final Object v = env.get(SERVER_RECEIVE_BUFF);
+    		if(v!=null) return Number.class.isInstance(v) ? ((Number)v).intValue() : new Double(v.toString().trim()).intValue();
+    	} catch (Exception x) {/* No Op */}
+    	return ConfigurationHelper.getIntSystemThenEnvProperty(SERVER_RECEIVE_BUFF, SocketDefaults.serverReceiveBufferSize());
+    }
+    
+    
+    /**
+     * <p>Name of the attribute that specifies the server side accepted socket SO_REUSEADDR option.
+     * Its default value is platform dependent (Windows: false, Linux: true) </p>
+     */
+    public final static String SERVER_REUSE_ADDR = "jmx.server.socket.reuseaddr";
+    
+    /**
+     * Returns the <b>socket reuse address</b> for a server accepted socket.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the server accepted socket reuse address
+     */
+    public static boolean isServerReuseAddress(final Map<String, ?> env) {
+    	final Object v = env.get(SERVER_REUSE_ADDR);
+    	if(v!=null) return "true".equals(v.toString().trim().toLowerCase());
+    	return ConfigurationHelper.getBooleanSystemThenEnvProperty(SERVER_REUSE_ADDR, SocketDefaults.serverReuseAddress());
+    }
+    
+    /**
+     * <p>Name of the attribute that specifies the server side accepted socket SO_TIMEOUT meaning a timeout
+     * on socket blocking time in millis. Its default value is 0 (infinite)</p>
+     */
+    public final static String SERVER_SO_TIMEOUT = "jmx.server.socket.sotimeout";
+    
+    /**
+     * Returns the <b>socket so timeout in millis</b> for a server accepted socket.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the server accepted socket so timeout in millis
+     */
+    public static int getServerSoTimeout(final Map<String, ?> env) {
+    	try {
+    		final Object v = env.get(SERVER_SO_TIMEOUT);
+    		if(v!=null) return Number.class.isInstance(v) ? ((Number)v).intValue() : new Double(v.toString().trim()).intValue();
+    	} catch (Exception x) {/* No Op */}
+    	return ConfigurationHelper.getIntSystemThenEnvProperty(SERVER_SO_TIMEOUT, SocketDefaults.serverReceiveBufferSize());
+    }
+    
+    /**
+     * <p>Name of the attribute that specifies the server side socket backlog.
+     * Ddefault value is 50 for sockets, but 100 for JMXMP</p>
+     */
+    public final static String SERVER_BACKLOG = "jmx.server.socket.backlog";
+    
+    /**
+     * Returns the <b>backlog</b> for a server socket.
+     * The passed env map will be inspected first, then defaults to {@link ConfigurationHelper}.
+     * @param env The jmx client's environment map
+     * @return the server socket backlog
+     */
+    public static int getServerBacklog(final Map<String, ?> env) {
+    	try {
+    		final Object v = env.get(SERVER_BACKLOG);
+    		if(v!=null) return Number.class.isInstance(v) ? ((Number)v).intValue() : new Double(v.toString().trim()).intValue();
+    	} catch (Exception x) {/* No Op */}
+    	return ConfigurationHelper.getIntSystemThenEnvProperty(SERVER_BACKLOG, 100);
+    }
+
+    // ===============================================================================
+    
+    /**
+     * <p>Name of the attribute that specifies a
+     * <code>ClientSynchroMessageConnection</code> object.  The value
+     * associated with this attribute is a
+     * <code>ClientSynchroMessageConnection</code> object</p>
+     */
+    public static final String CLIENT_SYNCHRO_MESSAGE_CONNECTION =
+	"com.sun.jmx.remote.generic.synchro.client";
+
 
     /** 
      * Returns a <code>ClientSynchroMessageConnection</code> object

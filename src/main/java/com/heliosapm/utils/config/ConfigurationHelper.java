@@ -486,6 +486,28 @@ public class ConfigurationHelper {
 		return appendAudit(caller, name, defaultValue.toArray(new String[0]), getArraySystemThenEnvProperty(name, defaultValue.toArray(new String[0]), properties));
 	}
 	
+	/**
+	 * Returns the value defined as an intarray looked up from the System properties, then Environment.
+	 * The values should be comma separated. Strips out any null or blank entries.
+	 * @param name The name of the key to lookup.
+	 * @param defaultValue The default value to return as an int array if the name is not defined.
+	 * @param properties An array of properties to search in. If empty or null, will search system properties, then Environment. The first located match will be returned.
+	 * @return The int array or the passed default value.
+	 */
+	public static int[] getIntArraySystemThenEnvProperty(final String name, final int[] defaultValue, final Properties...properties) {
+		final String[] sarr = getArraySystemThenEnvProperty(name, (String[])null, properties);
+		if(sarr==null) return defaultValue;
+		final int[] arr = new int[sarr.length];
+		try {
+			for(int i = 0; i < sarr.length; i++) {
+				arr[i] = new Double(sarr[i].trim()).intValue();
+			}
+			return arr;
+		} catch (Exception ex) {
+			return defaultValue;
+		}
+		
+	}
 	
 	/**
 	 * Returns the enum member indicated by the configured value looked up in System Properties then Environment with the passed name automatically upper cased.
