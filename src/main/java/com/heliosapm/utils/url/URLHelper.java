@@ -308,6 +308,8 @@ public class URLHelper {
 //			System.err.println("NOT A File (" + urlStr + "): [" + new File(urlStr.toString()).getAbsoluteFile() + "]");
 			throw new Exception("No conversion was successful");
 		} catch (Exception e) {
+			URL url = Thread.currentThread().getContextClassLoader().getResource(urlStr);
+			if(url!=null) return url;
 			throw new RuntimeException("Failed to create URL from string [" + urlStr + "]", e);
 		}
 	}
