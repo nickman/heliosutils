@@ -41,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.xml.bind.DatatypeConverter;
+
 import com.heliosapm.utils.config.ConfigurationHelper;
 
 /**
@@ -1027,5 +1029,31 @@ public class StringHelper {
         }
         return (si == slen);
     }
+    
+	/**
+	 * Converts the passed bytes to a hex string
+	 * @param bytes the bytes to convert
+	 * @return the hex string or null if the bytes were null or zero length
+	 */
+	public static String bytesToHex(final byte[] bytes) {
+		return bytes==null ? "" : DatatypeConverter.printHexBinary(bytes);
+	}
+	
+	/**
+	 * Converts the passed hex string to a byte array
+	 * @param s the hex string to convert
+	 * @return the byte array or null if the hex string was null or empty
+	 */
+	public static byte[] hexToBytes(final String s) {
+		if (s == null || s.isEmpty()) {
+			return null;
+		}
+		String id = s;
+		if(id.length() % 2 > 0) {
+			id = "0" + id;
+		}	      
+		return DatatypeConverter.parseHexBinary(id);		
+	}
+    
 	
 }
