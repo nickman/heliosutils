@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
-import java.lang.management.PlatformManagedObject;
+//import java.lang.management.PlatformManagedObject;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -2436,13 +2436,13 @@ while(m.find()) {
 		publish(ManagementFactory.getOperatingSystemMXBean(), mbs);
 		publish(ManagementFactory.getRuntimeMXBean(), mbs);
 		publish(ManagementFactory.getThreadMXBean(), mbs);
-		for(PlatformManagedObject p : ManagementFactory.getGarbageCollectorMXBeans()) {
+		for(Object p : ManagementFactory.getGarbageCollectorMXBeans()) {
 			publish(p, mbs);
 		}
-		for(PlatformManagedObject p : ManagementFactory.getMemoryPoolMXBeans()) {
+		for(Object p : ManagementFactory.getMemoryPoolMXBeans()) {
 			publish(p, mbs);
 		}
-		for(PlatformManagedObject p : ManagementFactory.getMemoryManagerMXBeans()) {
+		for(Object p : ManagementFactory.getMemoryManagerMXBeans()) {
 			publish(p, mbs);
 		}
 		registerMBean(mbs, JMXHelper.objectName("java.util.logging:type=Logging"), LogManager.getLoggingMXBean());
@@ -2455,15 +2455,16 @@ while(m.find()) {
 	 * @param obj The PlatformManagedObject to register
 	 * @param server The MBeanServer to register in
 	 */
-	public static void publish(final PlatformManagedObject obj, final MBeanServer server) {
+	public static void publish(final Object obj, final MBeanServer server) {
 		if(obj==null) throw new IllegalArgumentException("The passed PlatformManagedObject was null");
 		if(server==null) throw new IllegalArgumentException("The passed MBeanServer was null");
-		try {
-			if(!server.isRegistered(obj.getObjectName())) {
-				server.registerMBean(obj, obj.getObjectName());
+		final ObjectName on = (ObjectName)PrivateAccessor.invoke(obj, "getObjectName");
+		try {			
+			if(!server.isRegistered(on)) {
+				server.registerMBean(obj, on);
 			}
 		} catch (Exception ex) {
-			log.log(Level.WARNING, "Failed to register PlatformManagedObject [" + obj.getObjectName() + "] against MBeanServer [" + server.getDefaultDomain() + "]", ex);			
+			log.log(Level.WARNING, "Failed to register PlatformManagedObject [" + on + "] against MBeanServer [" + server.getDefaultDomain() + "]", ex);			
 		}
 	}
 	
