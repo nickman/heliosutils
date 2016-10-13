@@ -153,12 +153,12 @@ public class SocketConnection implements SocketConnectionIf, MessageConnection {
 				if (sock == null) {
 					sock = new Socket();
 					// Configure socket options
-//					sock.setTcpNoDelay(DefaultConfig.isClientTcpNoDelay(env));
-//					sock.setKeepAlive(DefaultConfig.isClientKeepAlive(env));
-//					sock.setReceiveBufferSize(DefaultConfig.getClientReceiveBufferSize(env));
-//					sock.setSendBufferSize(DefaultConfig.getClientSendBufferSize(env));
-//					sock.setSoTimeout(DefaultConfig.getClientSoTimeout(env));
-//					sock.setReuseAddress(DefaultConfig.isClientReuseAddress(env));
+					sock.setTcpNoDelay(DefaultConfig.isClientTcpNoDelay(env));
+					sock.setKeepAlive(DefaultConfig.isClientKeepAlive(env));
+					sock.setReceiveBufferSize(DefaultConfig.getClientReceiveBufferSize(env));
+					sock.setSendBufferSize(DefaultConfig.getClientSendBufferSize(env));
+					sock.setSoTimeout(DefaultConfig.getClientSoTimeout(env));
+					sock.setReuseAddress(DefaultConfig.isClientReuseAddress(env));
 				    sock.connect(new InetSocketAddress(addr, port));
 				}
 
