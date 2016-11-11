@@ -18,8 +18,9 @@ under the License.
  */
 package com.heliosapm.utils.lang;
 
-import java.io.File;
+import java.lang.management.LockInfo;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.lang.ref.WeakReference;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -40,6 +42,7 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -946,16 +949,82 @@ public class StringHelper {
 	/**
 	 * Formats the stack trace of the passed thread and generates a formatted string.
 	 * @param t The thread
+	 * @param full If true, captures the threads monitors and locks in the stack trace
+	 * at the cost of a slightly more expensive operation, otherwise creates a simple stack trace.
 	 * @return A string representing the stack trace of the passed thread
 	 */
-	public static String formatStackTrace(Thread t) {
+	public static String formatStackTrace(final Thread t, final boolean full) {
 		if(t==null) return "";
+		if(full) return fullThreadStatus(t).toString();
 		StackTraceElement[] stacks = t.getStackTrace();
 		StringBuilder b = new StringBuilder(stacks.length * 50);
 		for(StackTraceElement ste: stacks) {
 			b.append("\n\t").append(ste.toString());
 		}
 		return b.toString();
+	}
+	
+	
+	/**
+	 * Returns a full thread state dump
+	 * @param t The thread to report on
+	 * @return the thread state dump
+	 */
+	public static CharSequence fullThreadStatus(final Thread t) {
+		if(t==null) return "";
+		final ThreadInfo ti = tmx.getThreadInfo(new long[]{t.getId()}, true, true)[0];		
+		final StringBuilder b = new StringBuilder("Thread:").append(t.toString()).append(":");
+		b.append("\n\tState:").append(t.getState().name());
+		b.append("\n\tDaemon:").append(t.isDaemon());
+		b.append("\n\tInterrupted:").append(t.isInterrupted());
+		b.append("\n\tPriority:").append(t.getPriority());
+		b.append("\n\tIn Native:").append(ti.isInNative());
+		final LockInfo li = ti.getLockInfo();
+		if(li!=null) {
+			b.append("\n\tLocked On:");
+			b.append("\n\t\tLock:").append(li.toString());
+			b.append("\n\t\tOwned By:").append(ti.getLockOwnerName());
+		}
+		final LockInfo[] ownableSynchronizers = ti.getLockedSynchronizers();
+		if(ownableSynchronizers.length!=0) {
+			b.append("\n\tOwnable Synchronizers:");
+			for(LockInfo ownedLock : ownableSynchronizers) {
+				b.append("\n\t\t").append(ownedLock.toString());
+			}
+		}
+		b.append("\n\tStack:");
+		final StackTraceElement[] stack = ti.getStackTrace();		
+		final MonitorInfo[] monitors = ti.getLockedMonitors();
+		if(monitors.length == 0) {
+			for(StackTraceElement element: stack) {
+				b.append("\n\t\t").append(element.toString());
+			}
+		} else {
+			//final LinkedList<String> strStack = new LinkedList<String>(Arrays.asList(stack).stream().map(StackTraceElement::toString).collect(Collectors.toList()));
+			final LinkedList<String> strStack = new LinkedList<String>();
+			for(StackTraceElement element: stack) {
+				strStack.add("\n\t\t" + element.toString());
+			}
+			for(MonitorInfo monitor: monitors) {
+				try {
+					strStack.add(monitor.getLockedStackDepth(), "\n\t\t  Monitor:" + monitor.toString());
+				} catch (Exception x) {/* No Op */}
+			}			
+			for(String s: strStack) {
+				b.append(s);
+			}
+		}
+		return b;
+		
+	}
+	
+	/**
+	 * Formats the simple stack trace of the passed thread and generates a formatted string.
+	 * @param t The thread
+	 * @return A string representing the stack trace of the passed thread
+	 */
+	public static String formatStackTrace(final Thread t) {
+		return formatStackTrace(t, false);
 	}	
 
 	
