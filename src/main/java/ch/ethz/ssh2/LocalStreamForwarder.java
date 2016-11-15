@@ -126,7 +126,7 @@ public class LocalStreamForwarder implements LocalStreamForwarderMBean, Closeabl
 			.append(",serial=").append(mySerial)
 		);
 		if(JMXHelper.isRegistered(on)) {
-			if(JMXHelper.getAttribute(on, "Open")) {
+			if(((Boolean)JMXHelper.getAttribute(on, "Open"))) {
 				System.err.println("LocalStreamForward [" + on + "] still open and registered");
 			} else {
 				final ScheduledFuture<?> h = handle.getAndSet(null);

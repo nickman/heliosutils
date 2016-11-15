@@ -378,7 +378,7 @@ public class StringHelper {
 	 * @return the max length, or zero if map is empty
 	 * @param <T> The assumed type of the return
 	 */
-	@SafeVarargs
+	
 	public static <T> int longest(final Map<T, ?> map) {
 		if(map==null || map.isEmpty()) return 0;
 		final T t = map.keySet().iterator().next();

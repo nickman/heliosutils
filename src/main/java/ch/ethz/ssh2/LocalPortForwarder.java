@@ -114,7 +114,7 @@ public class LocalPortForwarder implements LocalPortForwarderMBean, Runnable
 			.append(",localPort=").append(getLocalPort())
 		);
 		if(JMXHelper.isRegistered(on)) {
-			if(JMXHelper.getAttribute(on, "Open")) {
+			if(((Boolean)JMXHelper.getAttribute(on, "Open"))) {
 				System.err.println("LocalPortForward [" + on + "] still open and registered");
 			} else {
 				final ScheduledFuture<?> h = handle.getAndSet(null);
