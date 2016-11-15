@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
+import com.heliosapm.utils.lang.StringHelper;
 import com.heliosapm.utils.url.URLHelper;
 
 /**
@@ -136,6 +137,19 @@ public class MimeTypeManager {
 		final String key = extension.trim().toLowerCase().replace(".", "");
 		final String mtype = mimeTypes.get(key);
 		return mtype==null ? defaultType : mtype;
+	}
+	
+	/**
+	 * Determines the mime type for the passed path.
+	 * The path is split by '.' and the last segment is considered the extension to the file
+	 * @param path The path to test
+	 * @param defaultType The default mime type to return if the extension does not key to a type
+	 * @return the decoded mime type or the default type if not found
+	 */
+	public String getMimeTypeForPath(final String path, final String defaultType) {
+		if(path==null || path.trim().isEmpty()) return defaultType;
+		final String[] segs = StringHelper.splitString(path, '.', true);
+		return getMimeTypeForExt(segs[segs.length-1], defaultType);
 	}
 
 
