@@ -18,6 +18,8 @@ under the License.
  */
 package com.heliosapm.utils.lang;
 
+import java.beans.PropertyEditor;
+import java.beans.PropertyEditorManager;
 import java.lang.management.LockInfo;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
@@ -47,6 +49,7 @@ import java.util.stream.Collectors;
 import javax.xml.bind.DatatypeConverter;
 
 import com.heliosapm.utils.config.ConfigurationHelper;
+import com.heliosapm.utils.enums.Primitive;
 
 /**
  * <p>Title: StringHelper</p>
@@ -77,6 +80,10 @@ public class StringHelper {
 	public static final Pattern SYS_PROP_PATTERN = Pattern.compile("\\$\\{(.*?)(?::(.*?))??\\}");
 	/** Custom substitution pattern */
 	public static final String CUSTOM_EXTRACT_PATTERN = "\\$%s\\{(.*?)*?\\}";
+	
+	/** Typed value substitution pattern */
+	public static final Pattern TYPED_PATTERN = Pattern.compile("\\$typed\\{(.*?):(.*)\\}");
+
 	
 	/** Indicates if this platform uses backslashes for file separators */
 	public static final boolean BACK_SLASH_FILESEP = java.io.File.separator.equals("\\");
@@ -165,6 +172,31 @@ public class StringHelper {
 		}
 		m.appendTail(b);
 		return b.toString();
+	}
+	
+	
+	
+	/**
+	 * Converts a string describing a string value and a type to the specified type 
+	 * @param value The value to convert
+	 * @return The converted value or a plain string if could not be converted
+	 */
+	public static Object convertTyped(final CharSequence value) {
+		if(value==null) return null;
+		final String _value = value.toString().trim();
+		final Matcher m = TYPED_PATTERN.matcher(_value);
+		if(m.matches()) {
+			final String type = m.group(1);
+			final String val = m.group(2);
+			if(type==null || type.trim().isEmpty() || val==null || val.trim().isEmpty()) return _value;
+		    if(Primitive.ALL_CLASS_NAMES.contains(type.trim())) {
+		    	Class<?> clazz = Primitive.PRIMNAME2PRIMCLASS.get(type.trim());
+		    	PropertyEditor pe = PropertyEditorManager.findEditor(clazz);
+		    	pe.setAsText(val.trim());
+		    	return pe.getValue();
+		    }
+		}
+		return _value;
 	}
 	
 	
