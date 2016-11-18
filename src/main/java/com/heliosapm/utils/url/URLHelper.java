@@ -2,9 +2,11 @@ package com.heliosapm.utils.url;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -609,6 +611,49 @@ public class URLHelper {
 		}
 		
 	}
+	
+	/**
+	 * Writes the passed stringy content to the specified file.
+	 * @param content The content to write
+	 * @param file The file to write to
+	 * @param append true to append, false to replace
+	 */
+	public static void writeToFile(final CharSequence content, final File file, final boolean append) {
+		if(content==null) throw new IllegalArgumentException("The passed content was null");
+		if(file==null) throw new IllegalArgumentException("The passed file was null");
+		if(!append) try { file.delete(); } catch (Exception x) {/* No Op */}
+		if(!file.exists()) {
+			try {
+				if(!file.createNewFile()) throw new Exception();
+			} catch (Exception ex) {
+				throw new IllegalArgumentException("Failed to create the file [" + file + "]");
+			}
+		}
+		if(!file.canWrite()) {
+			throw new IllegalArgumentException("Cannot write to the file [" + file + "]");
+		}
+		FileWriter fw = null;
+		BufferedWriter bw = null;
+		
+		try {
+			fw = new FileWriter(file, append);
+			bw = new BufferedWriter(fw);
+			bw.write(content.toString());  // FIXME: do char by char write
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to write to file [" + file + "]", ex);
+		} finally {
+			if(bw!=null) {
+				try { bw.flush(); } catch (Exception x) {/* No Op */}
+				try { bw.close(); } catch (Exception x) {/* No Op */}
+			}
+			if(fw!=null) {
+				try { fw.flush(); } catch (Exception x) {/* No Op */}
+				try { fw.close(); } catch (Exception x) {/* No Op */}
+			}
+		}
+		
+	}
+	
 	
 	
 	/**
