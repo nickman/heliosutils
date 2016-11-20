@@ -69,9 +69,10 @@ public enum TimeUnitSymbol {
 	
 	private TimeUnitSymbol(final TimeUnit unit, final String shortName) {
 		this.unit = unit;
-		this.shortName = shortName;
+		this.shortName = shortName;		
 	}
 	private static final TimeUnitSymbol[] values = values();
+	
 	private static final int MAX_ORD = values.length -1;
 	
 	/** Map to decode a TimeUnit to TimeUnitSymbol */
@@ -90,7 +91,7 @@ public enum TimeUnitSymbol {
 			if(b.length()>0) {
 				b.append(",|");
 			}
-			b.append(tus.shortName);
+			b.append(tus.shortName);			
 		}
 		PERIODS = b.toString();
 		PERIOD_PATTERN = Pattern.compile("(\\d++)([" + PERIODS + "]){1}?", Pattern.CASE_INSENSITIVE);
@@ -105,13 +106,26 @@ public enum TimeUnitSymbol {
 	public final String shortName;
 	
 	/**
+	 * Returns the TimeUnitSymbol for the passed short name
+	 * @param shortName The short name to decode
+	 * @return the TimeUnitSymbol for the passed short name
+	 */
+	public static TimeUnitSymbol fromShortName(final String shortName) {
+		if(shortName==null || shortName.trim().isEmpty()) throw new IllegalArgumentException("The passed shortName was null or empty");
+		final String _shortName = shortName.trim().toLowerCase();
+		final TimeUnitSymbol tus = SHORT2UNIT.get(_shortName);
+		if(tus==null) throw new IllegalArgumentException("The passed shortName [" + shortName + "] was not a valid TimeUnitSymbol short name");
+		return tus;
+	}
+	
+	/**
 	 * Parses a period expression in the form of <b><code>&lt;time value&gt;&lt;unit symbol&gt;</code></b>,
 	 * e.g. <b><code>45ms</code></b> for 45 milliseconds.
 	 * @param value The expression to parse
 	 * @return an NVP containing the parsed time period and unit
 	 */
 	public static NVP<Long, TimeUnitSymbol> period(final String value) {
-		if(value==null || value.trim().isEmpty()) throw new IllegalArgumentException("The passed value was null");
+		if(value==null || value.trim().isEmpty()) throw new IllegalArgumentException("The passed value was null or empty");
 		final Matcher m = PERIOD_PATTERN.matcher(value.trim());
 		if(!m.matches()) throw new IllegalArgumentException("The passed value [" + value + "] was not a valid time period");
 		final long t = Long.parseLong(m.group(1).trim());

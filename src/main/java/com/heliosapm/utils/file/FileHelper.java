@@ -19,6 +19,7 @@ under the License.
 package com.heliosapm.utils.file;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * <p>Title: FileHelper</p>
@@ -29,6 +30,43 @@ import java.io.File;
  */
 
 public class FileHelper {
+	
+	/** The JVM's temporary directory */
+	public static final File TEMP_DIR = new File(System.getProperty("java.io.tmpdir"));
+	
+	/**
+	 * Creates a new temp directory
+	 * @param prefix The optional directory name prefix
+	 * @param suffix The optional directory name suffix
+	 * @param parentDir The optional paarent directory. If null, uses System  <b><code>java.io.tmpdir</code></b>
+	 * @return The created temp directory
+	 */
+	public static File createTempDir(final String prefix, final String suffix, final File parentDir) {
+		final String _prefix = prefix==null ? "" : prefix.trim();
+		final String _suffix = suffix==null ? "" : suffix.trim();
+		final File _parentDir = (parentDir==null || !parentDir.isDirectory()) ? TEMP_DIR : parentDir;
+		try {
+			File f = File.createTempFile(_prefix, _suffix, _parentDir);
+			if(f.delete()) {
+				if(f.mkdir()) return f;				
+			}
+			throw new Exception();
+		} catch (Exception ex) {
+			throw new RuntimeException("Failed to create temp dir in [" + _parentDir + "]" , ex);
+		}
+	}
+
+	/**
+	 * Creates a new temp directory in System  <b><code>java.io.tmpdir</code></b>
+	 * @param prefix The optional directory name prefix
+	 * @param suffix The optional directory name suffix
+	 * @return The created temp directory
+	 */
+	public static File createTempDir(final String prefix, final String suffix) {
+		return createTempDir(prefix, suffix, null);
+	}
+
+	
 	/**
 	 * Cleans out the passed directory
 	 * @param dir the directory to clean
