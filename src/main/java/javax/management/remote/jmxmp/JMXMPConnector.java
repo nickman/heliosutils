@@ -52,12 +52,15 @@ package javax.management.remote.jmxmp;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 
 import javax.management.remote.JMXServiceURL;
+import javax.management.MBeanServer;
+import javax.management.MBeanServerFactory;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.generic.GenericConnector;
 import javax.management.remote.generic.MessageConnection;
@@ -165,6 +168,27 @@ public class JMXMPConnector extends GenericConnector
 	}
 	super.connect(newEnv);
     }
+    
+    
+	/**
+	 * Returns the MBeanServer matching the passed domain, or null if one is not found
+	 * @param domain The JMX domain
+	 * @return the MBeanServer or null
+	 */
+	public static MBeanServer getMBeanServer(final String domain) {
+		System.out.println("Looking for MBeanServer: [" + domain + "]");
+		
+		try { 
+			if(domain.equals("DefaultDomain")) return ManagementFactory.getPlatformMBeanServer();
+		} catch (Exception x) {/* No Op */}
+		for(MBeanServer server: MBeanServerFactory.findMBeanServer(null)) {			
+			final String serverDomain = server.getDefaultDomain();
+			if(serverDomain==null && domain.equals("null")) return server;  // some custom MBeanServers create the platform with a null domain
+			if(server.getDefaultDomain().equals(domain)) return server;
+		}
+		return null;
+	}
+   
 
     /**
      * <p>Returns a string representation of this object.  In general,

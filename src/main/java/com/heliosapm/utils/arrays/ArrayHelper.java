@@ -18,6 +18,8 @@ under the License.
  */
 package com.heliosapm.utils.arrays;
 
+import java.lang.reflect.Array;
+
 import jsr166y.ThreadLocalRandom;
 
 /**
@@ -98,6 +100,13 @@ public abstract class ArrayHelper {
 			arrType = arrType.getComponentType();
 		}
 		return arrType;
+	}
+	
+	public static <T> T[] shift(final int count, T...arr) {
+		final int len = arr.length - count;
+		final T[] sarr = (T[]) Array.newInstance(getBaseType(arr.getClass()), arr.length - count);
+		System.arraycopy(arr, count, sarr, 0, len);
+		return sarr;
 	}
 	
 	private ArrayHelper() {}
