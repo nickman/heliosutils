@@ -4,7 +4,7 @@
 	<groupId>com.heliosapm.utils</groupId>
 	<artifactId>heliosutils</artifactId>
 	<packaging>jar</packaging>
-	<version>1.1-SNAPSHOT</version>
+	<version>1.1</version>
 	<name>HeliosUtils</name>
 	<description>Generic Java Utilities</description>
 	<inceptionYear>2017</inceptionYear>
@@ -47,7 +47,7 @@
   <scm>
     <connection>scm:git:git@github.com:nickman/heliosutils.git</connection>
     <url>https://github.com/nickman/heliosutils</url>
-    <tag>heliosutils-1.0</tag>
+    <tag>heliosutils-1.1</tag>
   </scm>
   
   <developers>
