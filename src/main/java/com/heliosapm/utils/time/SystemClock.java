@@ -270,6 +270,13 @@ public class SystemClock {
 			return Math.round(d);
 		}
 		
+		private long _ratePers(long time, long cnt) {
+			if(time==0 || cnt==0 ) return 0L;			
+			double d = cnt/TimeUnit.NANOSECONDS.toSeconds(time);
+			return Math.round(d);
+		}
+		
+		
 		/**
 		 * Returns the elapsed time since start in ns.
 		 * @return elapsed ns.
@@ -337,7 +344,7 @@ public class SystemClock {
 			long elapsedNs = endNs - startNs;
 			long avgNs = _avg(elapsedNs, cnt);
 			return String.format("Completed %s %s in %s ms.  AvgPer: %s ms/%s \u00b5s/%s ns.",
-					cnt,
+					(long)cnt,
 					unitName, 
 					TimeUnit.MILLISECONDS.convert(elapsedNs, TimeUnit.NANOSECONDS),
 					TimeUnit.MILLISECONDS.convert(avgNs, TimeUnit.NANOSECONDS),
@@ -345,7 +352,18 @@ public class SystemClock {
 					avgNs					
 			);
 		}
-		
+
+		public String printRate(String unitName, double cnt) {
+			endNs = System.nanoTime();
+			long elapsedNs = endNs - startNs;
+			long ratePerSec = _ratePers(elapsedNs, (long)cnt);
+			return String.format("Completed %s %s in %s ms.  Rate(per sec.): %s",
+					(long)cnt,
+					unitName, 
+					TimeUnit.MILLISECONDS.convert(elapsedNs, TimeUnit.NANOSECONDS),
+					ratePerSec
+			);
+		}
 	}
 	
 

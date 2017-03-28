@@ -395,7 +395,7 @@ public class ReferenceService implements Runnable, ReferenceServiceMXBean, Uncau
 								
 				if(removed instanceof ReferenceRunnable) {
 					final ReferenceRunnable rr = (ReferenceRunnable)removed;
-					updateTypeCount(rr.getName());
+//					updateTypeCount(rr.getName());
 					unClearedRefCount.decrement();
 //					System.out.println(">>>>>>> Dequeued [" + removed.getClass().getName() + "]");
 					if(rr.getClearedRunnable()!=null) {

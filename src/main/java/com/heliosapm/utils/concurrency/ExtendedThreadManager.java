@@ -23,6 +23,7 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -495,6 +496,52 @@ public class ExtendedThreadManager extends NotificationBroadcasterSupport implem
 		return threadNames.toArray(new String[threadNames.size()]);
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getNonDaemonThreadIds()
+	 */
+	@Override
+	public long[] getNonDaemonThreadIds() {
+		final CountDownLatch latch = new CountDownLatch(1);
+		ThreadGroup tg = Thread.currentThread().getThreadGroup();
+		ThreadGroup main = tg;
+		while((tg=tg.getParent())!=null) {
+			main = tg;
+		}
+		final ThreadGroup MAIN = main;
+		final Set<Long> threadIds =  new HashSet<Long>(); 
+		Thread t = new Thread(main, "NonDaemonIdFinder") {
+			public void run() {
+				try {			
+					Thread[] allThreads = new Thread[getThreadCount()*10];
+					MAIN.enumerate(allThreads, true);					
+					for(Thread t: allThreads) {
+						if(t==null) break;				
+						if(!t.isDaemon()) {
+							threadIds.add(t.getId());
+						}
+					}	
+				} catch (Exception ex) {
+					ex.printStackTrace(System.err);
+					throw new RuntimeException("Failed to list non-daemon threads:" + ex);
+				} finally {
+					latch.countDown();
+				}
+			}
+		};		
+		t.setDaemon(true);
+		t.start();
+		try { latch.await(5000, TimeUnit.MILLISECONDS); } catch (Exception ex) {}
+		final int size = threadIds.size();
+		final long[] ids = new long[size];
+		final Iterator<Long> iter = threadIds.iterator();
+		for(int i = 0; i < size; i++) {
+			ids[i] = iter.next();
+		}
+		return ids;
+	}
+	
+	
 /*
 Thread[AWT-Shutdown,5,main]
 Thread[AWT-EventQueue-0,6,main]
@@ -652,4 +699,15 @@ Thread[Thread-10,6,main]
 	public CompositeData[] getThreadInfo() {
 		return ExtendedThreadInfo.wrapOpenTypeThreadInfos(delegate.getThreadInfo(delegate.getAllThreadIds(), maxDepth));
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.concurrency.ExtendedThreadManagerMBean#getNonDaemonThreadInfo()
+	 */
+	@Override
+	public CompositeData[] getNonDaemonThreadInfo() {
+		final long[] ids = getNonDaemonThreadIds();
+		return ExtendedThreadInfo.wrapOpenTypeThreadInfos(delegate.getThreadInfo(ids, maxDepth));
+	}
+	
 }

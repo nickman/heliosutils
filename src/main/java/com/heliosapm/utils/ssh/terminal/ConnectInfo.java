@@ -52,7 +52,7 @@ import com.heliosapm.utils.url.URLHelper;
  * <p>Description: Bean construct to wrap connection properties and authentication credentials</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.tsdbex.monitor.ssh.AuthInfo</code></p>
+ * <p><code>com.heliosapm.utils.ssh.terminal.ConnectInfo</code></p>
  */
 
 public class ConnectInfo implements ServerHostKeyVerifier {

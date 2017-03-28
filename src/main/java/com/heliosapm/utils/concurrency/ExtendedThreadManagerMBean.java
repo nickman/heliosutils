@@ -58,6 +58,8 @@ public interface ExtendedThreadManagerMBean extends ThreadMXBean {
 	 */
 	public int getNonDaemonThreadCount();
 	
+	public long[] getNonDaemonThreadIds();
+	
 	/**
 	 * Returns summed up thread stats for all threads with names matching the passed regex.
 	 * @param pattern The regex pattern to match against the threads
@@ -109,6 +111,9 @@ public interface ExtendedThreadManagerMBean extends ThreadMXBean {
 	public long getThreadAllocatedBytes(final long id);
 	
 	public long getThreadAllocatedBytes(final long[] ids);
+	
+	public CompositeData[] getNonDaemonThreadInfo();
+	
 
 }
 

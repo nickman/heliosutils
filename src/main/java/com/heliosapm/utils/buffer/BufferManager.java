@@ -20,6 +20,8 @@ package com.heliosapm.utils.buffer;
 
 import java.io.UTFDataFormatException;
 import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 
 import javax.management.ObjectName;
 
@@ -62,6 +64,10 @@ public class BufferManager implements BufferManagerMBean, ByteBufAllocator {
 	public static final String ENABLE_LEAK_DETECTION = "buffers.leakdetection";
 	/** The default enabled leak detection */
 	public static final boolean DEFAULT_LEAK_DETECTION = false;
+	
+	/** The UTF8 character set */
+	public static final Charset UTF8 = Charset.forName("UTF8");
+	
 	
 
 	/** Indicates if we're using pooled or unpooled byteBuffs in the child channels */
@@ -369,6 +375,44 @@ public class BufferManager implements BufferManagerMBean, ByteBufAllocator {
 	public ByteBuf ioBuffer(final int initialCapacity, final int maxCapacity) {
 		return defaultBufferAllocator.ioBuffer(initialCapacity, maxCapacity);
 	}
+	
+	/**
+	 * Wraps the passed bytes in a ByteBuf of the default type
+	 * @param bytes The bytes to wrap
+	 * @return the wrapping ByteBuf
+	 */
+	public ByteBuf wrap(final byte[] bytes) {
+		return defaultBufferAllocator.buffer(bytes.length).writeBytes(bytes);
+	}
+	
+	/**
+	 * Wraps the passed CharSequence in a ByteBuf of the default type using UTF8 to convert
+	 * @param cs The CharSequence to wrap
+	 * @return the wrapping ByteBuf
+	 */
+	public ByteBuf wrap(final ByteBuffer bb) {
+		return defaultBufferAllocator.buffer(bb.position()).writeBytes(bb);
+	}
+	
+	/**
+	 * Wraps the passed CharSequence in a ByteBuf of the default type
+	 * @param cs The CharSequence to wrap
+	 * @param charSet The character set to convert with. UTF8 is used if null.
+	 * @return the wrapping ByteBuf
+	 */
+	public ByteBuf wrap(final CharSequence cs, final Charset charSet) {
+		return defaultBufferAllocator.buffer(cs.length()).writeBytes(cs.toString().getBytes(charSet==null ? UTF8 : charSet));
+	}
+	
+	/**
+	 * Wraps the passed CharSequence in a ByteBuf of the default type using UTF8 to convert
+	 * @param cs The CharSequence to wrap
+	 * @return the wrapping ByteBuf
+	 */
+	public ByteBuf wrap(final CharSequence cs) {
+		return wrap(cs, UTF8);
+	}
+	
 
 	/**
 	 * @return
