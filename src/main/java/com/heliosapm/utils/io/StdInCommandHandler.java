@@ -71,6 +71,14 @@ public class StdInCommandHandler implements Runnable {
 	 * Creates a new StdInCommandHandler
 	 */
 	private StdInCommandHandler() {
+		commands.put("gc", new Runnable(){
+			@Override
+			public void run() {
+				System.out.println("GC triggered by StdInCommandHandler.");
+				System.gc();
+			}
+		});
+		
 		commands.put("exit", new Runnable(){
 			@Override
 			public void run() {
