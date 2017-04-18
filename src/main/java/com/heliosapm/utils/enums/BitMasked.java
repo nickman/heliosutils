@@ -35,8 +35,7 @@ import java.util.Set;
  */
 
 public interface BitMasked {
-	/** An all zeroes bit mask template */
-	public static final String INTBITS = "0000000000000000000000000000000000000000000000000000000000000000";
+
 
 	/**
 	 * Returns the mask for this member
@@ -73,7 +72,7 @@ public interface BitMasked {
 		 * @return the bit mask for the passed member
 		 */
 		public static <E extends Enum<E>> int ordinalBitMaskInt(final E member) {
-			return Integer.parseInt("1" + INTBITS.substring(0, member.ordinal()), 2);
+			return EnumSupport.getMask(member);
 		}
 		
 		public static boolean isEnabled(final BitMasked member, final int mask) {

@@ -18,7 +18,7 @@ public abstract class AbstractDeltaMeasurer extends AbstractMeasurer {
 	 * Creates a new AbstractDeltaMeasurer
 	 * @param metricOrdinal the metric ordinal
 	 */
-	public AbstractDeltaMeasurer(int metricOrdinal) {
+	public AbstractDeltaMeasurer(final int metricOrdinal) {
 		super(metricOrdinal);
 	}
 	
@@ -27,7 +27,7 @@ public abstract class AbstractDeltaMeasurer extends AbstractMeasurer {
 	 * @see com.heliosapm.shorthand.collectors.measurers.Measurer#measure(boolean, long[])
 	 */
 	@Override
-	public long measure(boolean open, long[] values) {
+	public long measure(final boolean open, final long[] values) {
 		long v = sample();
 		values[metricOrdinal] = open ? v : v-values[metricOrdinal];
 		return v;

@@ -24,7 +24,7 @@ public abstract class AbstractMeasurer implements Measurer {
 	 * Creates a new AbstractMeasurer
 	 * @param metricOrdinal The metric ordinal this measurer reads and writes
 	 */
-	public AbstractMeasurer(int metricOrdinal) {
+	public AbstractMeasurer(final int metricOrdinal) {
 		this.metricOrdinal = metricOrdinal;
 		this.bitMask = metricOrdinal<0 ? -1 : POWS_OF_TWO[metricOrdinal];
 	} 

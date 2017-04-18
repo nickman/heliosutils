@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.heliosapm.utils.enums.BitMasked;
-import com.heliosapm.utils.enums.IntBitMaskedEnum;
+import com.heliosapm.utils.enums.EnumSupport;
 import com.heliosapm.utils.enums.Primitive;
 import com.heliosapm.utils.instrumentation.measure.AbstractDeltaMeasurer;
 import com.heliosapm.utils.instrumentation.measure.DefaultMeasurer;
@@ -116,7 +116,7 @@ public enum MetricCollection implements ICollector<MetricCollection>, BitMasked 
 	 */
 	private MetricCollection(final boolean defaultOn, final boolean isRequiresTI, 
 			final String unit, final String shortName, final String description, final Measurer measurer, final DataStruct ds, final int[] dependencies, final String...subNames) {
-		this.baseMask = IntBitMaskedEnum.POW2[ordinal()];
+		this.baseMask = EnumSupport.getMask(this);
 		this.defaultOn = defaultOn;
 		this.isRequiresTI = isRequiresTI;
 		this.unit = unit;
@@ -155,12 +155,12 @@ public enum MetricCollection implements ICollector<MetricCollection>, BitMasked 
 	/** The location in the open close indicator can be found */
 	public static final int openCloseIndex;
 	
-	/** The bitmask for all metrics enabled */
+	/** The bitMask for all metrics enabled */
 	public static final int allMetricsMask;
-	/** The bitmask for default metrics enabled */
+	/** The bitMask for default metrics enabled */
 	public static final int defaultMetricsMask;
 	/** The pre-apply collectors, needed to be done before the others,  in the order specified */
-	public static final Set<MetricCollection> preApplies = EnumSet.of(MetricCollection.INVOCATION_COUNT);
+	public static final Set<MetricCollection> preApplies = EnumSet.of(MetricCollection.INVOCATION_COUNT);	
 	/** The base bitMasks for metrics that require a ThreadInfo for measurement */
 	private static final int[] threadInfoRequiredMasks;
 	/** the current measurement ThreadInfo */
@@ -261,12 +261,15 @@ public enum MetricCollection implements ICollector<MetricCollection>, BitMasked 
 		if(isRequiresTI(bitMask)) {
 			currentThreadInfo.set(threadMXBean.getThreadInfo(Thread.currentThread().getId()));
 		}			
-		for(MetricCollection m: MetricCollection.values()) {
-			if(m.isEnabled(bitMask)) {
-				values = executeMeasurement(values, m, true);
+		try {
+			for(MetricCollection m: MetricCollection.values()) {
+				if(m.isEnabled(bitMask)) {
+					values = executeMeasurement(values, m, true);
+				}
 			}
+		} finally {
+			currentThreadInfo.remove();
 		}
-		currentThreadInfo.remove();
 		return values;		
 	}
 	
@@ -279,16 +282,19 @@ public enum MetricCollection implements ICollector<MetricCollection>, BitMasked 
 		int bitMask = (int)values[bitMaskIndex];
 		if(isRequiresTI(bitMask)) {
 			currentThreadInfo.set(threadMXBean.getThreadInfo(Thread.currentThread().getId()));
-		}			
-		for(MetricCollection m: MetricCollection.values()) {
-			if(m.isEnabled(bitMask)) {
-				values = executeMeasurement(values, m, false);
+		}	
+		try {
+			for(MetricCollection m: MetricCollection.values()) {
+				if(m.isEnabled(bitMask)) {
+					values = executeMeasurement(values, m, false);
+				}
 			}
+			if(RETURN_COUNT.isEnabled(bitMask)) {
+				values[RETURN_COUNT.ordinal()]++;
+			}
+		} finally {
+			currentThreadInfo.remove();
 		}
-		if(RETURN_COUNT.isEnabled(bitMask)) {
-			values[RETURN_COUNT.ordinal()]++;
-		}
-		currentThreadInfo.remove();
 		values[openCloseIndex] = 0;
 		return values;				
 	}
@@ -372,129 +378,216 @@ public enum MetricCollection implements ICollector<MetricCollection>, BitMasked 
 		return values();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getBitMaskOf(java.lang.Object[])
+	 */
+	@SuppressWarnings("unchecked")
 	@Override
-	public int getBitMaskOf(String... collectorNames) {
-		// TODO Auto-generated method stub
-		return 0;
+	public <E extends Enum<E> & BitMasked> int getBitMaskOf(final Object... collectorNames) {
+		return EnumSupport.getEnabledBitMask(true, (Class<E>)getClass(), collectorNames);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#preFlush(long, int)
+	 */
 	@Override
-	public void preFlush(long address, int bitMask) {
+	public void preFlush(final long address, final int bitMask) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#resetMemSpace(long, int)
+	 */
+	@Override
+	public void resetMemSpace(long address, int bitMask) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#apply(long, long[])
+	 */
+	@Override
+	public void apply(final long address, final long[] collectedValues) {
 		// TODO Auto-generated method stub
 		
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#preApply(long, long[])
+	 */
 	@Override
-	public int getBitMaskIndex() {
+	public void preApply(final long address, final long[] collectedValues) {
 		// TODO Auto-generated method stub
-		return 0;
+		
 	}
-
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getOffsets(int)
+	 */
 	@Override
-	public Measurer getMeasurer() {
+	public Map<MetricCollection, Long> getOffsets(final int bitMask) {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
+	
+	
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getMeasurer()
+	 */
+	@Override
+	public Measurer getMeasurer() {		
+		return measurer;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#isDefaultOn()
+	 */
 	@Override
 	public boolean isDefaultOn() {
-		// TODO Auto-generated method stub
-		return false;
+		return defaultOn;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#enable(int)
+	 */
 	@Override
-	public int enable(int bitMask) {
-		// TODO Auto-generated method stub
-		return 0;
+	public int enable(final int bitMask) {
+		return StaticOps.enableFor(this, bitMask);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getUnit()
+	 */
 	@Override
 	public String getUnit() {
-		// TODO Auto-generated method stub
-		return null;
+		return unit;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getShortName()
+	 */
 	@Override
 	public String getShortName() {
-		// TODO Auto-generated method stub
-		return null;
+		return shortName;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getDescription()
+	 */
 	@Override
 	public String getDescription() {
-		return null;
+		return description;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getDataStruct()
+	 */
 	@Override
 	public DataStruct getDataStruct() {
-		// TODO Auto-generated method stub
-		return null;
+		return ds;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getSubMetricNames()
+	 */
 	@Override
 	public String[] getSubMetricNames() {
-		// TODO Auto-generated method stub
-		return null;
+		return subNames;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getAllocationFor(int)
+	 */
 	@Override
-	public long getAllocationFor(int bitMask) {
-		// TODO Auto-generated method stub
-		return 0;
+	public long getAllocationFor(final int bitMask) {
+		long size = 0;
+		final Set<MetricCollection> enabled = getEnabledCollectors(bitMask);
+		for(MetricCollection mc: enabled) {
+			size += mc.ds.byteSize;
+		}
+		return size;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getEnabledCollectors(int)
+	 */
+	@SuppressWarnings("unchecked")
 	@Override
-	public Set<MetricCollection> getEnabledCollectors(int bitmask) {
-		// TODO Auto-generated method stub
-		return null;
+	public <E extends Enum<E> & BitMasked> Set<MetricCollection> getEnabledCollectors(final int bitMask) {
+		return (Set<MetricCollection>) EnumSupport.getEnabled((Class<E>)getClass(), bitMask);
 	}
 
+
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getDefaultValues(int)
+	 */
 	@Override
-	public void resetMemSpace(long address, int bitmask) {
-		// TODO Auto-generated method stub
-		
+	public long[][] getDefaultValues(final int bitMask) {
+		final Set<MetricCollection> set = getEnabledCollectors(bitMask);
+		final long[][] defaultValues = new long[set.size()][];
+		int index = 0;
+		for(MetricCollection mc: set) {
+			defaultValues[index] = new long[]{mc.ordinal(), -1L};
+			index++;
+		}
+		return defaultValues;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getPreApplies(int)
+	 */
 	@Override
-	public long[][] getDefaultValues(int bitMask) {
-		// TODO Auto-generated method stub
-		return null;
+	public MetricCollection[] getPreApplies(final int bitMask) {
+		return preApplies.toArray(new MetricCollection[preApplies.size()]);
 	}
 
-	@Override
-	public MetricCollection[] getPreApplies(int bitmask) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#isPreApply()
+	 */
 	@Override
 	public boolean isPreApply() {
-		// TODO Auto-generated method stub
-		return false;
+		return preApplies.contains(this);
 	}
 
-	@Override
-	public void apply(long address, long[] collectedValues) {
-		// TODO Auto-generated method stub
-		
-	}
 
-	@Override
-	public void preApply(long address, long[] collectedValues) {
-		// TODO Auto-generated method stub
-		
-	}
 
+	/**
+	 * {@inheritDoc}
+	 * @see com.heliosapm.utils.instrumentation.ICollector#getEnabledNames(int)
+	 */
 	@Override
-	public Map<MetricCollection, Long> getOffsets(int bitMask) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String[] getEnabledNames(int bitMask) {
-		// TODO Auto-generated method stub
-		return null;
+	public String[] getEnabledNames(final int bitMask) {
+		final Set<MetricCollection> set = getEnabledCollectors(bitMask);
+		final String[] names = new String[set.size()];
+		int index = 0;
+		for(MetricCollection mc: set) {
+			names[index] = mc.name();
+			index++;
+		}
+		return names;
 	}
 	
 	

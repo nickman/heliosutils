@@ -21,6 +21,7 @@ package com.heliosapm.utils.instrumentation;
 import java.util.Map;
 import java.util.Set;
 
+import com.heliosapm.utils.enums.BitMasked;
 import com.heliosapm.utils.instrumentation.measure.Measurer;
 
 /**
@@ -46,7 +47,7 @@ public interface ICollector<T extends Enum<? extends ICollector<T>>> {
 	 * @param collectorNames The collector names to get the bitmask for
 	 * @return the bitmask
 	 */
-	public int getBitMaskOf(String...collectorNames);
+	public <E extends Enum<E> & BitMasked> int getBitMaskOf(Object...collectorNames);
 	
 	/**
 	 * Callback to "massage" the values before writing to the tier 1 data store
@@ -68,11 +69,6 @@ public interface ICollector<T extends Enum<? extends ICollector<T>>> {
 	 */
 	public String name();
 	
-	/**
-	 * Returns the index of the bitmask for this enum
-	 * @return the index of the bitmask for this enum
-	 */
-	public int getBitMaskIndex();
 
 	/**
 	 * Returns a collector's measurer.
@@ -150,7 +146,7 @@ public interface ICollector<T extends Enum<? extends ICollector<T>>> {
 	 * @param bitmask The bitmask to test for
 	 * @return a set of the enabled collectors
 	 */
-	public Set<T> getEnabledCollectors(int bitmask);
+	public <E extends Enum<E> & BitMasked> Set<T> getEnabledCollectors(int bitmask);
 	
 	/**
 	 * Resets the values in a metrics's accumulator memspace after the flush is complete

@@ -386,8 +386,8 @@ public class BufferManager implements BufferManagerMBean, ByteBufAllocator {
 	}
 	
 	/**
-	 * Wraps the passed CharSequence in a ByteBuf of the default type using UTF8 to convert
-	 * @param cs The CharSequence to wrap
+	 * Wraps the passed ByteBuffer in a ByteBuf of the default type
+	 * @param bb The ByteBuffer to wrap
 	 * @return the wrapping ByteBuf
 	 */
 	public ByteBuf wrap(final ByteBuffer bb) {

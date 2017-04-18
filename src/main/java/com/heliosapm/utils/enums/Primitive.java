@@ -39,23 +39,63 @@ import com.heliosapm.utils.unsafe.UnsafeAdapter;
  * <p><code>com.heliosapm.utils.enums.Primitive</code></p>
  */
 
-public enum Primitive {
+public enum Primitive implements ArrayAllocator {
 	/** A boolean primitive */
-	BOOLEAN(8, Boolean.TYPE, Boolean.class, boolean[].class, false, false),
+	BOOLEAN(8, Boolean.TYPE, Boolean.class, boolean[].class, false, false){
+		@Override
+		public Object allocateArray(final int size) {
+			return new boolean[size];
+		}
+	},
 	/** A byte primitive */
-	BYTE(Byte.SIZE, Byte.TYPE, Byte.class, byte[].class, true, false),
+	BYTE(Byte.SIZE, Byte.TYPE, Byte.class, byte[].class, true, false){
+		@Override
+		public Object allocateArray(final int size) {
+			return new byte[size];
+		}
+	},
 	/** A char primitive */
-	CHAR(2, Character.TYPE, Character.class, char[].class, false, false),	
+	CHAR(2, Character.TYPE, Character.class, char[].class, false, false){
+		@Override
+		public Object allocateArray(final int size) {
+			return new char[size];
+		}
+	},	
 	/** A short primitive */
-	SHORT(Short.SIZE, Short.TYPE, Short.class, short[].class, true, false),
+	SHORT(Short.SIZE, Short.TYPE, Short.class, short[].class, true, false){
+		@Override
+		public Object allocateArray(final int size) {
+			return new short[size];
+		}
+	},
 	/** An integer primitive */
-	INTEGER(Integer.SIZE, Integer.TYPE, Integer.class, int[].class, true, false),
+	INTEGER(Integer.SIZE, Integer.TYPE, Integer.class, int[].class, true, false){
+		@Override
+		public Object allocateArray(final int size) {
+			return new int[size];
+		}
+	},
 	/** A float primitive */
-	FLOAT(Float.SIZE, Float.TYPE, Float.class, float[].class, true, true),
+	FLOAT(Float.SIZE, Float.TYPE, Float.class, float[].class, true, true){
+		@Override
+		public Object allocateArray(final int size) {
+			return new float[size];
+		}
+	},
 	/** A long primitive */
-	LONG(Long.SIZE, Long.TYPE, Long.class, long[].class, true, false),
+	LONG(Long.SIZE, Long.TYPE, Long.class, long[].class, true, false){
+		@Override
+		public Object allocateArray(final int size) {
+			return new long[size];
+		}
+	},
 	/** A double primitive */
-	DOUBLE(Double.SIZE, Double.TYPE, Double.class, double[].class, true, true);
+	DOUBLE(Double.SIZE, Double.TYPE, Double.class, double[].class, true, true){
+		@Override
+		public Object allocateArray(final int size) {
+			return new double[size];
+		}
+	};
 	
 	public static final Set<Class<?>> ALL_CLASSES;
 	public static final Set<String> ALL_CLASS_NAMES;
@@ -133,14 +173,6 @@ public enum Primitive {
 		return arr;
 	}
 	
-	/**
-	 * Allocates a primitive array for this primitive type
-	 * @param size The size of the array
-	 * @return the allocated array
-	 */
-	public Object allocateArray(int size) {
-		return Array.newInstance(type, size);
-	}
 	
 	public Number[] convert(Object array) {
 		int size = Array.getLength(array);

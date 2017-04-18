@@ -27,7 +27,7 @@ import java.util.Random;
 
 /**
  * <p>Title: SpaceUnit</p>
- * <p>Description: A byte unti enum, similar to {@link java.util.concurrent.TimeUnit} but for space/memory usage</p> 
+ * <p>Description: A byte unit enum, similar to {@link java.util.concurrent.TimeUnit} but for space/memory usage</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
  * <p><code>com.heliosapm.utils.enums.SpaceUnit</code></p>
