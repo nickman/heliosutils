@@ -20,7 +20,7 @@
 		<jmx-optional.version>1.0-b02-SNAPSHOT</jmx-optional.version>
 		<slf4j.version>1.7.7</slf4j.version>
 		<logback.version>1.0.13</logback.version>
-		<netty.version>4.1.9.Final</netty.version>
+		<netty.version>4.1.10.Final</netty.version>
 		<jboss-serialization.version>4.2.2.GA</jboss-serialization.version>
 		<!-- Plugin Versions -->
 		<jar-plugin.version>2.3</jar-plugin.version>
@@ -91,6 +91,8 @@
       <artifactId>json</artifactId>
       <version>${json.version}</version>
     </dependency>
+
+    
     
 	<dependency>
 	  <groupId>jboss</groupId>
